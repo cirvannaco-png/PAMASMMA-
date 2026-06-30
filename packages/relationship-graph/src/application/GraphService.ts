@@ -1,2 +1,34 @@
-import { GraphModel } from '../domain/GraphModel';
-export class GraphService {private graph = new GraphModel(); registerEntity(id: string, type: string, data: Record<string, unknown>) {this.graph.addNode({ id, type, data });} linkEntities(fromId: string, toId: string, relationshipType: string) {this.graph.addEdge({ from: fromId, to: toId, type: relationshipType });}}
+import { GraphModel, GraphNode, GraphEdge } from '../domain/GraphModel';
+
+export class GraphService {
+  private model = new GraphModel();
+
+  addEntity(
+    id: string,
+    type: 'agent' | 'task' | 'brand' | 'metric',
+    label: string,
+    metadata?: Record<string, unknown>
+  ): void {
+    const node: GraphNode = {
+      id,
+      type,
+      label,
+      metadata: metadata || {},
+    };
+    this.model.addNode(node);
+  }
+
+  connectEntities(sourceId: string, targetId: string, relation: string, weight = 1): void {
+    const edge: GraphEdge = {
+      source: sourceId,
+      target: targetId,
+      relation,
+      weight,
+    };
+    this.model.addEdge(edge);
+  }
+
+  getEntityNetwork(entityId: string): GraphNode[] {
+    return this.model.getRelatedNodes(entityId);
+  }
+}
