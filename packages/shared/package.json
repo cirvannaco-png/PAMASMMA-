@@ -1,1 +1,26 @@
-{"name": "@pamasmma/shared", "version": "2.1.0", "main": "dist/index.js", "scripts": {"build": "tsc", "test": "jest"}}
+{
+  "name": "@pamasmma/shared",
+  "version": "2.1.0",
+  "description": "Shared utilities and interfaces for PAMASMMA",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@opentelemetry/api": "^1.6.0",
+    "@opentelemetry/sdk-node": "^0.43.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.43.0",
+    "@opentelemetry/resources": "^0.43.0",
+    "@opentelemetry/semantic-conventions": "^0.43.0",
+    "prom-client": "^14.2.0",
+    "cockatiel": "^3.1.0",
+    "ajv": "^8.12.0",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/node": "^20.0.0"
+  }
+}

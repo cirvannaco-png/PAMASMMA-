@@ -1,2 +1,5 @@
-import { randomUUID } from 'crypto';
-export function generateUUID(): string {return randomUUID();}
+import { v4 as uuidv4 } from 'uuid';
+
+export function generateUUID(): string {
+  return uuidv4();
+}
