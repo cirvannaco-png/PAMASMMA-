@@ -1,1 +1,24 @@
-{"name": "@pamasmma/marketing-intel", "version": "2.1.0", "main": "dist/index.js", "dependencies": {"@pamasmma/shared": "*", "@pamasmma/memory-core": "*"}}
+{
+  "name": "@pamasmma/marketing-intel",
+  "version": "2.1.0",
+  "description": "Marketing intelligence and decision analysis",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@pamasmma/shared": "*",
+    "@pamasmma/memory-core": "*",
+    "express": "^4.18.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/express": "^4.17.0",
+    "@types/jest": "^29.0.0",
+    "jest": "^29.0.0",
+    "ts-jest": "^29.0.0"
+  }
+}
