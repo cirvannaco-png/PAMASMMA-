@@ -1,0 +1,1 @@
+export class MaliGrey {assessLiability(decision: any): number {if (decision.content?.includes('medical')) return 0.6; if (decision.content?.includes('financial')) return 0.5; return 0.1;}}

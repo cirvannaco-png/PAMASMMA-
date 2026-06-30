@@ -1,0 +1,1 @@
+export class InjectionDetector {private injectionPatterns = [/ignore previous instructions/i, /system prompt/i, /override/i, /jailbreak/i]; scan(input: unknown): boolean {const str = JSON.stringify(input).toLowerCase(); for (const pattern of this.injectionPatterns) {if (pattern.test(str)) {return true;}} return false;}}

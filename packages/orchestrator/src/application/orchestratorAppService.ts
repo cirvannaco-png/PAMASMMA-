@@ -1,0 +1,4 @@
+import { IEventBus } from '@pamasmma/shared';
+import { TaskCreator, TaskRouter } from '../domain/taskManagement';
+import { MemoryManager } from '@pamasmma/memory-core';
+export class OrchestratorAppService {constructor(private taskCreator: TaskCreator, private taskRouter: TaskRouter, private memoryManager: MemoryManager, private eventBus: IEventBus) {} async createAndRouteTask(tenantId: string, type: string, input: unknown): Promise<string> {const task = this.taskCreator.create({ tenant_id: tenantId, type, input }); await this.memoryManager.writeMemory({type: 'episodic', id: task.id, data: task, timestamp: new Date().toISOString()}, {source: 'domain', tenant_id: tenantId, task_id: task.id}); await this.eventBus.emit({type: 'task.created', schema_version: 1, timestamp: new Date().toISOString(), tenant_id: tenantId, task_id: task.id, task_type: type as any, input}); return task.id;}}

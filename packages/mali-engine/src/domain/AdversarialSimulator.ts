@@ -1,0 +1,4 @@
+import { MaliRed } from './agents/MaliRed';
+import { MaliBlue } from './agents/MaliBlue';
+import { MaliGrey } from './agents/MaliGrey';
+export class AdversarialSimulator {private red = new MaliRed(); private blue = new MaliBlue(); private grey = new MaliGrey(); assess(decision: any): 'approve' | 'revise' | 'reject' {const redScore = this.red.simulateUserMisuse(decision) + this.red.simulateMarketAttack(decision) + this.red.simulatePlatformRisk(decision); const blueScore = this.blue.detectVulnerabilities(decision); const greyScore = this.grey.assessLiability(decision); const totalScore = (redScore + blueScore + greyScore) / 3; if (totalScore > 0.7) return 'reject'; if (totalScore > 0.4) return 'revise'; return 'approve';}}

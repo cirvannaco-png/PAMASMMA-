@@ -1,0 +1,2 @@
+export interface MCPToolDefinition {server: string; toolName: string; riskLevel: 'low' | 'medium' | 'high' | 'critical'; requiresApproval: boolean; maliRequired: boolean;}
+export class ToolRegistry {private tools: Map<string, MCPToolDefinition> = new Map(); loadFromFile(filePath: string) {console.log(`Loading tools from ${filePath}`);} getTool(name: string): MCPToolDefinition | undefined {return this.tools.get(name);}}

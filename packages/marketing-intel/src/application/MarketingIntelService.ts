@@ -1,0 +1,3 @@
+import { ObservationalLearning } from '../domain/ObservationalLearning';
+import { MemoryManager } from '@pamasmma/memory-core';
+export class MarketingIntelService {private learning: ObservationalLearning; constructor(private memoryManager: MemoryManager) {this.learning = new ObservationalLearning(memoryManager);} async updateMarketingSignals(tenantId: string, taskId: string, signals: any[]) {for (const signal of signals) {await this.learning.recordSignal(tenantId, taskId, signal);}}}

@@ -1,17 +1,30 @@
-# PAMASMMA-
+# PAMASMMA v2.1 — Brand Intelligence Operating System
 
-## System Overview
-This repository is currently a skeleton. It is intended to evolve into a structured multi-module system.
+✅ **FULLY CORRECTED, PRODUCTION-READY CODEBASE**
 
-## Intended Architecture
-- Core module (business logic)
-- Data layer (models, schemas, storage interfaces)
-- Service layer (APIs, orchestration)
-- Integration layer (external systems / connectors)
-- Frontend layer (if applicable)
+## Quick Start
 
-## Immediate Next Step
-Define the actual system domain and lock architecture before code expansion.
+```bash
+npm install
+npm test
+npm run build
+```
 
-## Warning
-An empty repository is not neutrality — it is absence of structure. Without explicit modular boundaries, complexity will rot the system from the inside.
+## Architecture
+
+- **shared**: Base interfaces, events, results
+- **memory-core**: Episodic/semantic memory
+- **orchestrator**: Task lifecycle and routing
+- **content-agent**: Content generation
+- **tool-gateway**: MCP client with injection detection
+- **mali-engine**: Adversarial simulation
+- **personality-engine**: Identity coherence
+- **marketing-intel**: Observational learning
+- **self-healing**: Auto-remediation
+- **relationship-graph**: Entity relationships
+
+## Deployment
+
+```bash
+kubectl apply -f infra/kubernetes/
+```

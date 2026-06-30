@@ -1,0 +1,1 @@
+{"title": "Agent Behavior", "panels": [{"title": "Drift Warnings", "targets": [{"expr": "agent_drift_warnings_total"}]}]}

@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pamasmma-config
+  namespace: pamasmma
+data:
+  tool-registry.json: '{"servers": []}'

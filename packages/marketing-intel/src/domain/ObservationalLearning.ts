@@ -1,0 +1,2 @@
+import { MemoryManager } from '@pamasmma/memory-core';
+export class ObservationalLearning {constructor(private memoryManager: MemoryManager) {} async recordSignal(tenantId: string, taskId: string, signal: { platform: string; engagementRate: number }) {await this.memoryManager.writeMemory({type: 'semantic', id: `signal-${Date.now()}`, data: signal, timestamp: new Date().toISOString()}, {source: 'domain', tenant_id: tenantId, task_id: taskId});}}

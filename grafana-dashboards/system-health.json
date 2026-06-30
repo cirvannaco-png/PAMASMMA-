@@ -1,0 +1,1 @@
+{"title": "System Health", "panels": [{"title": "Request Latency", "targets": [{"expr": "http_request_duration_seconds"}]}]}

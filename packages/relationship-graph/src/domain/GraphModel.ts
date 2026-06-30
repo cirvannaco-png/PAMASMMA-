@@ -1,0 +1,3 @@
+export interface Node {id: string; type: string; data: Record<string, unknown>;}
+export interface Edge {from: string; to: string; type: string;}
+export class GraphModel {private nodes = new Map<string, Node>(); private edges: Edge[] = []; addNode(node: Node) {this.nodes.set(node.id, node);} addEdge(edge: Edge) {this.edges.push(edge);} getNode(id: string): Node | undefined {return this.nodes.get(id);}}

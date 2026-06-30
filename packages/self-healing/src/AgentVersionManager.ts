@@ -1,0 +1,2 @@
+export interface AgentVersion {agentId: string; promptHash: string; configHash: string; timestamp: string;}
+export class AgentVersionManager {private versions = new Map<string, AgentVersion[]>(); storeVersion(agentId: string, version: AgentVersion) {const versions = this.versions.get(agentId) || []; versions.push(version); this.versions.set(agentId, versions);} getStableVersion(agentId: string): AgentVersion | undefined {const versions = this.versions.get(agentId) || []; return versions.length > 0 ? versions[versions.length - 1] : undefined;}}

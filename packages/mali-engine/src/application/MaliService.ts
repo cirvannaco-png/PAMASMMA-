@@ -1,0 +1,3 @@
+import { IMaliService } from '@pamasmma/shared';
+import { AdversarialSimulator } from '../domain/AdversarialSimulator';
+export class MaliService implements IMaliService {private simulator: AdversarialSimulator; constructor() {this.simulator = new AdversarialSimulator();} async evaluate(taskId: string, inputs: unknown): Promise<'approve' | 'revise' | 'reject'> {return this.simulator.assess(inputs);}}

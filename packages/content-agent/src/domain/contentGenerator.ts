@@ -1,0 +1,1 @@
+export class ContentGenerator {generate(prompt: string): string {return `Generated content for: ${prompt}`;} generateCaption(topic: string): { caption: string; hashtags: string[] } {return {caption: `Check out this ${topic}!`, hashtags: ['#pamasmma', '#marketing', `#${topic}`]};}}

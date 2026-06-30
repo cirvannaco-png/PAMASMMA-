@@ -1,0 +1,2 @@
+import { GraphModel } from '../domain/GraphModel';
+export class GraphService {private graph = new GraphModel(); registerEntity(id: string, type: string, data: Record<string, unknown>) {this.graph.addNode({ id, type, data });} linkEntities(fromId: string, toId: string, relationshipType: string) {this.graph.addEdge({ from: fromId, to: toId, type: relationshipType });}}

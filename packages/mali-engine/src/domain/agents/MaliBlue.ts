@@ -1,0 +1,1 @@
+export class MaliBlue {detectVulnerabilities(decision: any): number {if (decision.content?.includes('click here')) return 0.4; if (decision.content?.includes('limited time')) return 0.3; return 0.1;}}
