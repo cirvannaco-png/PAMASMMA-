@@ -1,1 +1,25 @@
-export class InjectionDetector {private injectionPatterns = [/ignore previous instructions/i, /system prompt/i, /override/i, /jailbreak/i]; scan(input: unknown): boolean {const str = JSON.stringify(input).toLowerCase(); for (const pattern of this.injectionPatterns) {if (pattern.test(str)) {return true;}} return false;}}
+import { injectionAttemptsCounter } from '@pamasmma/shared';
+
+const INJECTION_PATTERNS = [
+  /{{.*?}}/gi,  // Template injection
+  /{{.*?\|.*?}}/gi,  // Jinja filters
+  /<\?php/gi,  // PHP tags
+  /`.*?`/gi,  // Backticks for code execution
+];
+
+export class InjectionDetector {
+  scan(input: unknown): boolean {
+    if (typeof input !== 'string') {
+      return false;
+    }
+
+    for (const pattern of INJECTION_PATTERNS) {
+      if (pattern.test(input)) {
+        injectionAttemptsCounter.inc();
+        console.warn(`Injection pattern detected: ${pattern}`);
+        return true;
+      }
+    }
+    return false;
+  }
+}
