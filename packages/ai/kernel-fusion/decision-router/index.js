@@ -3,6 +3,7 @@
 
 const { eventBus } = require('../../../kernel/event-bus');
 const { schedulerEngine } = require('../../../kernel/scheduler');
+const { aiGovernanceFirewall } = require('../../../ai/governance/firewall');
 
 /**
  * Decision Router
@@ -26,25 +27,42 @@ class DecisionRouter {
   route(aiPlan) {
     if (!aiPlan) throw new Error('Invalid AI plan');
 
+    // 0. Governance validation gate
+    const validation = aiGovernanceFirewall.validate(aiPlan);
+    if (validation.status !== 'approved') {
+      eventBus.emit('ai:rejected', {
+        errors: validation.errors || [],
+        plan: aiPlan,
+        timestamp: Date.now()
+      });
+
+      return {
+        status: 'rejected',
+        errors: validation.errors || []
+      };
+    }
+
+    const safePlan = validation.plan;
+
     // 1. Emit AI decision event
     const eventRecord = eventBus.emit('ai:decision', {
-      intent: aiPlan.intent || 'unknown',
-      metadata: aiPlan.metadata || {},
+      intent: safePlan.intent || 'unknown',
+      metadata: safePlan.metadata || {},
       timestamp: Date.now()
     });
 
     // 2. Convert each step into scheduled tasks
-    if (Array.isArray(aiPlan.steps)) {
-      aiPlan.steps.forEach((step, index) => {
+    if (Array.isArray(safePlan.steps)) {
+      safePlan.steps.forEach((step, index) => {
         schedulerEngine.ingest({
           event: 'ai:task',
           payload: {
             step,
             index,
-            intent: aiPlan.intent
+            intent: safePlan.intent
           },
           timestamp: Date.now(),
-          priority: aiPlan.priority || 5
+          priority: safePlan.priority || 5
         });
       });
     }
@@ -55,7 +73,7 @@ class DecisionRouter {
     return {
       status: 'routed',
       event: eventRecord,
-      tasks: aiPlan.steps?.length || 0
+      tasks: safePlan.steps?.length || 0
     };
   }
 }
