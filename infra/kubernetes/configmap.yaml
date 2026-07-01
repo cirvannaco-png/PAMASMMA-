@@ -4,4 +4,8 @@ metadata:
   name: pamasmma-config
   namespace: pamasmma
 data:
-  tool-registry.json: '{"servers": []}'
+  ENVIRONMENT: production
+  LOG_LEVEL: info
+  KAFKA_BROKERS: kafka-1:9092,kafka-2:9092,kafka-3:9092
+  OTLP_ENDPOINT: http://otel-collector:4317
+  PROMETHEUS_PORT: "9090"

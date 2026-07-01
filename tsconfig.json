@@ -1,1 +1,42 @@
-{"compilerOptions": {"target": "ES2020", "module": "commonjs", "declaration": true, "outDir": "./dist", "strict": true, "esModuleInterop": true, "skipLibCheck": true, "forceConsistentCasingInFileNames": true}}
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "lib": ["ES2020"],
+    "outDir": "./dist",
+    "rootDir": "./",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "composite": true,
+    "baseUrl": ".",
+    "paths": {
+      "@pamasmma/shared": ["packages/shared/src"],
+      "@pamasmma/memory-core": ["packages/memory-core/src"],
+      "@pamasmma/orchestrator": ["packages/orchestrator/src"],
+      "@pamasmma/content-agent": ["packages/content-agent/src"],
+      "@pamasmma/tool-gateway": ["packages/tool-gateway/src"],
+      "@pamasmma/mali-engine": ["packages/mali-engine/src"],
+      "@pamasmma/personality-engine": ["packages/personality-engine/src"],
+      "@pamasmma/marketing-intel": ["packages/marketing-intel/src"],
+      "@pamasmma/relationship-graph": ["packages/relationship-graph/src"],
+      "@pamasmma/self-healing": ["packages/self-healing/src"]
+    }
+  },
+  "references": [
+    { "path": "packages/shared" },
+    { "path": "packages/memory-core" },
+    { "path": "packages/orchestrator" },
+    { "path": "packages/content-agent" },
+    { "path": "packages/tool-gateway" },
+    { "path": "packages/mali-engine" },
+    { "path": "packages/personality-engine" },
+    { "path": "packages/marketing-intel" },
+    { "path": "packages/relationship-graph" },
+    { "path": "packages/self-healing" }
+  ]
+}

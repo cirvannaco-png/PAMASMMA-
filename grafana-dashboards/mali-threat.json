@@ -1,1 +1,21 @@
-{"title": "Mali Threat", "panels": [{"title": "Mali Blocks", "targets": [{"expr": "mali_block_total"}]}]}
+{
+  "title": "Mali Threat Detection",
+  "panels": [
+    {
+      "title": "Blocked Requests",
+      "targets": [
+        {
+          "expr": "rate(mali_block_total[5m])"
+        }
+      ]
+    },
+    {
+      "title": "Injection Attempts",
+      "targets": [
+        {
+          "expr": "rate(injection_attempts_total[5m])"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "title": "Business Intelligence",
+  "panels": [
+    {
+      "title": "Campaign Performance",
+      "targets": [
+        {
+          "expr": "rate(task_processed_total{type=\"marketing\"}[1h])"
+        }
+      ]
+    },
+    {
+      "title": "Engagement Metrics",
+      "targets": [
+        {
+          "expr": "avg(engagement_rate)"
+        }
+      ]
+    }
+  ]
+}

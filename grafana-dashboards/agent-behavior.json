@@ -1,1 +1,21 @@
-{"title": "Agent Behavior", "panels": [{"title": "Drift Warnings", "targets": [{"expr": "agent_drift_warnings_total"}]}]}
+{
+  "title": "Agent Behavior",
+  "panels": [
+    {
+      "title": "Task Processing Rate",
+      "targets": [
+        {
+          "expr": "rate(task_created_total[5m])"
+        }
+      ]
+    },
+    {
+      "title": "Drift Warnings",
+      "targets": [
+        {
+          "expr": "rate(agent_drift_warnings_total[5m])"
+        }
+      ]
+    }
+  ]
+}

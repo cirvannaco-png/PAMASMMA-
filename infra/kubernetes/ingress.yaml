@@ -1,0 +1,32 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: pamasmma-ingress
+  namespace: pamasmma
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: api.pamasmma.local
+    http:
+      paths:
+      - path: /orchestrator
+        pathType: Prefix
+        backend:
+          service:
+            name: orchestrator
+            port:
+              number: 3000
+      - path: /content-agent
+        pathType: Prefix
+        backend:
+          service:
+            name: content-agent
+            port:
+              number: 3002
+      - path: /tool-gateway
+        pathType: Prefix
+        backend:
+          service:
+            name: tool-gateway
+            port:
+              number: 3001

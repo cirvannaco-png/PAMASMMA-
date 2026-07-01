@@ -1,13 +1,38 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: orchestrator-service
+  name: orchestrator
   namespace: pamasmma
 spec:
   selector:
     app: orchestrator
   ports:
-  - protocol: TCP
-    port: 80
+  - port: 3000
     targetPort: 3000
-  type: LoadBalancer
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: content-agent
+  namespace: pamasmma
+spec:
+  selector:
+    app: content-agent
+  ports:
+  - port: 3002
+    targetPort: 3002
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tool-gateway
+  namespace: pamasmma
+spec:
+  selector:
+    app: tool-gateway
+  ports:
+  - port: 3001
+    targetPort: 3001
+  type: ClusterIP
