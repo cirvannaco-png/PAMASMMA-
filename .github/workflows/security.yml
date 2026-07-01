@@ -1,46 +1,6 @@
-name: PAMASMMA Security Governor
+# DEPRECATED PAMASMMA Workflow
 
-on:
-  push:
-  pull_request:
+This workflow has been replaced by .github/workflows/governance-engine.yml
 
-jobs:
-  security-check:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Load Architecture Manifest
-        run: |
-          echo "Loading architecture manifest..."
-          test -f architecture/specifications/architecture.yaml
-
-      - name: Secret Detection (Placeholder)
-        run: |
-          echo "Scanning for secrets and exposed credentials..."
-          echo "- API keys scan"
-          echo "- Token leakage scan"
-          echo "- Environment variable safety check"
-
-      - name: Dependency Vulnerability Scan (Placeholder)
-        run: |
-          echo "Checking dependencies for known vulnerabilities..."
-          echo "- npm audit / pip audit equivalent"
-          echo "- outdated insecure packages"
-
-      - name: Input Validation & Safety Rules
-        run: |
-          echo "Validating input safety constraints..."
-          echo "- No unsafe eval patterns"
-          echo "- No unsafe dynamic execution"
-
-      - name: Security Governance Gate
-        run: |
-          echo "Security governance check complete (placeholder)"
-          echo "PASS: No security violations detected in scaffold mode"
-
-      - name: Final Decision
-        run: |
-          echo "If violations existed, this step would fail the pipeline"
+Status: deprecated
+Reason: unified governance engine introduced
