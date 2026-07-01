@@ -1,52 +1,6 @@
-name: PAMASMMA Quality Governor
+# DEPRECATED PAMASMMA Workflow
 
-on:
-  push:
-  pull_request:
+This workflow has been replaced by .github/workflows/governance-engine.yml
 
-jobs:
-  quality-check:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Load Architecture Manifest
-        run: |
-          echo "Loading architecture manifest..."
-          test -f architecture/specifications/architecture.yaml
-
-      - name: Lint & Static Analysis (Placeholder)
-        run: |
-          echo "Running lint checks..."
-          echo "- ESLint / Pylint equivalent"
-          echo "- Code style validation"
-          echo "- Formatting checks"
-
-      - name: Test Suite Execution (Placeholder)
-        run: |
-          echo "Running test suite..."
-          echo "- Unit tests"
-          echo "- Integration tests"
-          echo "- Regression tests"
-
-      - name: Coverage Check (Placeholder)
-        run: |
-          echo "Validating test coverage thresholds..."
-          echo "Minimum coverage policy enforcement"
-
-      - name: Complexity Analysis (Placeholder)
-        run: |
-          echo "Analyzing code complexity..."
-          echo "- Cyclomatic complexity"
-          echo "- Cognitive complexity"
-
-      - name: Quality Governance Gate
-        run: |
-          echo "Quality governance check complete (placeholder)"
-          echo "PASS: No quality violations detected in scaffold mode"
-
-      - name: Final Decision
-        run: |
-          echo "If violations existed, this step would fail the pipeline"
+Status: deprecated
+Reason: unified governance engine introduced
