@@ -1,9 +1,10 @@
-// PAMASMMA Kernel - Scheduler (Deterministic Execution Engine)
-// Controls ordered execution of services in a strict tick cycle
+// PAMASMMA Kernel - Scheduler (Deterministic Execution Engine + Enforcement Bridge Integration)
+// Now fully integrated with contracts + invariants + state enforcement gate
 
 const { eventBus } = require('../event-bus');
 const { registry } = require('../registry');
 const { state } = require('../state');
+const { enforcementBridge } = require('../enforcement');
 
 class Scheduler {
   constructor() {
@@ -11,9 +12,6 @@ class Scheduler {
     this.queue = [];
   }
 
-  /**
-   * Initialize scheduler
-   */
   initialize() {
     this.running = true;
     this.queue = [];
@@ -21,27 +19,19 @@ class Scheduler {
     eventBus.emit('scheduler:initialized');
   }
 
-  /**
-   * Stop scheduler
-   */
   stop() {
     this.running = false;
-
     eventBus.emit('scheduler:stopped');
   }
 
-  /**
-   * Register execution step
-   */
   registerStep(name, fn) {
-    this.queue.push({ name, fn });
+    const wrappedFn = enforcementBridge.wrap(name, fn);
+
+    this.queue.push({ name, fn: wrappedFn });
 
     eventBus.emit('scheduler:step_registered', { name });
   }
 
-  /**
-   * Run deterministic tick cycle
-   */
   run(context = {}) {
     if (!this.running) {
       return { status: 'STOPPED' };
@@ -75,9 +65,6 @@ class Scheduler {
     };
   }
 
-  /**
-   * Snapshot scheduler state
-   */
   snapshot() {
     return {
       running: this.running,
