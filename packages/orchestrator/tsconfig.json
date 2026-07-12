@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "include": ["src/**/*"],
+  "references": [
+    { "path": "../shared" },
+    { "path": "../memory-core" },
+    { "path": "../self-healing" },
+    { "path": "../tool-gateway" },
+    { "path": "../mali-engine" },
+    { "path": "../content-agent" }
+  ]
+}

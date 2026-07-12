@@ -1,8 +1,3 @@
-export class ReasoningModule {
-  reason(perception: Record<string, unknown>): Record<string, unknown> {
-    return {
-      reasoning_complete: true,
-      confidence: 0.85,
-    };
-  }
-}
+// STUB: Re-exported from PerceptionModule.ts while all AI modules live in one file.
+// Move to a standalone implementation when real reasoning logic is added.
+export { ReasoningModule } from './PerceptionModule';

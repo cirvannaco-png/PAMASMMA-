@@ -1,1 +1,22 @@
-{"name": "@pamasmma/content-agent", "version": "2.1.0", "main": "dist/index.js", "dependencies": {"@pamasmma/shared": "*", "@pamasmma/memory-core": "*"}}
+{
+  "name": "@pamasmma/content-agent",
+  "version": "2.1.0",
+  "description": "Content generation agent for PAMASMMA",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@pamasmma/shared": "*",
+    "@pamasmma/memory-core": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/node": "^20.0.0",
+    "@types/jest": "^29.0.0",
+    "jest": "^29.0.0",
+    "ts-jest": "^29.0.0"
+  }
+}

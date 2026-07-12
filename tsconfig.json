@@ -3,8 +3,6 @@
     "target": "ES2020",
     "module": "commonjs",
     "lib": ["ES2020"],
-    "outDir": "./dist",
-    "rootDir": "./",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -12,7 +10,6 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "composite": true,
     "baseUrl": ".",
     "paths": {
       "@pamasmma/shared": ["packages/shared/src"],
@@ -26,17 +23,5 @@
       "@pamasmma/relationship-graph": ["packages/relationship-graph/src"],
       "@pamasmma/self-healing": ["packages/self-healing/src"]
     }
-  },
-  "references": [
-    { "path": "packages/shared" },
-    { "path": "packages/memory-core" },
-    { "path": "packages/orchestrator" },
-    { "path": "packages/content-agent" },
-    { "path": "packages/tool-gateway" },
-    { "path": "packages/mali-engine" },
-    { "path": "packages/personality-engine" },
-    { "path": "packages/marketing-intel" },
-    { "path": "packages/relationship-graph" },
-    { "path": "packages/self-healing" }
-  ]
+  }
 }

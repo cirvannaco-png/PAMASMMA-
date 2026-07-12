@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: relationship-graph
+  namespace: pamasmma
+  labels:
+    app: relationship-graph
+    version: "2.1.0"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: relationship-graph
+  template:
+    metadata:
+      labels:
+        app: relationship-graph
+    spec:
+      containers:
+        - name: relationship-graph
+          image: pamasmma/relationship-graph:latest
+          ports:
+            - containerPort: 3006
+          env:
+            - name: PORT
+              value: "3006"
+            - name: NODE_ENV
+              value: production
+            - name: KAFKA_BROKERS
+              valueFrom:
+                configMapKeyRef:
+                  name: pamasmma-config
+                  key: KAFKA_BROKERS
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  name: pamasmma-config
+                  key: OTEL_ENDPOINT
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3006
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3006
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: relationship-graph
+  namespace: pamasmma
+spec:
+  selector:
+    app: relationship-graph
+  ports:
+    - protocol: TCP
+      port: 3006
+      targetPort: 3006

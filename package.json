@@ -14,7 +14,7 @@
   ],
   "scripts": {
     "test": "jest --config jest.config.js",
-    "build": "tsc -b",
+    "build": "tsc -b tsconfig.build.json",
     "dev": "ts-node -T packages/orchestrator/src/index.ts",
     "lint": "eslint 'packages/*/src/**/*.ts'"
   },

@@ -1,54 +1,52 @@
-import { PerceptionModule } from './ai/PerceptionModule';
-import { ReasoningModule } from './ai/ReasoningModule';
-import { PredictionModule } from './ai/PredictionModule';
-import { DecisionModule } from './ai/DecisionModule';
-import { AdaptationModule } from './ai/AdaptationModule';
+// STUB: These modules are placeholders. They return fixed values and do not
+// perform real AI inference. Do not treat their outputs as meaningful.
+// Each must be replaced with a real model call before this subsystem ships.
 
 export class PerceptionModule {
+  // STUB: extracts no real features — returns hardcoded shape
   analyzeInput(input: Record<string, unknown>): Record<string, unknown> {
-    // Extract features, entities, sentiment
     return {
-      features_extracted: true,
+      features_extracted: false,
       input_hash: JSON.stringify(input),
     };
   }
 }
 
 export class ReasoningModule {
-  reason(perception: Record<string, unknown>): Record<string, unknown> {
-    // Apply logical rules, inference
+  // STUB: applies no logic — confidence is a constant, not computed
+  reason(_perception: Record<string, unknown>): Record<string, unknown> {
     return {
-      reasoning_complete: true,
-      confidence: 0.85,
+      reasoning_complete: false,
+      confidence: 0, // STUB: replace with real inference score
     };
   }
 }
 
 export class PredictionModule {
-  predict(reasoning: Record<string, unknown>): Record<string, unknown> {
-    // Forecast outcomes
+  // STUB: always predicts 'success' regardless of input
+  predict(_reasoning: Record<string, unknown>): Record<string, unknown> {
     return {
-      predicted_outcome: 'success',
-      risk_level: 'low',
+      predicted_outcome: 'unknown', // STUB: replace with model output
+      risk_level: 'unknown',        // STUB: replace with computed risk
     };
   }
 }
 
 export class DecisionModule {
-  decide(prediction: Record<string, unknown>): Record<string, unknown> {
-    // Make action decision
+  // STUB: always returns 'proceed' — no real decision logic
+  decide(_prediction: Record<string, unknown>): Record<string, unknown> {
     return {
-      action: 'proceed',
-      approval_required: false,
+      action: 'defer',           // STUB: replace with real decision
+      approval_required: true,   // STUB: safe default until real logic exists
     };
   }
 }
 
 export class AdaptationModule {
-  adapt(feedback: Record<string, unknown>): Record<string, unknown> {
-    // Adjust based on feedback
+  // STUB: stores no state, applies no adaptation
+  adapt(_feedback: Record<string, unknown>): Record<string, unknown> {
     return {
-      adapted: true,
+      adapted: false,        // STUB: replace with real adaptation
       new_parameters: {},
     };
   }

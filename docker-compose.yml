@@ -1,18 +1,23 @@
 version: "3.9"
 
+# ── Notes on service topology ─────────────────────────────────────────────────
+# Standalone HTTP services: orchestrator, marketing-intel, relationship-graph
+# Libraries (linked into orchestrator process): mali-engine, personality-engine,
+#   memory-core, self-healing, content-agent, tool-gateway, shared
+# ─────────────────────────────────────────────────────────────────────────────
+
 services:
-  # ── Core orchestrator ──────────────────────────────────────────────────
   orchestrator:
     build:
       context: .
       dockerfile: Dockerfile
-      target: builder        # dev: run ts-node directly
+      target: builder
     command: yarn dev
     ports:
       - "3000:3000"
     environment:
       NODE_ENV: development
-      PORT: 3000
+      PORT: "3000"
       KAFKA_BROKERS: kafka:9092
       KAFKA_CLIENT_ID: pamasmma-orchestrator
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
@@ -23,8 +28,35 @@ services:
       - .:/app
       - /app/node_modules
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
-  # ── Kafka (event bus) ─────────────────────────────────────────────────
+  marketing-intel:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    command: >
+      sh -c "yarn ts-node -T packages/marketing-intel/src/index.ts"
+    ports:
+      - "3005:3005"
+    environment:
+      NODE_ENV: development
+      PORT: "3005"
+      KAFKA_BROKERS: kafka:9092
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+    depends_on:
+      kafka:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - /app/node_modules
+    restart: unless-stopped
+
+  # ── Kafka ─────────────────────────────────────────────────────────────────
   zookeeper:
     image: confluentinc/cp-zookeeper:7.6.0
     environment:
@@ -54,11 +86,11 @@ services:
       timeout: 10s
       retries: 10
 
-  # ── OpenTelemetry collector ───────────────────────────────────────────
+  # ── OpenTelemetry collector ───────────────────────────────────────────────
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.99.0
     ports:
-      - "4318:4318"   # OTLP HTTP
-      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"
+      - "4317:4317"
     volumes:
-      - ./infra/otel-collector-config.yml:/etc/otelcol-contrib/config.yaml
+      - ./infra/otel-collector-config.yml:/etc/otelcol-contrib/config.yaml:ro
