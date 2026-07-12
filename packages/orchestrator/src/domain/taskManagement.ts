@@ -1,36 +1,89 @@
 import { generateUUID } from '@pamasmma/shared';
 
+export type TaskType = 'content' | 'marketing' | 'social' | 'email';
+export type TaskStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
+
 export interface Task {
   id: string;
   tenant_id: string;
-  type: 'content' | 'marketing' | 'social' | 'email';
+  type: TaskType;
   input: Record<string, unknown>;
   created_at: string;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
+  updated_at: string;
+  status: TaskStatus;
+}
+
+const VALID_TASK_TYPES: TaskType[] = ['content', 'marketing', 'social', 'email'];
+
+export function isValidTaskType(value: string): value is TaskType {
+  return VALID_TASK_TYPES.includes(value as TaskType);
 }
 
 export class TaskCreator {
   create(data: { tenant_id: string; type: string; input: unknown }): Task {
+    if (!isValidTaskType(data.type)) {
+      throw new Error(
+        `Invalid task type "${data.type}". Must be one of: ${VALID_TASK_TYPES.join(', ')}`
+      );
+    }
+    const now = new Date().toISOString();
     return {
       id: generateUUID(),
       tenant_id: data.tenant_id,
-      type: data.type as any,
-      input: data.input as Record<string, unknown>,
-      created_at: new Date().toISOString(),
+      type: data.type,
+      input: (data.input as Record<string, unknown>) ?? {},
+      created_at: now,
+      updated_at: now,
       status: 'pending',
     };
   }
 }
 
 export class TaskRouter {
+  private static readonly routes: Record<TaskType, string> = {
+    content: 'content-agent',
+    marketing: 'marketing-agent',
+    social: 'social-agent',
+    email: 'email-agent',
+  };
+
   route(task: Task): string {
-    // Simple routing logic: map task type to agent
-    const routes: Record<string, string> = {
-      content: 'content-agent',
-      marketing: 'marketing-agent',
-      social: 'social-agent',
-      email: 'email-agent',
+    return TaskRouter.routes[task.type] ?? 'default-agent';
+  }
+}
+
+/** In-memory task store with tenant isolation. */
+export class TaskStore {
+  private tasks: Map<string, Task> = new Map();
+
+  save(task: Task): void {
+    this.tasks.set(task.id, { ...task });
+  }
+
+  findById(id: string): Task | undefined {
+    const task = this.tasks.get(id);
+    return task ? { ...task } : undefined;
+  }
+
+  findByTenant(tenantId: string): Task[] {
+    return Array.from(this.tasks.values())
+      .filter((t) => t.tenant_id === tenantId)
+      .map((t) => ({ ...t }));
+  }
+
+  updateStatus(id: string, status: TaskStatus): Task | undefined {
+    const task = this.tasks.get(id);
+    if (!task) return undefined;
+    const updated: Task = {
+      ...task,
+      status,
+      updated_at: new Date().toISOString(),
     };
-    return routes[task.type] || 'default-agent';
+    this.tasks.set(id, updated);
+    return { ...updated };
+  }
+
+  delete(id: string): boolean {
+    return this.tasks.delete(id);
   }
 }

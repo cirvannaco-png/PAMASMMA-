@@ -1,5 +1,35 @@
 import { MemoryManager } from '@pamasmma/memory-core';
-import { IdentityCoherenceEngine } from '../domain/IdentityCoherenceEngine';
+import { IdentityCoherenceEngine, DriftReport } from '../domain/IdentityCoherenceEngine';
 import { SelfHealingOrchestrator } from '@pamasmma/self-healing';
 import { IEventBus } from '@pamasmma/shared';
-export class PersonalityService {constructor(private memoryManager: MemoryManager, private coherenceEngine: IdentityCoherenceEngine, private selfHealing: SelfHealingOrchestrator, private eventBus: IEventBus) {} async assessCurrentBehavior(tenantId: string, agentId: string, currentVector: any) {const accessLayer = this.memoryManager.createAccessLayer(tenantId); const baselineRecord = accessLayer.getEpisodic('personality-baseline'); const baseline = baselineRecord?.data?.vector; if (!baseline) {throw new Error('No baseline personality found');} const driftReport = this.coherenceEngine.checkDrift(baseline, currentVector); if (driftReport.warning) {await this.selfHealing.handleDrift(agentId, driftReport.driftScore);} return driftReport;}}
+
+export class PersonalityService {
+  constructor(
+    private memoryManager: MemoryManager,
+    private coherenceEngine: IdentityCoherenceEngine,
+    private selfHealing: SelfHealingOrchestrator,
+    private eventBus: IEventBus
+  ) {}
+
+  async assessCurrentBehavior(
+    tenantId: string,
+    agentId: string,
+    currentVector: number[]
+  ): Promise<DriftReport> {
+    const accessLayer = this.memoryManager.createAccessLayer(tenantId);
+    const baselineRecord = accessLayer.getEpisodic('personality-baseline');
+    const baseline = baselineRecord?.data?.['vector'] as number[] | undefined;
+
+    if (!baseline) {
+      throw new Error('No baseline personality found');
+    }
+
+    const driftReport = this.coherenceEngine.checkDrift(baseline, currentVector);
+
+    if (driftReport.warning) {
+      await this.selfHealing.handleDrift(agentId, driftReport.driftScore);
+    }
+
+    return driftReport;
+  }
+}

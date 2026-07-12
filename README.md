@@ -1,1 +1,279 @@
-# PAMASMMA v2.1 — Brand Intelligence Operating System\n\n**Production-ready, fully tested, resilience-engineered codebase**\n\n## 🎯 What is PAMASMMA?\n\nPAMASMMA is a **comprehensive brand intelligence and content orchestration platform** designed for enterprise marketing teams. It combines:\n\n- **Multi-Agent AI System**: Specialized agents for content, marketing, tools, and personality\n- **Mali Adversarial Engine**: Red/Blue/Grey team simulation for risk assessment\n- **Self-Healing Infrastructure**: Automatic drift detection and recovery\n- **Memory & Personality**: Episodic/semantic memory with coherence checking\n- **Injection Detection**: Multi-layer security against prompt/template injection\n- **Kubernetes-Native**: Full observability with OpenTelemetry, Prometheus, Grafana\n\n---\n\n## 📦 Core Packages (v2.1)\n\n```\npackages/\n├── shared/                 # Events, interfaces, utilities (Result type, validation)\n├── memory-core/            # STM/LTM memory with tenant isolation\n├── orchestrator/           # Task routing, AI perception/reasoning/prediction\n├── content-agent/          # Content generation with memory access\n├── tool-gateway/           # MCP tool execution with injection detection\n├── mali-engine/            # Adversarial simulation (Red/Blue/Grey agents)\n├── personality-engine/     # Identity coherence and drift detection\n├── marketing-intel/        # Learning loops, feedback, Mali critique\n├── relationship-graph/     # Entity connections and network analysis\n├── self-healing/           # Version management and agent recovery\n├── governance/             # Architecture governance and validation (Phase 2.1)\n└── kernel/                 # Runtime execution core (Phase 2.1)\n```\n\n---\n\n## ✨ Key Features\n\n✅ **Dependency Inversion**: All critical components use interfaces  \n✅ **Comprehensive Testing**: 80%+ coverage, unit + integration + E2E  \n✅ **Security-First**: Injection detection, tenant isolation, Mali verification  \n✅ **Self-Healing**: Automatic drift detection and rollback  \n✅ **Memory Systems**: Episodic + semantic, tenant-isolated, versioned  \n✅ **Event-Driven**: Kafka-based, schema-validated event flow  \n✅ **Observable**: OpenTelemetry traces, Prometheus metrics, structured logs  \n✅ **Kubernetes-Ready**: Deployments, HPA, services, ingress  \n✅ **Production-Grade**: Error handling, resilience patterns, logging  \n✅ **Fully Tested**: All critical errors fixed, all components present\n\n---\n\n## 🚀 Quick Start\n\n### Prerequisites\n- Node.js 18+\n- npm/yarn\n- Docker (for containerized deployment)\n- Kubernetes 1.24+ (for production)\n\n### Development Setup\n\n```bash\n# Clone and install\ngit clone https://github.com/cirvannaco-png/PAMASMMA-.git\ncd PAMASMMA-\nnpm install\n\n# Run all tests\nnpm test\n\n# Build all packages\nnpm run build\n\n# Start orchestrator (dev)\nnpm run dev\n```\n\n### Running Services Locally\n\n```bash\n# Terminal 1: Orchestrator\ncd packages/orchestrator\nnpm start\n\n# Terminal 2: Tool Gateway\ncd packages/tool-gateway\nnpm start\n\n# Terminal 3: Mali Engine\ncd packages/mali-engine\nnpm start\n```\n\n---\n\n## ✅ Testing\n\n### Test Coverage\n\n- **Unit Tests**: 80%+ coverage on all packages\n- **Integration Tests**: Event bus, memory, Mali verification\n- **E2E Tests**: Full request flows with mocked services\n- **Security Tests**: Injection detection, tenant isolation\n- **Performance Tests**: Latency (<10ms), throughput (>1000 ops/sec)\n\n### Running Tests\n\n```bash\n# All tests\nnpm test\n\n# Specific package\nnpm test -- --testPathPattern=orchestrator\n\n# With coverage\nnpm test -- --coverage\n\n# Watch mode\nnpm test -- --watch\n\n# Performance benchmarks\nnpm test -- --testPathPattern=performance\n```\n\n**See [docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md) for comprehensive test examples**\n\n---\n\n## 🏗️ Deployment\n\n### Kubernetes\n\n```bash\n# Deploy to cluster\nkubectl apply -f infra/kubernetes/namespace.yaml\nkubectl apply -f infra/kubernetes/\n\n# Services\nkubectl get svc -n pamasmma\nkubectl port-forward -n pamasmma svc/orchestrator 3000:3000\n```\n\n### Docker\n\n```dockerfile\nFROM node:18-alpine\nWORKDIR /app\nCOPY . .\nRUN npm ci && npm run build\nCMD [\"node\", \"packages/orchestrator/dist/index.js\"]\n```\n\n**See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for full guide**\n\n---\n\n## 📊 Observability\n\n### Metrics (Prometheus)\n\n```\nhttp://localhost:9090/metrics\n\nKey metrics:\n- http_request_duration_seconds{service, route}\n- injection_attempts_total\n- mali_block_total\n- agent_drift_warnings_total\n```\n\n### Traces (OpenTelemetry)\n\n```\nOTLP endpoint: localhost:4317\nExported to Jaeger/Tempo\n```\n\n### Dashboards (Grafana)\n\n- **System Health**: Request latency, error rates\n- **Agent Behavior**: Task processing, drift warnings\n- **Mali Threats**: Blocked requests, injection attempts\n- **Business Intelligence**: Campaign performance, engagement\n\n---\n\n## 🛡️ Security Features\n\n### Injection Detection\n\n```typescript\ndetector.scan(input)  // Detects: {{jinja}}, <?php, `backticks`, etc.\n```\n\n### Tenant Isolation\n\n```typescript\nconst layer1 = memoryManager.createAccessLayer('tenant-1');\nconst layer2 = memoryManager.createAccessLayer('tenant-2');\n// layer1 and layer2 cannot access each other's data\n```\n\n### Mali Verification\n\n```typescript\nconst verdict = await maliService.evaluate(taskId, inputs);\n// Returns: 'approve' | 'revise' | 'reject'\n```\n\n### Event Validation\n\n```typescript\nif (validateEvent(event)) {\n  // Event passes schema validation\n  await eventBus.emit(event);\n}\n```\n\n---\n\n## 🔄 Event-Driven Architecture\n\nAll system events follow a schema and flow through Kafka:\n\n```typescript\ntype SystemEvent = \n  | TaskCreatedEvent\n  | TaskProcessedEvent\n  | TaskApprovedEvent\n  | AgentContentGeneratedEvent\n  | ToolEmailExecutedEvent\n  | ToolMCPCalledEvent\n  | MaliRiskAssessedEvent\n  | MemoryUpdatedEvent\n  | AgentDriftDetectedEvent\n```\n\n---\n\n## 💾 Memory System\n\n### Short-Term Memory (STM)\n\n- LRU cache (1000 entries max)\n- Fast access for immediate context\n- Cleared on service restart\n\n### Long-Term Memory (LTM)\n\n- **Episodic**: Task events, sequence-based retrieval\n- **Semantic**: Facts, patterns, knowledge\n- Tenant-isolated, versioned, durable\n\n```typescript\nawait memoryManager.writeMemory(entry, {\n  source: 'domain',\n  tenant_id: 't1',\n  task_id: 'task-123'\n});\n```\n\n---\n\n## 📁 Repository Structure\n\n```\nPAMASMMA-/\n├── packages/                    # 12 packages (10 core + 2 phase 2.1)\n├── infra/\n│   └── kubernetes/              # K8s manifests\n├── grafana-dashboards/          # Observability dashboards\n├── docs/\n│   ├── TESTING_GUIDE.md\n│   ├── DEPLOYMENT_GUIDE.md\n│   └── ARCHITECTURE.md\n├── .github/workflows/\n│   └── test.yml                 # CI/CD pipeline\n├── jest.config.js\n├── tsconfig.json\n├── package.json\n├── README.md\n└── LICENSE\n```\n\n---\n\n## 🔗 Dependencies\n\n### Core\n- **Express** (4.18): HTTP server\n- **TypeScript** (5.0): Type safety\n- **Jest** (29.0): Testing framework\n\n### Observability\n- **OpenTelemetry** (0.43): Distributed tracing\n- **Prometheus Client** (14.2): Metrics collection\n\n### Resilience\n- **Cockatiel** (3.1): Retry, circuit breaker, timeout\n\n### Validation\n- **AJV** (8.12): JSON Schema validation\n- **UUID** (9.0): Unique identifiers\n\n---\n\n## 📚 Documentation\n\n- [TESTING_GUIDE.md](docs/TESTING_GUIDE.md) - Complete testing reference\n- [DEPLOYMENT.md](docs/DEPLOYMENT.md) - Kubernetes and Docker deployment\n- [ARCHITECTURE.md](ARCHITECTURE.md) - System design and interactions\n- [GOVERNANCE.md](packages/governance/README.md) - Architecture governance\n- [KERNEL.md](packages/kernel/README.md) - Runtime execution core\n\n---\n\n## 🤝 Contributing\n\n1. Create a branch: `git checkout -b feature/your-feature`\n2. Commit changes: `git commit -am 'Add feature'`\n3. Push to branch: `git push origin feature/your-feature`\n4. Open PR with tests and documentation\n\n---\n\n## 📧 Support\n\nFor issues, questions, or contributions:\n- GitHub Issues: https://github.com/cirvannaco-png/PAMASMMA-/issues\n- Email: cirvanna.co@gmail.com\n\n---\n\n## 📝 License\n\nCreative Commons Zero v1.0 Universal (CC0 1.0) - Public Domain\n\n---\n\n**PAMASMMA v2.1 — All critical errors fixed. All components present. Production-ready.**\n
+# PAMASMMA v2.1
+
+**Platform for Autonomous Multi-Agent Social Media Marketing Architecture**
+
+A production-grade, multi-tenant AI agent system for governed social media content generation, adversarial risk assessment, and self-healing agent management.
+
+---
+
+## Overview
+
+PAMASMMA orchestrates a fleet of specialised AI agents, each responsible for a distinct capability, coordinated through an event-driven architecture. Every content decision passes through an adversarial risk gate (Mali) before execution, and all agents are monitored for personality drift with automatic self-healing.
+
+```
+Clients
+  └── Orchestrator API (port 3000)
+        ├── Content Agent      — generates branded content and captions
+        ├── Marketing Intel    — observational learning, trend analysis
+        ├── Tool Gateway       — secure MCP tool execution with injection detection
+        ├── Mali Engine        — Red / Blue / Grey adversarial risk scoring
+        ├── Personality Engine — identity coherence and drift monitoring
+        ├── Relationship Graph — tenant relationship tracking
+        └── Self-Healing       — automatic rollback and agent remediation
+              │
+           Event Bus (Kafka)
+              ├── Memory Core (episodic + semantic, tenant-isolated)
+              └── Observability (Prometheus metrics + OpenTelemetry traces)
+```
+
+---
+
+## Packages
+
+| Package | Description |
+|---|---|
+| `@pamasmma/shared` | Shared types, events, Result monad, metrics, resilience, tracing |
+| `@pamasmma/memory-core` | Episodic & semantic memory with LRU short-term cache and tenant isolation |
+| `@pamasmma/orchestrator` | Central task coordinator — REST API, task routing, task store |
+| `@pamasmma/content-agent` | Content generation and caption creation |
+| `@pamasmma/tool-gateway` | Secure MCP tool execution with multi-layer injection detection |
+| `@pamasmma/mali-engine` | Adversarial simulation: Red (attacks), Blue (defence), Grey (liability) |
+| `@pamasmma/personality-engine` | Behaviour drift detection using vector similarity |
+| `@pamasmma/marketing-intel` | Trend observation and marketing intelligence |
+| `@pamasmma/relationship-graph` | Graph-based relationship model |
+| `@pamasmma/self-healing` | Agent version management and automated remediation |
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js ≥ 20
+- Yarn
+
+### Install
+
+```bash
+yarn install
+```
+
+### Run in development
+
+```bash
+yarn dev
+```
+
+The Orchestrator API starts on port 3000 (configurable via `PORT`).
+
+### Build
+
+```bash
+yarn build
+```
+
+### Test
+
+```bash
+yarn test
+```
+
+Run with coverage:
+
+```bash
+yarn test --coverage
+```
+
+### Lint
+
+```bash
+yarn lint
+```
+
+---
+
+## API Reference
+
+All routes are mounted at `/api`.
+
+### Health
+
+```
+GET /api/health
+```
+
+Response:
+```json
+{ "status": "ok", "service": "orchestrator", "ts": "2025-01-01T00:00:00.000Z" }
+```
+
+### Tasks
+
+#### Create a task
+```
+POST /api/task
+Content-Type: application/json
+
+{
+  "tenant_id": "my-tenant",
+  "type": "content",        // content | marketing | social | email
+  "input": { "prompt": "Write a post about coffee" }
+}
+```
+
+Response `201`:
+```json
+{ "task_id": "550e8400-e29b-41d4-a716-446655440000" }
+```
+
+#### List tasks for a tenant
+```
+GET /api/tasks?tenant_id=my-tenant
+```
+
+Response `200`:
+```json
+{ "tasks": [...], "count": 3 }
+```
+
+#### Get a task
+```
+GET /api/task/:id?tenant_id=my-tenant
+```
+
+#### Update task status
+```
+PATCH /api/task/:id/status
+Content-Type: application/json
+
+{ "tenant_id": "my-tenant", "status": "completed" }
+```
+
+Valid statuses: `pending`, `processing`, `completed`, `failed`, `cancelled`
+
+#### Cancel a task
+```
+DELETE /api/task/:id?tenant_id=my-tenant
+```
+
+Response `200`:
+```json
+{ "cancelled": true, "task_id": "..." }
+```
+
+---
+
+## Security
+
+### Injection Detection
+
+The `InjectionDetector` in `@pamasmma/tool-gateway` scans all tool inputs recursively (strings, nested objects, arrays) for:
+
+- Template injection (Jinja2, Handlebars, Twig)
+- Server-side injection (PHP, shell command substitution, backticks)
+- Script / XSS injection (`<script>`, `javascript:`, inline event handlers)
+- LLM prompt injection (`ignore previous instructions`, role-override attempts, system-prompt extraction)
+- SQL injection patterns
+
+### Mali Adversarial Gate
+
+Every tool execution with `maliRequired: true` is evaluated by three agents before execution:
+
+| Agent | Checks |
+|---|---|
+| **MaliRed** | User misuse, market attack, platform policy risk |
+| **MaliBlue** | Content vulnerabilities, dark patterns |
+| **MaliGrey** | Legal/compliance liability (medical, financial) |
+
+Combined score → `approve` / `revise` / `reject`.
+
+---
+
+## Architecture
+
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for the full component breakdown, sequence diagrams, and ADR index.
+
+---
+
+## Infrastructure
+
+Kubernetes manifests are in `infra/kubernetes/`. Grafana dashboards are in `grafana-dashboards/`.
+
+### Deploying to Kubernetes
+
+```bash
+kubectl apply -f infra/kubernetes/namespace.yaml
+kubectl apply -f infra/kubernetes/configmap.yaml
+kubectl apply -f infra/kubernetes/secrets.yaml
+kubectl apply -f infra/kubernetes/services.yaml
+kubectl apply -f infra/kubernetes/orchestrator-deployment.yaml
+kubectl apply -f infra/kubernetes/content-agent-deployment.yaml
+kubectl apply -f infra/kubernetes/tool-gateway-deployment.yaml
+kubectl apply -f infra/kubernetes/ingress.yaml
+kubectl apply -f infra/kubernetes/autoscaler.yaml
+```
+
+See [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) for full environment setup.
+
+---
+
+## Observability
+
+- **Metrics**: Prometheus-compatible endpoint at `GET /metrics` on each service (via `prom-client`)
+- **Tracing**: OpenTelemetry with OTLP exporter (configure `OTEL_EXPORTER_OTLP_ENDPOINT`)
+- **Dashboards**: Import JSON files from `grafana-dashboards/` into Grafana
+
+Key metrics:
+
+| Metric | Description |
+|---|---|
+| `http_request_duration_seconds` | Request latency by service and route |
+| `injection_attempts_total` | Total prompt injection attempts blocked |
+| `mali_block_total` | Total executions blocked by Mali |
+| `agent_drift_warnings_total` | Agent personality drift warnings |
+
+---
+
+## Event Schema
+
+All events extend `BaseEvent`:
+
+```typescript
+interface BaseEvent {
+  type: string;
+  schema_version: number;
+  timestamp: string;   // ISO 8601
+  tenant_id: string;
+  task_id: string;
+}
+```
+
+Event types: `task.created`, `task.processed`, `task.approved`, `agent.content.generated`, `tool.mcp.called`, `mali.risk.assessed`, `memory.updated`, `agent.drift.detected`
+
+---
+
+## Project Structure
+
+```
+packages/
+├── shared/            # Shared types, events, utilities
+├── memory-core/       # Episodic & semantic memory
+├── orchestrator/      # Task coordination API
+├── content-agent/     # Content generation
+├── tool-gateway/      # Secure MCP execution
+├── mali-engine/       # Adversarial risk scoring
+├── personality-engine/# Drift detection
+├── marketing-intel/   # Marketing intelligence
+├── relationship-graph/# Relationship graph
+└── self-healing/      # Self-healing & version management
+architecture/          # ADRs and PAC constitution
+infra/kubernetes/      # K8s manifests
+grafana-dashboards/    # Grafana dashboard JSON
+pamasmma-prime/        # Python: causal reasoning & stability
+```
+
+---
+
+## License
+
+See [LICENSE](./LICENSE).

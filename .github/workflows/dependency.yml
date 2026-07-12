@@ -1,6 +1,22 @@
-# DEPRECATED PAMASMMA Workflow
+name: Dependency Update Check
 
-This workflow has been replaced by .github/workflows/governance-engine.yml
+on:
+  schedule:
+    - cron: '0 8 * * 1'  # Weekly on Monday at 08:00 UTC
+  workflow_dispatch:
 
-Status: deprecated
-Reason: unified governance engine introduced
+jobs:
+  check-updates:
+    name: Check for outdated packages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'yarn'
+      - run: yarn install --frozen-lockfile
+      - name: Check outdated packages
+        run: yarn outdated || true
+      - name: Audit for vulnerabilities
+        run: yarn audit || true
