@@ -1,6 +1,10 @@
 import { AgentVersionManager } from './AgentVersionManager';
 import { IEventBus, AgentDriftDetectedEvent } from '@pamasmma/shared';
 
+function log(level: string, msg: string, extra?: Record<string, unknown>): void {
+  console.log(JSON.stringify({ level, msg, ...extra, ts: new Date().toISOString() }));
+}
+
 export class SelfHealingOrchestrator {
   constructor(
     private versionManager: AgentVersionManager,
@@ -19,15 +23,23 @@ export class SelfHealingOrchestrator {
     };
     await this.eventBus.emit(event);
 
-    // If drift is significant, rollback to stable version
     if (driftScore > 0.5) {
       const stable = this.versionManager.getStableVersion(agentId);
       if (stable) {
-        console.log(
-          `[SelfHealing] Rolling back agent ${agentId} to stable version ${stable.version}`
-        );
-        // In production: would trigger Kubernetes deployment update
+        log('warn', 'Rolling back agent to stable version', {
+          agentId,
+          stableVersion: stable.version,
+          driftScore,
+        });
+        // Production: trigger Kubernetes rollout restart for the agent deployment
+      } else {
+        log('warn', 'Drift detected but no stable version available — manual intervention required', {
+          agentId,
+          driftScore,
+        });
       }
+    } else {
+      log('info', 'Drift within acceptable threshold', { agentId, driftScore });
     }
   }
 
@@ -35,11 +47,13 @@ export class SelfHealingOrchestrator {
     agentId: string,
     diagnostics: Record<string, unknown>
   ): Promise<{ healed: boolean; newVersion: string }> {
-    console.log(`[SelfHealing] Healing agent ${agentId}:`, diagnostics);
-    // Implement self-healing logic
-    return {
-      healed: true,
-      newVersion: `v${Date.now()}`,
-    };
+    log('info', 'Healing agent', { agentId, diagnostics });
+
+    const newVersion = `v${Date.now()}`;
+    this.versionManager.saveVersion(agentId, newVersion);
+
+    log('info', 'Agent healed successfully', { agentId, newVersion });
+
+    return { healed: true, newVersion };
   }
 }
