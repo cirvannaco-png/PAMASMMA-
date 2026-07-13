@@ -1,8 +1,11 @@
 import { initTracing } from '@pamasmma/shared';
 import { OrchestratorAppService } from './application/orchestratorAppService';
-import { TaskCreator, TaskRouter, TaskStore } from './domain/taskManagement';
+import { TaskCreator, TaskRouter } from './domain/taskManagement';
+import { SqliteTaskStore } from './infra/SqliteTaskStore';
+import { LocalEventBus } from './infra/LocalEventBus';
 import { MemoryManager } from '@pamasmma/memory-core';
-import { KafkaProducer } from './infra/KafkaProducer';
+import { SqliteLongTermMemory } from '@pamasmma/memory-core';
+import { authMiddleware } from './middleware/auth';
 import express from 'express';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -27,9 +30,14 @@ function log(level: string, msg: string, extra?: Record<string, unknown>): void 
 // ── Bootstrap ──────────────────────────────────────────────────────────────
 initTracing('orchestrator');
 
-const bus = new KafkaProducer();
-const memory = new MemoryManager();
-const taskStore = new TaskStore();
+// Real event bus: delivers events to all subscribers in-process.
+// To switch to Kafka, replace LocalEventBus with KafkaProducer here.
+const bus = new LocalEventBus();
+
+// SQLite-backed stores: data survives process restarts.
+const ltm = new SqliteLongTermMemory();
+const taskStore = new SqliteTaskStore();
+const memory = new MemoryManager(ltm);
 
 const service = new OrchestratorAppService(
   new TaskCreator(),
@@ -39,12 +47,19 @@ const service = new OrchestratorAppService(
   bus
 );
 
+// Log all events in non-production for observability
+if (process.env['NODE_ENV'] !== 'production') {
+  bus.subscribe((event) => {
+    log('debug', 'event', { type: event.type, tenant_id: event.tenant_id });
+  });
+}
+
 const app = express();
 
-// Security headers (HSTS, X-Frame-Options, etc.)
+// Security headers (HSTS, X-Frame-Options, nosniff, etc.)
 app.use(helmet());
 
-// Rate limiting — 100 req / min per IP
+// Rate limiting — 100 req / 60 s per IP
 app.use(
   rateLimit({
     windowMs: 60_000,
@@ -56,6 +71,10 @@ app.use(
 );
 
 app.use(express.json({ limit: '1mb' }));
+
+// ── Auth — applied before all routes except /health ────────────────────────
+app.use('/api', authMiddleware);
+
 app.use('/api', orchestratorRoutes(service));
 
 // 404 fallback
@@ -64,15 +83,30 @@ app.use((_req, res) => {
 });
 
 // Global Express error handler
-app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  log('error', 'Unhandled Express error', { error: err.message, stack: err.stack });
-  res.status(500).json({ error: 'Internal server error' });
-});
+app.use(
+  (
+    err: Error,
+    _req: express.Request,
+    res: express.Response,
+    _next: express.NextFunction
+  ) => {
+    log('error', 'Unhandled Express error', {
+      error: err.message,
+      stack: err.stack,
+    });
+    res.status(500).json({ error: 'Internal server error' });
+  }
+);
 
 // ── Start ──────────────────────────────────────────────────────────────────
 const PORT = process.env['PORT'] ?? 3000;
 const server = app.listen(PORT, () =>
-  log('info', `Orchestrator running on port ${PORT}`)
+  log('info', `Orchestrator running on port ${PORT}`, {
+    event_bus: 'LocalEventBus',
+    task_store: 'SqliteTaskStore',
+    memory_store: 'SqliteLongTermMemory',
+    auth: process.env['API_KEYS'] ? 'bearer-token' : 'open (set API_KEYS)',
+  })
 );
 
 // Graceful shutdown
@@ -82,7 +116,6 @@ function shutdown(signal: string): void {
     log('info', 'HTTP server closed');
     process.exit(0);
   });
-  // Force exit after 10 s if connections don't drain
   setTimeout(() => process.exit(1), 10_000).unref();
 }
 

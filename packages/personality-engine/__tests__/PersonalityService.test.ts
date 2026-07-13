@@ -8,7 +8,7 @@ function makeDriftReport(overrides: Partial<DriftReport> = {}): DriftReport {
   return {
     driftScore: 0.1,
     warning: false,
-    shiftingDimensions: [],
+    factors: [],          // matches DriftReport interface (not 'shiftingDimensions')
     ...overrides,
   };
 }
@@ -16,7 +16,14 @@ function makeDriftReport(overrides: Partial<DriftReport> = {}): DriftReport {
 function makeAccessLayer(baseline?: number[]) {
   return {
     getEpisodic: jest.fn().mockReturnValue(
-      baseline ? { id: 'personality-baseline', type: 'episodic', data: { vector: baseline }, timestamp: '' } : undefined
+      baseline
+        ? {
+            id: 'personality-baseline',
+            type: 'episodic',
+            data: { vector: baseline },
+            timestamp: '',
+          }
+        : undefined
     ),
     getSemantic: jest.fn().mockReturnValue(undefined),
     getFromSTM: jest.fn().mockReturnValue(undefined),
@@ -30,7 +37,9 @@ function makeMemoryManager(baseline?: number[]): jest.Mocked<MemoryManager> {
   } as unknown as jest.Mocked<MemoryManager>;
 }
 
-function makeCoherenceEngine(report: DriftReport): jest.Mocked<IdentityCoherenceEngine> {
+function makeCoherenceEngine(
+  report: DriftReport
+): jest.Mocked<IdentityCoherenceEngine> {
   return {
     checkDrift: jest.fn().mockReturnValue(report),
   } as unknown as jest.Mocked<IdentityCoherenceEngine>;
@@ -44,7 +53,9 @@ function makeSelfHealing(): jest.Mocked<SelfHealingOrchestrator> {
 }
 
 function makeEventBus(): jest.Mocked<IEventBus> {
-  return { emit: jest.fn().mockResolvedValue(undefined) } as unknown as jest.Mocked<IEventBus>;
+  return {
+    emit: jest.fn().mockResolvedValue(undefined),
+  } as unknown as jest.Mocked<IEventBus>;
 }
 
 describe('PersonalityService', () => {
@@ -62,13 +73,23 @@ describe('PersonalityService', () => {
     coherenceEngine = makeCoherenceEngine(makeDriftReport());
     selfHealing = makeSelfHealing();
     eventBus = makeEventBus();
-    service = new PersonalityService(memoryManager, coherenceEngine, selfHealing, eventBus);
+    service = new PersonalityService(
+      memoryManager,
+      coherenceEngine,
+      selfHealing,
+      eventBus
+    );
   });
 
   describe('assessCurrentBehavior', () => {
     it('throws when no baseline personality is found in memory', async () => {
-      memoryManager = makeMemoryManager(undefined); // no baseline
-      service = new PersonalityService(memoryManager, coherenceEngine, selfHealing, eventBus);
+      memoryManager = makeMemoryManager(undefined);
+      service = new PersonalityService(
+        memoryManager,
+        coherenceEngine,
+        selfHealing,
+        eventBus
+      );
 
       await expect(
         service.assessCurrentBehavior('tenant-1', 'agent-1', current)
@@ -89,14 +110,18 @@ describe('PersonalityService', () => {
     });
 
     it('calls selfHealing.handleDrift when warning is true', async () => {
-      coherenceEngine.checkDrift.mockReturnValue(makeDriftReport({ driftScore: 0.8, warning: true }));
+      coherenceEngine.checkDrift.mockReturnValue(
+        makeDriftReport({ driftScore: 0.8, warning: true })
+      );
 
       await service.assessCurrentBehavior('tenant-1', 'agent-x', current);
       expect(selfHealing.handleDrift).toHaveBeenCalledWith('agent-x', 0.8);
     });
 
     it('does NOT call selfHealing.handleDrift when warning is false', async () => {
-      coherenceEngine.checkDrift.mockReturnValue(makeDriftReport({ driftScore: 0.1, warning: false }));
+      coherenceEngine.checkDrift.mockReturnValue(
+        makeDriftReport({ driftScore: 0.1, warning: false })
+      );
 
       await service.assessCurrentBehavior('tenant-1', 'agent-x', current);
       expect(selfHealing.handleDrift).not.toHaveBeenCalled();
@@ -110,10 +135,18 @@ describe('PersonalityService', () => {
     it('uses the baseline from the personality-baseline episodic record', async () => {
       const customBaseline = [0.1, 0.2, 0.3];
       memoryManager = makeMemoryManager(customBaseline);
-      service = new PersonalityService(memoryManager, coherenceEngine, selfHealing, eventBus);
+      service = new PersonalityService(
+        memoryManager,
+        coherenceEngine,
+        selfHealing,
+        eventBus
+      );
 
       await service.assessCurrentBehavior('tenant-1', 'agent-1', [0.2, 0.2, 0.2]);
-      expect(coherenceEngine.checkDrift).toHaveBeenCalledWith(customBaseline, [0.2, 0.2, 0.2]);
+      expect(coherenceEngine.checkDrift).toHaveBeenCalledWith(
+        customBaseline,
+        [0.2, 0.2, 0.2]
+      );
     });
   });
 });

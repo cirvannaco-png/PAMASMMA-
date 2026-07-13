@@ -1,11 +1,22 @@
 import { ShortTermMemory } from './stores/ShortTermMemory';
 import { LongTermMemory } from './stores/LongTermMemory';
+import { ILongTermMemory } from './stores/ILongTermMemory';
 import { MemoryEntry, EpisodicRecord, SemanticFact } from './types';
 import { generateUUID } from '@pamasmma/shared';
 
 export class MemoryManager {
-  private stm = new ShortTermMemory();
-  private ltm = new LongTermMemory();
+  private stm: ShortTermMemory;
+  private ltm: ILongTermMemory;
+
+  /**
+   * @param ltm - Long-term memory store to use.
+   *   Defaults to the in-memory LongTermMemory (zero config, data lost on restart).
+   *   Pass SqliteLongTermMemory (or any ILongTermMemory) for durable storage.
+   */
+  constructor(ltm?: ILongTermMemory) {
+    this.stm = new ShortTermMemory();
+    this.ltm = ltm ?? new LongTermMemory();
+  }
 
   async writeMemory(
     entry: MemoryEntry,
@@ -14,7 +25,6 @@ export class MemoryManager {
     if (context.source !== 'domain') {
       throw new Error('Unauthorized memory write source');
     }
-    // Add version stamp
     const versionedEntry = {
       ...entry,
       version: Date.now(),
@@ -38,7 +48,7 @@ export class MemoryManager {
 export class MemoryAccessLayer {
   constructor(
     private stm: ShortTermMemory,
-    private ltm: LongTermMemory,
+    private ltm: ILongTermMemory,
     private tenantId: string
   ) {}
 

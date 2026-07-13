@@ -1,12 +1,12 @@
 import { IEventBus } from '@pamasmma/shared';
-import { Task, TaskCreator, TaskRouter, TaskStore, TaskStatus } from '../domain/taskManagement';
+import { Task, TaskCreator, TaskRouter, ITaskStore, TaskStatus } from '../domain/taskManagement';
 import { MemoryManager } from '@pamasmma/memory-core';
 
 export class OrchestratorAppService {
   constructor(
     private taskCreator: TaskCreator,
     private taskRouter: TaskRouter,
-    private taskStore: TaskStore,
+    private taskStore: ITaskStore,
     private memoryManager: MemoryManager,
     private eventBus: IEventBus
   ) {}
@@ -30,7 +30,7 @@ export class OrchestratorAppService {
       { source: 'domain', tenant_id: tenantId, task_id: task.id }
     );
 
-    const agent = this.taskRouter.route(task);
+    this.taskRouter.route(task);
 
     await this.eventBus.emit({
       type: 'task.created',

@@ -1,11 +1,17 @@
 import { EpisodicRecord, SemanticFact } from '../types';
+import { ILongTermMemory } from './ILongTermMemory';
 
-export class LongTermMemory {
+/**
+ * In-process long-term memory store backed by plain Maps.
+ * Zero config — useful for tests and local development where persistence is not needed.
+ * Data is lost when the process exits; use SqliteLongTermMemory for durable storage.
+ */
+export class LongTermMemory implements ILongTermMemory {
   private episodic = new Map<string, EpisodicRecord>();
   private semantic = new Map<string, SemanticFact>();
 
   storeEpisodic(record: EpisodicRecord): void {
-    const key = `${record.tenant_id}:${record.id}`;
+    const key = `${record.tenant_id ?? ''}:${record.id}`;
     this.episodic.set(key, record);
   }
 
@@ -15,7 +21,7 @@ export class LongTermMemory {
   }
 
   storeSemantic(fact: SemanticFact): void {
-    const key = `${fact.tenant_id}:${fact.id}`;
+    const key = `${fact.tenant_id ?? ''}:${fact.id}`;
     this.semantic.set(key, fact);
   }
 

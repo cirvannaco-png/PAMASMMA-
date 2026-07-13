@@ -19,6 +19,24 @@ export function isValidTaskType(value: string): value is TaskType {
   return VALID_TASK_TYPES.includes(value as TaskType);
 }
 
+// ── Persistence contract ────────────────────────────────────────────────────
+
+/**
+ * Storage interface for tasks.
+ * Implementations:
+ *  - TaskStore:       in-memory Map (tests, local dev with no persistence needed)
+ *  - SqliteTaskStore: SQLite-backed (dev/staging, survives restarts)
+ */
+export interface ITaskStore {
+  save(task: Task): void;
+  findById(id: string): Task | undefined;
+  findByTenant(tenantId: string): Task[];
+  updateStatus(id: string, status: TaskStatus): Task | undefined;
+  delete(id: string): boolean;
+}
+
+// ── Domain services ──────────────────────────────────────────────────────────
+
 export class TaskCreator {
   create(data: { tenant_id: string; type: string; input: unknown }): Task {
     if (!isValidTaskType(data.type)) {
@@ -52,8 +70,8 @@ export class TaskRouter {
   }
 }
 
-/** In-memory task store with tenant isolation. */
-export class TaskStore {
+/** In-memory task store — zero config, data lost on restart. Use for tests. */
+export class TaskStore implements ITaskStore {
   private tasks: Map<string, Task> = new Map();
 
   save(task: Task): void {
