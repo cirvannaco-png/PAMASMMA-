@@ -17,14 +17,19 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'yarn'
+
+      # better-sqlite3 compiles a native addon; these tools are pre-installed
+      # on ubuntu-latest but making them explicit documents the requirement.
+      - name: Install native build tools
+        run: sudo apt-get install -y python3 make g++
 
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
       - name: Type check
-        run: yarn tsc -b --noEmit || yarn build
+        run: yarn tsc -b tsconfig.build.json --noEmit
 
       - name: Lint
         run: yarn lint
