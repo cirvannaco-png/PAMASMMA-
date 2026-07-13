@@ -28,8 +28,10 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
-      - name: Type check
-        run: yarn tsc -b tsconfig.build.json --noEmit
+      # tsc --build --noEmit is only valid in TS >=5.4; use yarn build (emits
+      # to dist/) which also catches all type errors across the solution.
+      - name: Build (type-check + emit)
+        run: yarn build
 
       - name: Lint
         run: yarn lint

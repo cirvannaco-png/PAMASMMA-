@@ -1,13 +1,33 @@
-import { Policy, retry, circuitBreaker, timeout, handleAll } from 'cockatiel';
+import {
+  retry,
+  circuitBreaker,
+  timeout,
+  handleAll,
+  ExponentialBackoff,
+  ConsecutiveBreaker,
+  TimeoutStrategy,
+} from 'cockatiel';
 
-// A generic retry policy for transient errors
-export const defaultRetryPolicy = retry(handleAll, { maxAttempts: 3, backoff: { type: 'exponential' } });
+/**
+ * Retry up to 3 times with exponential backoff on any error.
+ * Backoff starts at ~128 ms and doubles each attempt (cockatiel default).
+ */
+export const defaultRetryPolicy = retry(handleAll, {
+  maxAttempts: 3,
+  backoff: new ExponentialBackoff(),
+});
 
-// Timeout after 5 seconds
-export const defaultTimeoutPolicy = timeout(5000);
+/**
+ * Cancel the wrapped call after 5 seconds.
+ * Cooperative strategy: the promise resolves to an AbortError; the caller
+ * is responsible for honouring the signal if it needs hard cancellation.
+ */
+export const defaultTimeoutPolicy = timeout(5_000, TimeoutStrategy.Cooperative);
 
-// Circuit breaker: after 3 failures in 10s, open for 30s
+/**
+ * Open the circuit after 3 consecutive failures; attempt recovery after 30 s.
+ */
 export const defaultCircuitBreaker = circuitBreaker(handleAll, {
   halfOpenAfter: 30_000,
-  breaker: Policy.bulkhead(10, 1000), // simple breaker using bulkhead limits
+  breaker: new ConsecutiveBreaker(3),
 });

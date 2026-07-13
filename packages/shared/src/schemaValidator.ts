@@ -32,14 +32,20 @@ const validators: Record<string, ValidateFunction> = {
 };
 
 export function validateEvent(event: SystemEvent): boolean {
-  const validator = validators[event.type];
+  // Extract type before passing event to the AJV validator. AJV's ValidateFunction
+  // is typed as a type-guard (data is T) so TypeScript narrows `event` to `never`
+  // in the false branch if we access it after the validator call.
+  const eventType = event.type;
+  const validator = validators[eventType];
   if (!validator) {
-    console.error(`No validator for event type: ${event.type}`);
+    console.error(`No validator for event type: ${eventType}`);
     return false;
   }
-  const valid = validator(event);
+  // Cast to unknown: AJV operates on arbitrary JSON; type safety is enforced
+  // by the JSON schema, not by TypeScript's structural narrowing.
+  const valid = validator(event as unknown);
   if (!valid) {
-    console.error(`Event validation failed for ${event.type}:`, validator.errors);
+    console.error(`Event validation failed for ${eventType}:`, validator.errors);
   }
-  return valid as boolean;
+  return valid;
 }
