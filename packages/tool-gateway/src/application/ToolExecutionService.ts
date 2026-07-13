@@ -16,18 +16,18 @@ export class ToolExecutionService {
     inputs: unknown,
     context: { tenant_id: string; task_id: string; trace_id: string }
   ): Promise<Result<unknown>> {
-    const tool = this.registry.getTool(toolName);
-    if (!tool) return fail(new AppError('Tool not found', 'TOOL_NOT_FOUND', 404));
-
+    // Scan for injection BEFORE tool lookup so malicious inputs are always
+    // blocked, even when directed at unknown tool names.
     if (this.injectionDetector.scan(JSON.stringify(inputs))) {
+      const tool = this.registry.getTool(toolName);
       await this.eventBus.emit({
         type: 'tool.mcp.called',
         schema_version: 1,
         timestamp: new Date().toISOString(),
         tenant_id: context.tenant_id,
         task_id: context.task_id,
-        mcp_server: tool.server,
-        tool_name: tool.toolName,
+        mcp_server: tool?.server ?? 'unknown',
+        tool_name: tool?.toolName ?? toolName,
         input_hash: '...',
         status: 'rejected',
         mali_verdict: 'injection_blocked',
@@ -36,6 +36,9 @@ export class ToolExecutionService {
       });
       return fail(new AppError('Injection detected', 'INJECTION_BLOCKED', 400));
     }
+
+    const tool = this.registry.getTool(toolName);
+    if (!tool) return fail(new AppError('Tool not found', 'TOOL_NOT_FOUND', 404));
 
     if (tool.maliRequired) {
       const verdict = await this.maliService.evaluate(context.task_id, inputs);

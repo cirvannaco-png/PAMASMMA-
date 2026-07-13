@@ -12,7 +12,7 @@ export class AgentVersionManager {
 
   saveVersion(agentId: string, promptHash: string): PromptVersion {
     const version: PromptVersion = {
-      version: `v${Date.now()}`,
+      version: `v${Date.now()}-${generateUUID()}`,
       promptHash,
       createdAt: new Date().toISOString(),
       isStable: false,

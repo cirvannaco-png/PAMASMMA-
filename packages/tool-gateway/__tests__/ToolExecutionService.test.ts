@@ -47,7 +47,7 @@ describe('ToolExecutionService', () => {
       trace_id: 'trace1',
     });
     expect(result.ok).toBe(false);
-    expect(result.error.code).toBe('TOOL_NOT_FOUND');
+    if (!result.ok) expect(result.error.code).toBe('TOOL_NOT_FOUND');
   });
 
   test('detects injection and rejects', async () => {
@@ -57,6 +57,6 @@ describe('ToolExecutionService', () => {
       trace_id: 'trace1',
     });
     expect(result.ok).toBe(false);
-    expect(result.error.code).toBe('INJECTION_BLOCKED');
+    if (!result.ok) expect(result.error.code).toBe('INJECTION_BLOCKED');
   });
 });
