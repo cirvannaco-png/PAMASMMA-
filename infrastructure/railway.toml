@@ -1,0 +1,35 @@
+# PAMASMMA v4 — Railway Configuration
+# Two services: api (FastAPI) + web (Next.js)
+# Deploy: railway up from repo root
+
+[build]
+builder = "dockerfile"
+
+[[services]]
+name = "pamasmma-api"
+source = "backend"
+
+[services.build]
+dockerfilePath = "backend/Dockerfile"
+
+[services.deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+[[services.env]]
+PORT = { default = "8000" }
+
+[[services]]
+name = "pamasmma-web"
+source = "frontend"
+
+[services.build]
+dockerfilePath = "frontend/Dockerfile"
+
+[services.deploy]
+healthcheckPath = "/"
+healthcheckTimeout = 30
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3

@@ -1,0 +1,41 @@
+name: PAMASMMA Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Deploy to Railway
+    runs-on: ubuntu-latest
+    needs: []
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Run database migrations
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          railway run --service pamasmma-api \
+            alembic -c backend/alembic.ini upgrade head
+
+      - name: Deploy backend
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: railway up --service pamasmma-api --detach
+
+      - name: Deploy frontend
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: railway up --service pamasmma-web --detach
+
+      - name: Health check
+        run: |
+          sleep 20
+          curl --fail https://api.pamasmma.app/health || exit 1
+          echo "PAMASMMA v4 deployment verified ✓"
