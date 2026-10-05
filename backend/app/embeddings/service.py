@@ -109,7 +109,7 @@ async def retrieve_relevant_memories(
 
     try:
         query_embedding = await embed_text(query)
-        cutoff = datetime.now(timezone.utc) - timedelta(days=max_age_days)
+        cutoff = datetime.now(UTC) - timedelta(days=max_age_days)
 
         if not settings.is_persistent:
             candidates = [
