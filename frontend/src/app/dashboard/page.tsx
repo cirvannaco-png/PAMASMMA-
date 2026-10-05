@@ -25,7 +25,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!isAuthenticated) router.replace("/auth");
-  }, [isAuthenticated]);
+  }, [isAuthenticated, router]);
 
   useEffect(() => {
     const el = document.getElementById("chat-bottom");
