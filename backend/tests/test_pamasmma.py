@@ -2,7 +2,7 @@
 PAMASMMA v4.0.1 — Test Suite
 Tests exercise real module boundaries rather than patching imported aliases.
 """
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pyotp
 import pytest
