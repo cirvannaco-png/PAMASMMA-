@@ -9,6 +9,7 @@ import { startAuthentication } from "@simplewebauthn/browser";
 import toast from "react-hot-toast";
 
 import { auth } from "@/lib/api";
+import { useAuth } from "@/hooks/useAuth";
 import { useAuthStore } from "@/lib/store";
 
 type AuthMode = "loading" | "setup" | "signin";
@@ -20,6 +21,7 @@ const FOUNDER_USERNAME = process.env.NEXT_PUBLIC_FOUNDER_USERNAME ?? "kelson@cir
 export default function AuthPage() {
   const router = useRouter();
   const { isAuthenticated, setAuth } = useAuthStore();
+  const { isRestoring } = useAuth();
 
   const [mode, setMode] = useState<AuthMode>("loading");
   const [method, setMethod] = useState<SignInMethod>("totp");
@@ -35,6 +37,8 @@ export default function AuthPage() {
   });
 
   useEffect(() => {
+    if (isRestoring) return;
+
     if (isAuthenticated) {
       router.replace("/dashboard");
       return;
@@ -52,7 +56,7 @@ export default function AuthPage() {
         toast.error(error instanceof Error ? error.message : "Unable to reach PAMASMMA");
         setMode("signin");
       });
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, isRestoring, router]);
 
   const loginMethods = useMemo(
     () => [
