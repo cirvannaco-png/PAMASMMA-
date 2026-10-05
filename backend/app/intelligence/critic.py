@@ -1,4 +1,6 @@
 """Critic stage for generated cognitive output."""
+import re
+
 from app.intelligence.contracts import (
     CognitiveContext,
     CognitivePlan,
@@ -116,9 +118,9 @@ class CognitiveCritic:
 
 
 class ContradictionChecker:
-    _NEGATION = __import__("re").compile(
+    _NEGATION = re.compile(
         r"\b(?:not|never|no|without|cannot|can't|isn't|doesn't|won't)\b",
-        __import__("re").IGNORECASE,
+        re.IGNORECASE,
     )
 
     @classmethod
@@ -127,8 +129,6 @@ class ContradictionChecker:
         left: str,
         right: str,
     ) -> bool:
-        import re
-
         left_words = set(
             re.findall(
                 r"[a-z0-9-]{4,}",
