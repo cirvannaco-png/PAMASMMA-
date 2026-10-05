@@ -1,34 +1,48 @@
 """
-PAMASMMA v4 — Embeddings Service
-pgvector-backed memory: store interactions, retrieve relevant context.
-Uses text-embedding-3-small via OpenAI-compatible endpoint.
-Freshness policy: memories older than 90 days are deprioritized in retrieval.
+PAMASMMA v4.1 — Memory / embeddings service.
+Local hashing embeddings are the default, eliminating the OpenAI API-key
+dependency. OpenAI remains an optional provider for stronger semantic search.
 """
+import json
 import logging
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 
-from openai import AsyncOpenAI
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.database import AsyncSessionLocal
+from app.intelligence.memory import LocalEmbeddingProvider
 
 log = logging.getLogger(__name__)
 settings = get_settings()
 
-# Re-use OpenAI client for embeddings (Anthropic doesn't yet provide embeddings)
-_openai = AsyncOpenAI(api_key=settings.openai_api_key)
+
+def _local_embedding(content: str) -> list[float]:
+    return LocalEmbeddingProvider.embed(content)
 
 
 async def embed_text(content: str) -> list[float]:
-    """Generate a vector embedding for arbitrary text."""
-    response = await _openai.embeddings.create(
-        model=settings.embedding_model,
-        input=content[:8000],  # token safety cap
-        dimensions=settings.embedding_dimensions,
-    )
-    return response.data[0].embedding
+    provider = settings.embedding_provider.lower()
+    if provider == "local":
+        return _local_embedding(content)
+
+    if provider == "openai":
+        from openai import AsyncOpenAI
+
+        if not settings.openai_api_key:
+            raise RuntimeError("OPENAI_API_KEY is not configured.")
+        client = AsyncOpenAI(api_key=settings.openai_api_key)
+        try:
+            response = await client.embeddings.create(
+                model=settings.embedding_model,
+                input=content[:8000],
+                dimensions=settings.embedding_dimensions,
+            )
+            return response.data[0].embedding
+        finally:
+            await client.close()
+
+    raise ValueError(f"Unsupported EMBEDDING_PROVIDER: {settings.embedding_provider!r}")
 
 
 async def store_memory(
@@ -37,10 +51,7 @@ async def store_memory(
     content: str,
     metadata: dict | None = None,
 ) -> None:
-    """
-    Embed and store a memory in pgvector.
-    Table: pamasmma_memories (created in migration 001).
-    """
+    """Embed and persist one interaction. Memory failures never break inference."""
     try:
         embedding = await embed_text(content)
         async with AsyncSessionLocal() as session:
@@ -56,12 +67,12 @@ async def store_memory(
                     "system_id": system_id,
                     "content": content[:4000],
                     "embedding": str(embedding),
-                    "metadata": str(metadata or {}),
+                    "metadata": json.dumps(metadata or {}),
                 },
             )
             await session.commit()
-    except Exception as exc:
-        log.error(f"Memory store failed [{system_id}]: {exc}")
+    except Exception:
+        log.exception("Memory store failed [%s]", system_id)
 
 
 async def retrieve_relevant_memories(
@@ -71,28 +82,25 @@ async def retrieve_relevant_memories(
     limit: int = 5,
     max_age_days: int = 90,
 ) -> str:
-    """
-    Retrieve the top-K most semantically relevant memories for a query.
-    Applies a freshness decay: memories older than max_age_days are excluded.
-    Returns formatted string for injection into system prompt.
-    """
+    """Retrieve fresh, semantically similar memories for prompt grounding."""
     if not query.strip():
         return ""
+
     try:
         query_embedding = await embed_text(query)
         cutoff = datetime.now(timezone.utc) - timedelta(days=max_age_days)
 
         async with AsyncSessionLocal() as session:
-            rows = await session.execute(
+            result = await session.execute(
                 text("""
                     SELECT content, created_at,
-                           1 - (embedding <=> :query_vec::vector) AS similarity
+                           1 - (embedding <=> CAST(:query_vec AS vector)) AS similarity
                     FROM pamasmma_memories
                     WHERE user_id = :user_id
                       AND system_id = :system_id
                       AND created_at > :cutoff
-                      AND 1 - (embedding <=> :query_vec::vector) > :threshold
-                    ORDER BY embedding <=> :query_vec::vector
+                      AND 1 - (embedding <=> CAST(:query_vec AS vector)) > :threshold
+                    ORDER BY embedding <=> CAST(:query_vec AS vector)
                     LIMIT :limit
                 """),
                 {
@@ -104,27 +112,18 @@ async def retrieve_relevant_memories(
                     "limit": limit,
                 },
             )
-            memories = rows.fetchall()
+            memories = result.fetchall()
 
-        if not memories:
-            return ""
-
-        formatted = "\n---\n".join(
-            f"[{row.created_at.strftime('%Y-%m-%d')} | sim={row.similarity:.2f}]\n{row.content}"
+        return "\n---\n".join(
+            f"[{row.created_at:%Y-%m-%d} | sim={row.similarity:.2f}]\n{row.content}"
             for row in memories
         )
-        return formatted
-
-    except Exception as exc:
-        log.warning(f"Memory retrieval failed: {exc}")
+    except Exception:
+        log.exception("Memory retrieval failed")
         return ""
 
 
 async def purge_old_memories(user_id: str, max_age_days: int = 180) -> int:
-    """
-    Scheduler job: remove memories older than max_age_days.
-    Returns number of records deleted.
-    """
     cutoff = datetime.now(timezone.utc) - timedelta(days=max_age_days)
     async with AsyncSessionLocal() as session:
         result = await session.execute(
@@ -135,4 +134,4 @@ async def purge_old_memories(user_id: str, max_age_days: int = 180) -> int:
             {"user_id": user_id, "cutoff": cutoff},
         )
         await session.commit()
-        return result.rowcount
+        return int(result.rowcount or 0)
