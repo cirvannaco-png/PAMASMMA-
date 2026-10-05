@@ -277,11 +277,11 @@ class CognitiveEngine:
 
     async def _verify_and_revise(
         self,
-        provider,
+        provider_selection,
         final_prompt,
         context,
         plan,
-        provider_selection,
+        raw_response,
     ):
         response = (
             raw_response or ""
