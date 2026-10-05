@@ -316,7 +316,7 @@ async def upsert_world_entity(
         }
         memory_store.world_entities.append(record)
         del memory_store.world_entities[:-1000]
-        return record["id"]
+        return str(record["id"])
 
     assert AsyncSessionLocal is not None
     async with AsyncSessionLocal() as session:
@@ -383,7 +383,7 @@ async def upsert_relationship(
         record={"id":str(uuid.uuid4()),"_key":key,"user_id":user_id,"subject":subject,"relation":relation,"object":object_name,"confidence":confidence,"created_at":_now(),"updated_at":_now()}
         memory_store.relationships.append(record)
         del memory_store.relationships[:-1000]
-        return record["id"]
+        return str(record["id"])
 
     assert AsyncSessionLocal is not None
     async with AsyncSessionLocal() as session:
