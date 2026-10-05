@@ -69,7 +69,7 @@ export function useEventStream({
 
       const delay = BASE_DELAY_MS * Math.pow(2, retryCount.current);
       retryCount.current += 1;
-      retryTimer.current = setTimeout(connect, delay);
+      retryTimer.current = setTimeout(() => connect(), delay);
     };
   }, [enabled, onEvent, onConnect, onDisconnect]);
 
@@ -103,7 +103,10 @@ export function useEventSubscription(
   enabled = true,
 ) {
   const handlerRef = useRef(handler);
-  handlerRef.current = handler;
+
+  useEffect(() => {
+    handlerRef.current = handler;
+  }, [handler]);
 
   useEventStream({
     enabled,
