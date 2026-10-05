@@ -31,10 +31,9 @@ def test_context_assembly_extracts_intent_constraints_and_entities():
             {
                 "role": "user",
                 "content": (
-                    "Build a strategy to improve PAMASMMA. "
+                    "Plan how to improve PAMASMMA. "
                     "It must preserve the current API and avoid unnecessary "
-                    "dependencies. Compare the architecture with the latest "
-                    "market signals."
+                    "dependencies."
                 ),
             }
         ],
@@ -42,8 +41,8 @@ def test_context_assembly_extracts_intent_constraints_and_entities():
         primary_system_id="S1",
     )
 
-    assert context.intent == IntentType.IMPLEMENTATION
-    assert context.complexity == TaskComplexity.MODERATE
+    assert context.intent == IntentType.PLANNING
+    assert context.complexity == TaskComplexity.STRATEGIC
     assert "PAMASMMA" in {item.name for item in context.entities}
     assert any("must preserve" in item.lower() for item in context.constraints)
 
