@@ -29,9 +29,9 @@ class EvidenceGate:
                 "requires_external_evidence",
                 [
                     VerificationIssue(
-                        "medium",
-                        "external_evidence",
-                        "Time-sensitive or research claims require external evidence before being treated as facts.",
+                        severity="medium",
+                        category="external_evidence",
+                        message="Time-sensitive or research claims require external evidence before being treated as facts.",
                     )
                 ],
             )
