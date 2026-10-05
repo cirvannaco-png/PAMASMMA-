@@ -19,6 +19,7 @@ jobs:
   backend:
     name: Backend — Test & Lint
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: backend
@@ -62,7 +63,7 @@ jobs:
 
       - name: Lint (ruff)
         run: |
-          pip install ruff
+          pip install ruff==0.16.10
           ruff check app/ tests/
 
       - name: Type check (mypy)
@@ -79,6 +80,9 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY || 'sk-test-dummy' }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || 'sk-test-dummy' }}
           APP_ENV: test
+          PERSISTENCE_MODE: postgres
+          MODEL_PROVIDER: kernel
+          EMBEDDING_PROVIDER: local
         run: |
           pytest tests/ -v --cov=app --cov-report=xml --cov-report=term-missing
 
@@ -93,6 +97,7 @@ jobs:
   frontend:
     name: Frontend — Type-check & Lint
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: frontend
