@@ -32,7 +32,7 @@ export function CognitiveChatPanel({ systemId, messages, loading, onSend }: Chat
   return (
     <>
       {/* Messages */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "24px 20px", display: "flex", flexDirection: "column", gap: 16 }}>
+      <div className="pamasmma-chat" style={{ flex: 1, overflowY: "auto", padding: "24px 20px", display: "flex", flexDirection: "column", gap: 16 }}>
 
         {messages.length === 0 && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flex: 1, textAlign: "center", paddingTop: 80, opacity: 0.65 }}>
@@ -57,7 +57,7 @@ export function CognitiveChatPanel({ systemId, messages, loading, onSend }: Chat
             )}
             <div style={{
               padding: "12px 16px",
-              maxWidth: "70%",
+              maxWidth: "min(70%, 760px)",
               fontSize: 13,
               lineHeight: 1.7,
               whiteSpace: "pre-wrap",
@@ -88,7 +88,7 @@ export function CognitiveChatPanel({ systemId, messages, loading, onSend }: Chat
       </div>
 
       {/* Input */}
-      <div style={{ padding: "14px 20px 16px", borderTop: "1px solid #161630", background: "#07071A", flexShrink: 0 }}>
+      <div className="pamasmma-input" style={{ padding: "14px 20px 16px", borderTop: "1px solid #161630", background: "#07071A", flexShrink: 0 }}>
         <div style={{ display: "flex", gap: 10, marginBottom: 8 }}>
           <textarea
             rows={1}
@@ -120,7 +120,7 @@ export function CognitiveChatPanel({ systemId, messages, loading, onSend }: Chat
             }}
           >↑</button>
         </div>
-        <div style={{ fontSize: 9, color: "#22224A", letterSpacing: 1.5, fontFamily: "monospace" }}>
+        <div className="pamasmma-chat-meta" style={{ fontSize: 9, color: "#22224A", letterSpacing: 1.5, fontFamily: "monospace" }}>
           PAMASMMA · {sys.id} · MALI v7 · {messages.length} exchanges · Enter to send · Shift+Enter for newline
         </div>
       </div>
