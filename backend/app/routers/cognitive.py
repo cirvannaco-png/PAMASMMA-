@@ -10,7 +10,6 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import text
 
 from app.auth.dependencies import get_current_user
 from app.database import pg_event_bus
