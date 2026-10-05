@@ -23,7 +23,7 @@ export default function SystemPage() {
       setActiveSystem(systemParam);
     }
     router.replace("/dashboard");
-  }, [systemParam, valid]);
+  }, [router, setActiveSystem, systemParam, valid]);
 
   return (
     <div style={{
