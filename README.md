@@ -168,3 +168,18 @@ See `.env.example` for all required variables.
 
 *"Infrastructure of identity."*  
 Cirvanna · Nakuru, Kenya · 2025
+
+
+## v4.0.1 production hardening
+
+Authentication is now server-bound: TOTP verification uses an encrypted
+server-stored secret, refresh tokens are checked against live Redis sessions,
+and WebAuthn registration requires an authenticated session. A
+`PAMASMMA_BOOTSTRAP_TOKEN` is required for first-time founder enrollment.
+
+Database schema changes are owned by Alembic; application startup no longer
+runs `create_all` or mutates production schema. Run
+`cd backend && alembic upgrade head` during deployment.
+
+See [docs/MIGRATION_V4.0.1.md](docs/MIGRATION_V4.0.1.md) for the complete
+migration and rollback considerations.
