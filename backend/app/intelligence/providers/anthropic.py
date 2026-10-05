@@ -1,5 +1,6 @@
 """Optional Anthropic adapter. Imported only when selected."""
 from collections.abc import AsyncGenerator
+from typing import Any, cast
 
 import anthropic
 
@@ -22,9 +23,9 @@ class AnthropicProvider:
             model=self.model,
             max_tokens=max_tokens,
             system=system_prompt,
-            messages=messages,
+            messages=cast(Any, messages),
         )
-        return response.content[0].text
+        return next((block.text for block in response.content if hasattr(block, "text")), "")
 
     async def stream(
         self,
