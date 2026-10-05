@@ -1,20 +1,11 @@
 """Structured hypothesis formation for the cognitive loop."""
-from app.intelligence.contracts import CognitiveContext, CognitivePlan, MemoryItem
-from app.intelligence.contracts import IntentType, EvidenceType
-
-
-class Hypothesis:
-    def __init__(
-        self,
-        statement: str,
-        basis: str,
-        test: str,
-        confidence: float,
-    ) -> None:
-        self.statement = statement
-        self.basis = basis
-        self.test = test
-        self.confidence = confidence
+from app.intelligence.contracts import (
+    CognitiveContext,
+    CognitivePlan,
+    Hypothesis,
+    IntentType,
+    MemoryItem,
+)
 
 
 class HypothesisEngine:
@@ -45,15 +36,21 @@ class HypothesisEngine:
             )
         ]
 
-        if context.intent in {IntentType.DECISION, IntentType.PLANNING}:
+        if context.intent in {
+            IntentType.DECISION,
+            IntentType.PLANNING,
+        }:
             hypotheses.append(
                 Hypothesis(
                     statement=(
-                        "A clearly defined option with measurable acceptance criteria "
-                        "will outperform an action selected from intuition alone."
+                        "A clearly defined option with measurable acceptance "
+                        "criteria will outperform an action selected from intuition alone."
                     ),
                     basis="decision/planning intent detected",
-                    test="Rank options against impact, reversibility, cost, evidence quality and risk.",
+                    test=(
+                        "Rank options against impact, reversibility, cost, "
+                        "evidence quality and risk."
+                    ),
                     confidence=0.65,
                 )
             )
@@ -63,10 +60,13 @@ class HypothesisEngine:
                 Hypothesis(
                     statement=(
                         "The implementation outcome depends more on preserving "
-                        "the violated contract than on adding surface-area."
+                        "the violated contract than on adding surface area."
                     ),
                     basis="implementation intent detected",
-                    test="Identify the smallest reproducible failure and add a regression test.",
+                    test=(
+                        "Identify the smallest reproducible failure and add "
+                        "a regression test."
+                    ),
                     confidence=0.68,
                 )
             )
@@ -79,7 +79,10 @@ class HypothesisEngine:
                         "truth can change over time."
                     ),
                     basis="research/current-information signal detected",
-                    test="Verify time-sensitive claims against authoritative external evidence.",
+                    test=(
+                        "Verify time-sensitive claims against authoritative "
+                        "external evidence."
+                    ),
                     confidence=0.74,
                 )
             )
