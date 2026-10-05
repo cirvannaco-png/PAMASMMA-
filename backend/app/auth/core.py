@@ -6,8 +6,8 @@ import base64
 import json
 import logging
 import secrets
-from typing import Any, cast
 from datetime import UTC, datetime, timedelta
+from typing import Any, cast
 
 import jwt as pyjwt
 import pyotp
@@ -198,7 +198,7 @@ async def begin_webauthn_authentication(user_id: str) -> dict | None:
     )
     challenge_b64 = base64.b64encode(options.challenge).decode("ascii")
     await store_webauthn_challenge(user_id, challenge_b64)
-    return options_to_json(options)
+    return cast(dict[str, Any], json.loads(options_to_json(options)))
 
 
 async def complete_webauthn_authentication(
