@@ -22,10 +22,10 @@ from app.auth.core import (
 from app.auth.dependencies import get_current_user
 from app.auth.service import (
     TotpAlreadyConfiguredError,
+    get_auth_status,
     mark_webauthn_registered,
     setup_totp,
     verify_totp_for_user,
-    get_auth_status,
 )
 from app.config import get_settings
 from app.redis_client import check_rate_limit, get_session
