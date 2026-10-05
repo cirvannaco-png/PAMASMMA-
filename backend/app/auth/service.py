@@ -3,7 +3,7 @@ PAMASMMA — Authentication persistence service.
 Durable mode uses Postgres; memory mode uses the explicit ephemeral runtime store.
 """
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from app.auth.core import generate_totp_secret, verify_totp
 from app.config import get_settings
@@ -76,7 +76,7 @@ async def verify_totp_for_user(user_id: str, code: str) -> bool:
         if not await verify_totp(user_id, secret, code):
             return False
         user["totp_enabled"] = True
-        user["last_login_at"] = datetime.now(timezone.utc).isoformat()
+        user["last_login_at"] = datetime.now(UTC).isoformat()
         return True
 
     assert AsyncSessionLocal is not None
