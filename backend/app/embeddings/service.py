@@ -50,9 +50,10 @@ def _parse_metadata(value) -> dict:
     if not value:
         return {}
     try:
-        return json.loads(value)
+        parsed = json.loads(value)
     except (TypeError, json.JSONDecodeError):
         return {}
+    return parsed if isinstance(parsed, dict) else {}
 
 
 def _recency_score(
