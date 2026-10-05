@@ -26,6 +26,21 @@ async def test_health_endpoint(client):
     assert response.json()["version"] == "4.1.0"
 
 
+
+@pytest.mark.asyncio
+async def test_health_ready_endpoint(client):
+    with patch("app.routers.health.redis_ping", new=AsyncMock(return_value=True)), \
+         patch("app.routers.health.engine") as mock_engine:
+        mock_conn = AsyncMock()
+        mock_engine.connect.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
+        mock_engine.connect.return_value.__aexit__ = AsyncMock(return_value=False)
+
+        response = await client.get("/health/ready")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "ready"
+
+
 @pytest.mark.asyncio
 async def test_totp_setup_requires_bootstrap_token(client):
     response = await client.post(
