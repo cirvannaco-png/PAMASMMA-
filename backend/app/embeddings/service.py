@@ -94,7 +94,7 @@ def _cosine_similarity(a: list[float], b: list[float]) -> float:
     norm_b = sum(y * y for y in b) ** 0.5
     if not norm_a or not norm_b:
         return 0.0
-    return numerator / (norm_a * norm_b)
+    return float(numerator / (norm_a * norm_b))
 
 
 async def retrieve_relevant_memories(
@@ -191,4 +191,4 @@ async def purge_old_memories(
             {"user_id": user_id, "cutoff": cutoff},
         )
         await session.commit()
-        return int(result.rowcount or 0)
+        return int(getattr(result, "rowcount", 0) or 0)
