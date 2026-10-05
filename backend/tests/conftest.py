@@ -40,6 +40,7 @@ async def app():
         mock_redis.ping = AsyncMock(return_value=True)
         mock_redis.pipeline.return_value.__aenter__ = AsyncMock()
         mock_redis.pipeline.return_value.__aexit__ = AsyncMock()
+        mock_redis.close = AsyncMock()
         mock_redis.aclose = AsyncMock()
 
         mock_scheduler.start = MagicMock()
