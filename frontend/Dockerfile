@@ -22,8 +22,6 @@ RUN addgroup --system pamasmma && adduser --system --ingroup pamasmma pamasmma
 
 COPY --from=builder --chown=pamasmma:pamasmma /app/.next/standalone ./
 COPY --from=builder --chown=pamasmma:pamasmma /app/.next/static ./.next/static
-COPY --from=builder --chown=pamasmma:pamasmma /app/public ./public
-
 USER pamasmma
 EXPOSE 3000
 
