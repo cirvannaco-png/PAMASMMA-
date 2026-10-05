@@ -5,16 +5,17 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { SYSTEM_MAP } from "@/lib/constants";
-import type { Message, SystemId } from "@/types";
+import type { CognitiveMetadataEvent, Message, SystemId } from "@/types";
 
 interface ChatPanelProps {
   systemId: SystemId;
   messages: Message[];
   loading: boolean;
+  cognition: CognitiveMetadataEvent | null;
   onSend: (content: string) => void;
 }
 
-export function CognitiveChatPanel({ systemId, messages, loading, onSend }: ChatPanelProps) {
+export function CognitiveChatPanel({ systemId, messages, loading, cognition, onSend }: ChatPanelProps) {
   const [input, setInput] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const sys = SYSTEM_MAP[systemId];
@@ -84,6 +85,8 @@ export function CognitiveChatPanel({ systemId, messages, loading, onSend }: Chat
           </div>
         )}
 
+        {cognition && <CognitionPanel cognition={cognition} systemColor={sys.color} />}
+
         <div ref={bottomRef} />
       </div>
 
@@ -125,6 +128,101 @@ export function CognitiveChatPanel({ systemId, messages, loading, onSend }: Chat
         </div>
       </div>
     </>
+  );
+}
+
+function CognitionPanel({
+  cognition,
+  systemColor,
+}: {
+  cognition: CognitiveMetadataEvent;
+  systemColor: string;
+}) {
+  const trace = cognition.cognition;
+  const decision = cognition.decision;
+  const confidence = Math.round(trace.confidence * 100);
+
+  return (
+    <div
+      style={{
+        width: "100%",
+        maxWidth: 760,
+        border: `1px solid ${systemColor}24`,
+        background: "#08081B",
+        borderRadius: 14,
+        padding: 14,
+      }}
+      aria-label="Cognitive decision trace"
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          gap: 12,
+          flexWrap: "wrap",
+          alignItems: "center",
+          marginBottom: 10,
+        }}
+      >
+        <span style={{ fontSize: 9, fontFamily: "monospace", letterSpacing: 1.5, color: "#64649A" }}>
+          VERIFIED COGNITION
+        </span>
+        <span style={{ fontSize: 11, fontFamily: "monospace", color: systemColor }}>
+          CONFIDENCE {confidence}%
+        </span>
+      </div>
+
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
+        <TraceChip label="Intent" value={trace.intent} />
+        <TraceChip label="Complexity" value={trace.complexity} />
+        <TraceChip label="Provider" value={trace.provider} />
+        <TraceChip label="Verification" value={`${Math.round(trace.verification.score * 100)}%`} />
+        <TraceChip label="Evidence" value={trace.evidence_status} />
+      </div>
+
+      <div style={{ fontSize: 11, color: "#9090C0", lineHeight: 1.6, marginBottom: 10 }}>
+        Routed: <span style={{ color: "#C5C5E8" }}>{trace.routed_systems.join(" · ")}</span>
+      </div>
+
+      <div style={{ fontSize: 11, color: "#7070A0", lineHeight: 1.6 }}>
+        <strong style={{ color: "#B8B8DE" }}>Next action:</strong>{" "}
+        {decision.selected_action}
+      </div>
+
+      {trace.uncertainty.length > 0 && (
+        <div style={{ marginTop: 10, fontSize: 10, color: "#8585A8", lineHeight: 1.6 }}>
+          <strong style={{ color: "#A7A7C4" }}>Uncertainty:</strong>{" "}
+          {trace.uncertainty.join(" · ")}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TraceChip({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        gap: 5,
+        alignItems: "center",
+        border: "1px solid #1E1E40",
+        borderRadius: 999,
+        padding: "5px 8px",
+        fontSize: 9,
+        fontFamily: "monospace",
+        color: "#8585B0",
+      }}
+    >
+      <span style={{ color: "#46466C" }}>{label}</span>
+      <span style={{ color: "#B0B0D4" }}>{value}</span>
+    </span>
   );
 }
 

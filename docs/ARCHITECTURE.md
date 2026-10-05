@@ -1,198 +1,258 @@
-# PAMASMMA v4 — Architecture
+# PAMASMMA v4.2 — Cognitive Operating System Architecture
 
-## System Overview
+## Purpose
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                           PAMASMMA v4                                   │
-│                  Governed Synthetic Executive Intelligence               │
-├──────────────────┬──────────────────────────┬───────────────────────────┤
-│   Frontend       │       Backend            │     Infrastructure        │
-│   Next.js 15     │       FastAPI            │     Supabase (Postgres)   │
-│   TypeScript     │       Python 3.11+       │     Upstash (Redis)       │
-│   Tailwind CSS   │       Async/uvloop       │     Railway (Deploy)      │
-│   Zustand        │       structlog          │     GitHub Actions (CI)   │
-└──────────────────┴──────────────────────────┴───────────────────────────┘
-```
+PAMASMMA is a provider-neutral assistant platform whose intelligence is implemented as a governed cognitive pipeline rather than a single model call.
 
-## Request Lifecycle
+The architecture separates model capability from cognitive control, memory from truth, and response generation from verification.
 
-```
-Client Request
-    │
-    ▼
-LoggingMiddleware          ← attaches X-Request-ID, structured log
-    │
-    ▼
-RateLimitMiddleware        ← Redis sliding window (IP + route)
-    │
-    ▼
-CORSMiddleware
-    │
-    ▼
-Route Handler
-    │
-    ├─ /api/v1/auth/*      → Auth Router (TOTP / WebAuthn / JWT)
-    │
-    ├─ /api/v1/cognitive/* → Cognitive Router
-    │       │
-    │       ▼
-    │   get_current_user() → decode JWT → verify Redis session
-    │       │
-    │       ▼
-    │   CognitiveSystem.invoke()
-    │       │
-    │       ├─ retrieve_relevant_memories() → pgvector cosine search
-    │       ├─ anthropic.messages.create()  → Anthropic API
-    │       ├─ pg_notify('cognitive_invocation') → PGEventBus
-    │       └─ store_memory()              → pgvector embed + insert
-    │
-    └─ /api/v1/events/stream → SSE fan-out from PGEventBus
-```
+Nakima remains a separate repository and is not embedded into PAMASMMA.
 
-## Event Bus
+## Cognitive lifecycle
 
-Postgres LISTEN/NOTIFY replaces Kafka. Zero external dependencies.
+~~~text
+OBSERVE
+  ↓
+INTERPRET
+  ↓
+CONTEXTUALIZE
+  ↓
+RETRIEVE MEMORY
+  ↓
+FORM HYPOTHESES
+  ↓
+PLAN
+  ↓
+DELIBERATE
+  ↓
+GENERATE
+  ↓
+VERIFY
+  ↓
+METACOGNITIVE GOVERNANCE
+  ↓
+DECIDE
+  ↓
+ACT / HAND OFF
+  ↓
+OBSERVE OUTCOME
+  ↓
+LEARN
+  ↓
+UPDATE MEMORY + WORLD MODEL
+~~~
 
-```
-CognitiveSystem._post_invoke()
-    │
-    └─ pg_notify('cognitive_invocation', payload_json)
-            │
-            ▼
-    PGEventBus._dispatch()
-            │
-            ├─ handle_cognitive_invocation() → INSERT pamasmma_action_log
-            └─ broadcast() → SSE fan-out to all connected clients
-```
+The HTTP request ends after a response and structured decision. Real-world action remains external unless an authorized action tool exists. Outcomes can later be recorded to close the learning loop.
 
-**Channels:**
-| Channel | Producer | Consumer |
-|---|---|---|
-| `cognitive_invocation` | S1–S10 systems | action log + SSE |
-| `override_queue` | POST /cognitive/override | override_queue table + SSE |
-| `scheduler_event` | APScheduler jobs | structured log + SSE |
+## Runtime architecture
 
-## Authentication Flow
+~~~text
+Frontend / API clients
+        │
+        ▼
+FastAPI transport
+  ├─ authentication
+  ├─ rate limits
+  └─ request validation
+        │
+        ▼
+CognitiveSystem S1–S10
+  └─ stable domain identity/directive
+        │
+        ▼
+CognitiveEngine
+  ├─ ContextAssembler
+  ├─ BeliefResolver
+  ├─ Memory Fabric
+  ├─ WorldModel
+  ├─ HypothesisEngine
+  ├─ ExecutivePlanner
+  ├─ SpecialistRouter
+  ├─ ProviderRouter
+  ├─ CognitiveCritic
+  ├─ EvidenceGate
+  ├─ MetacognitiveGovernor
+  └─ ConfidenceEngine
+        │
+        ├─ KernelProvider
+        ├─ Local/OpenAI-compatible provider
+        └─ Optional Anthropic provider
+        │
+        ▼
+DecisionRecord + audit events
+~~~
 
-```
-1. TOTP Setup
-   POST /auth/totp/setup
-   └─ Returns: { secret, uri }
-   └─ Frontend: render QR code from uri
+## Memory fabric
 
-2. TOTP Verify
-   POST /auth/totp/verify { user_id, secret, code }
-   └─ pyotp.verify(code, valid_window=1)
-   └─ Redis: mark_totp_used() → replay prevention
-   └─ Returns: { access_token, refresh_token }
+Six memory classes are recognized:
 
-3. Authenticated Requests
-   Authorization: Bearer <access_token>
-   └─ decode_token() → validate JWT
-   └─ get_session(session_id) → confirm Redis session live
-   └─ inject current_user into route handler
+| Type | Purpose |
+|---|---|
+| Working | Current task state |
+| Episodic | What happened in prior interaction |
+| Semantic | Durable facts and generalized knowledge |
+| Procedural | Reusable lessons and operating rules |
+| Relationship | Entities and relationship context |
+| Outcome | Decision result and prediction error |
 
-4. Token Refresh
-   POST /auth/token/refresh { refresh_token }
-   └─ revoke old session
-   └─ create new session
-   └─ issue new token pair
+Memory retrieval is scored from similarity, recency, importance, reliability, outcome relevance, and contextual fit.
 
-5. WebAuthn (optional hardware key)
-   POST /auth/webauthn/register/begin  → challenge stored in Redis (120s TTL)
-   POST /auth/webauthn/register/complete → verify + store credential in Redis
-   POST /auth/webauthn/authenticate/begin → fresh challenge
-   POST /auth/webauthn/authenticate/complete → verify + update sign_count
-```
+The dependency-free local embedding mode remains available for CI and no-key deployments. A semantic external embedding adapter can be enabled separately.
 
-## Memory Architecture
+## Belief and contradiction governance
 
-```
-User Message
-    │
-    ▼
-embed_text(message)           ← text-embedding-3-small, 1536 dims
-    │
-    ▼
-retrieve_relevant_memories()
-    SELECT ... FROM pamasmma_memories
-    WHERE user_id = ? AND system_id = ?
-      AND created_at > NOW() - 90 days
-      AND 1 - (embedding <=> query_vec) > 0.78
-    ORDER BY embedding <=> query_vec
-    LIMIT 5
-    │
-    ▼
-Inject into system prompt as "RELEVANT MEMORY CONTEXT"
-    │
-    ▼
-Anthropic API call
-    │
-    ▼
-store_memory(response)        ← embed + INSERT INTO pamasmma_memories
-```
+Beliefs are represented with:
 
-**Indexes:**
-- `ivfflat` cosine index on `embedding` (lists=100) — sub-10ms retrieval
-- B-tree indexes on `user_id`, `system_id`, `created_at`
+- evidence type
+- confidence
+- reliability
+- source
+- subject
+- predicate
+- object
+- active/inactive status
 
-## Scheduler Jobs
+Evidence types are FACT, INFERENCE, ASSUMPTION, PREDICTION, OPINION and UNKNOWN.
 
-All jobs run in `Africa/Nairobi` timezone (EAT, UTC+3).
+The contradiction resolver detects conflicting claims about the same subject and predicate. Historical state is not silently overwritten.
 
-| ID | Name | Schedule | Purpose |
-|----|------|----------|---------|
-| J1 | memory_purge | Daily 02:00 | Delete memories > 180 days |
-| J2 | session_cleanup | Every 30 min | Reconcile orphaned Redis sessions |
-| J3 | behavioral_audit | Daily 06:00 | S7 personality drift check |
-| J4 | market_digest | Daily 07:00 | S2 market signal compilation |
-| J5 | narrative_coherence | Monday 08:00 | S5 brand coherence scan |
-| J6 | health_report | Every 15 min | DB + Redis health emit |
+## Hypothesis and evidence stages
 
-## Data Models
+HypothesisEngine produces explicit candidate expectations with a basis, confidence and test.
 
-```
-pamasmma_users
-├─ id (UUID PK)
-├─ username (unique)
-├─ totp_secret_enc (AES-GCM encrypted)
-├─ totp_enabled (bool)
-├─ webauthn_registered (bool)
-└─ created_at, updated_at, last_login_at
+EvidenceGate marks research and time-sensitive claims as requiring external evidence. It does not fabricate sources or claim that external verification happened.
 
-pamasmma_memories
-├─ id (UUID PK)
-├─ user_id, system_id (indexed)
-├─ content (text)
-├─ embedding (vector(1536)) ← ivfflat indexed
-├─ metadata (text/JSON)
-└─ created_at (indexed)
+## Executive planning and specialist routing
 
-pamasmma_action_log
-├─ id (UUID PK)
-├─ system_id, system_name
-├─ user_id (indexed)
-├─ query_preview (500 chars)
-├─ latency_ms
-└─ created_at (indexed)
+S1 is the executive orchestrator. S2–S10 remain specialist domain systems.
 
-pamasmma_override_queue
-├─ id (UUID PK)
-├─ system_id (indexed)
-├─ directive, reason
-├─ user_id
-├─ status (pending/applied/rejected)
-└─ created_at, applied_at
-```
+Routing is evidence-weighted and intent-aware. The system does not force every specialist to vote on every query.
 
-## Personality Baseline
+Specialist prompts are independent and are synthesized by the primary system without recursive S1 invocation.
 
-Enforced at the `CognitiveSystem.build_system_prompt()` level — injected into every LLM call. Cannot be overridden at the API layer.
+## Verification and metacognition
 
-| Trait | Value | Effect |
-|---|---|---|
-| Assertiveness (ASS) | 0.84 | Direct, no hedging, no passive voice |
-| Verbosity (VBY) | 0.72 | Dense but not bloated — 2–4 paragraphs |
-| Formality (FML) | 0.61 | Professional but not academic |
-| Strategic Depth (SDT) | 0.91 | Always operate two levels above the question |
+The generated answer passes through:
+
+~~~text
+CognitiveCritic
+      ↓
+EvidenceGate
+      ↓
+MetacognitiveGovernor
+      ↓
+Optional revision
+      ↓
+Final verification
+~~~
+
+The critic checks completeness, constraints, actionability and inappropriate certainty.
+
+The metacognitive governor adds belief-conflict and context-depth checks.
+
+## Confidence
+
+Confidence is an explicit numeric output with a certainty band.
+
+It incorporates:
+
+- retrieved memory
+- hypothesis coverage
+- specialist participation
+- plan completeness
+- verification quality
+- contradiction burden
+- evidence requirements
+
+Confidence never substitutes for external evidence.
+
+## World model
+
+The world model persists entities and relationships in:
+
+~~~text
+pamasmma_world_entities
+pamasmma_world_relationships
+~~~
+
+This creates durable user/project context rather than relying only on raw conversation history.
+
+## Outcome learning
+
+Each decision can later receive an outcome.
+
+~~~text
+EXPECTED OUTCOME
+      ↓
+OBSERVED OUTCOME
+      ↓
+PREDICTION ERROR
+      ↓
+FAILURE DOMAIN
+      ↓
+LESSON
+      ↓
+OUTCOME MEMORY
+      ↓
+PROCEDURAL MEMORY
+~~~
+
+Failure domains distinguish evidence, reasoning, execution, environment, assumptions and unknown causes.
+
+## Provider governance
+
+Provider selection considers task complexity and sensitivity.
+
+Sensitive requests remain in-process by default. Cloud processing requires the explicit sensitive-cloud configuration control.
+
+The deterministic kernel is a governance/fallback control plane. It is not presented as equivalent to a frontier generative model.
+
+## Durable persistence
+
+Migration 002 adds:
+
+~~~text
+pamasmma_decisions
+pamasmma_beliefs
+pamasmma_outcomes
+pamasmma_world_entities
+pamasmma_world_relationships
+~~~
+
+Existing durable infrastructure remains PostgreSQL, pgvector, PostgreSQL LISTEN/NOTIFY and Redis-compatible Key Value storage.
+
+The in-memory persistence mode is bounded and intended for tests, demos and validation.
+
+## Eventing
+
+Cognitive events include:
+
+| Event | Purpose |
+|---|---|
+| cognitive_invocation | audit/telemetry |
+| cognitive_outcome | outcome learning telemetry |
+| override_queue | governed override workflow |
+| scheduler_event | scheduled-system telemetry |
+
+User-scoped events are filtered before SSE delivery.
+
+## API additions
+
+Existing cognitive invocation routes remain compatible. New state surfaces are:
+
+~~~text
+GET  /api/v1/cognitive/decisions
+GET  /api/v1/cognitive/decisions/{decision_id}
+POST /api/v1/cognitive/decisions/{decision_id}/outcome
+GET  /api/v1/cognitive/outcomes
+~~~
+
+POST /api/v1/cognitive/invoke now returns the user response together with a cognitive trace and structured decision.
+
+## Production boundary
+
+Application readiness and infrastructure readiness are separate.
+
+PAMASMMA must use isolated production PostgreSQL and persistent Redis-compatible storage. Midas Touch2 storage must not be reused, and a free/ephemeral cache must not be classified as durable production storage.
+
+The Render deployment contract already models this isolation; infrastructure billing remains an activation gate.

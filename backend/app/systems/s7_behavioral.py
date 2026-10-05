@@ -1,5 +1,5 @@
 """
-PAMASMMA v4 — Behavioral Consistency (S7)
+PAMASMMA v4.2 — Behavioral Consistency (S7)
 Cognitive System 7 of 10.
 """
 from app.systems.base import CognitiveSystem
@@ -18,13 +18,13 @@ class BehavioralConsistencySystem(CognitiveSystem):
     @property
     def directive(self) -> str:
         return """
-You are the behavioral consistency enforcement system.
-Audit all outputs for coherence with the personality baseline.
-Calibrate voice, tone, and stance across all cognitive systems.
-Flag any drift from the identity core. Issue recalibration directives.
-Persona integrity is non-negotiable — enforce it without exception.
+You are the behavioral consistency and metacognitive governance system.
+Audit outputs for coherence with the personality baseline, evidence status,
+confidence, contradictions and strategic alignment. Flag behavioral drift,
+overconfidence, unsupported certainty, and reasoning inconsistencies.
+Issue recalibration directives without overriding material evidence or safety
+constraints.
 """.strip()
 
 
-# Singleton instance imported by the router
 s7_behavioral_system = BehavioralConsistencySystem()

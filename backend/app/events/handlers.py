@@ -1,6 +1,5 @@
 """
-PAMASMMA v4.1 — Event Handlers
-Durable mode persists to Postgres; memory mode records bounded in-process events.
+PAMASMMA v4.2 — Event Handlers
 """
 import logging
 from datetime import UTC, datetime
@@ -17,17 +16,19 @@ settings = get_settings()
 
 async def handle_cognitive_invocation(channel: str, data: dict) -> None:
     if not settings.is_persistent:
-        memory_store.action_log.append(
-            {
-                "id": f"memory-{len(memory_store.action_log) + 1}",
-                "system_id": data.get("system_id", "UNKNOWN"),
-                "system_name": data.get("system_name"),
-                "user_id": data.get("user_id", "UNKNOWN"),
-                "query_preview": (data.get("query_preview") or "")[:500],
-                "latency_ms": data.get("latency_ms"),
-                "created_at": datetime.now(UTC),
-            }
-        )
+        memory_store.action_log.append({
+            "id": f"memory-{len(memory_store.action_log)+1}",
+            "system_id": data.get("system_id","UNKNOWN"),
+            "system_name": data.get("system_name"),
+            "user_id": data.get("user_id","UNKNOWN"),
+            "query_preview": (data.get("query_preview") or "")[:500],
+            "latency_ms": data.get("latency_ms"),
+            "decision_id": data.get("decision_id"),
+            "confidence": data.get("confidence"),
+            "provider": data.get("provider"),
+            "verification_score": data.get("verification_score"),
+            "created_at": datetime.now(UTC),
+        })
         del memory_store.action_log[:-1000]
         return
 
@@ -56,17 +57,15 @@ async def handle_cognitive_invocation(channel: str, data: dict) -> None:
 
 async def handle_override_queue(channel: str, data: dict) -> None:
     if not settings.is_persistent:
-        memory_store.overrides.append(
-            {
-                "id": f"memory-{len(memory_store.overrides) + 1}",
-                "system_id": data.get("system_id", "UNKNOWN"),
-                "directive": data.get("directive", ""),
-                "reason": data.get("reason"),
-                "user_id": data.get("user_id", "UNKNOWN"),
-                "status": "pending",
-                "created_at": datetime.now(UTC),
-            }
-        )
+        memory_store.overrides.append({
+            "id": f"memory-{len(memory_store.overrides)+1}",
+            "system_id": data.get("system_id","UNKNOWN"),
+            "directive": data.get("directive",""),
+            "reason": data.get("reason"),
+            "user_id": data.get("user_id","UNKNOWN"),
+            "status": "pending",
+            "created_at": datetime.now(UTC),
+        })
         del memory_store.overrides[:-500]
         return
 
@@ -92,19 +91,23 @@ async def handle_override_queue(channel: str, data: dict) -> None:
         log.exception("handle_override_queue failed")
 
 
+async def handle_cognitive_outcome(channel: str, data: dict) -> None:
+    log.info(
+        "Cognitive outcome learned",
+        extra={
+            "user_id": data.get("user_id"),
+            "decision_id": data.get("decision_id"),
+            "outcome_id": data.get("outcome_id"),
+            "success_score": data.get("success_score"),
+            "prediction_error": data.get("prediction_error"),
+            "failure_domain": data.get("failure_domain"),
+        },
+    )
+
+
 async def handle_scheduler_event(channel: str, data: dict) -> None:
     job_id = data.get("job", "?")
     name = data.get("name", "?")
     ts = data.get("triggered_at", "?")
-    extras = {
-        key: value
-        for key, value in data.items()
-        if key not in {"job", "name", "triggered_at"}
-    }
-    log.info(
-        "Scheduler [%s] %s at %s%s",
-        job_id,
-        name,
-        ts,
-        f" extras={extras}" if extras else "",
-    )
+    extras = {key:value for key,value in data.items() if key not in {"job","name","triggered_at"}}
+    log.info("Scheduler [%s] %s at %s%s", job_id, name, ts, f" extras={extras}" if extras else "")

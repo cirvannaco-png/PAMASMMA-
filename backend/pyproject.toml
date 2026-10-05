@@ -1,7 +1,7 @@
 [project]
 name = "pamasmma"
-version = "4.1.0"
-description = "PAMASMMA v4 — Governed Synthetic Executive Intelligence"
+version = "4.2.0"
+description = "PAMASMMA v4.2 — Governed Cognitive Operating System"
 requires-python = ">=3.11"
 
 [tool.pytest.ini_options]
@@ -19,13 +19,8 @@ line-length = 100
 exclude = ["migrations/", ".venv/", "__pycache__/"]
 
 [tool.ruff.lint]
-select = [
-    "E", "W", "F", "I", "B", "C4", "UP"
-]
-ignore = [
-    "E501",  # line too long — handled by formatter
-    "B008",  # FastAPI dependency pattern
-]
+select = ["E", "W", "F", "I", "B", "C4", "UP"]
+ignore = ["E501", "B008"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["app"]
@@ -46,7 +41,7 @@ omit = ["tests/*", "migrations/*"]
 exclude_lines = [
     "pragma: no cover",
     "def __repr__",
-    "if TYPE_CHECKING:",
+    "if TYPE_CHECKING",
 ]
 show_missing = true
 skip_covered = false

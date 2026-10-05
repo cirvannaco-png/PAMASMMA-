@@ -59,7 +59,7 @@ async def test_durable_postgres_valkey_auth_and_kernel() -> None:
         assert await connection.scalar(text("SELECT 1")) == 1
         assert await connection.scalar(text(
             "SELECT version_num FROM alembic_version"
-        )) == "002"
+        )) == "004"
         assert await connection.scalar(text(
             "SELECT extversion FROM pg_extension WHERE extname = 'vector'"
         )) is not None
@@ -74,4 +74,9 @@ async def test_durable_postgres_valkey_auth_and_kernel() -> None:
         "pamasmma_memories",
         "pamasmma_action_log",
         "pamasmma_override_queue",
+        "pamasmma_decisions",
+        "pamasmma_beliefs",
+        "pamasmma_outcomes",
+        "pamasmma_world_entities",
+        "pamasmma_world_relationships",
     }.issubset(tables)

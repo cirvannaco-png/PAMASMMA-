@@ -8,7 +8,11 @@ import { cognitive } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { useCognitiveStore } from "@/lib/store";
 import { SYSTEMS } from "@/lib/constants";
-import type { Message, SystemId } from "@/types";
+import type {
+  CognitiveMetadataEvent,
+  Message,
+  SystemId,
+} from "@/types";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TopBar } from "@/components/layout/TopBar";
 import { CognitiveChatPanel } from "@/components/cognitive/CognitiveChatPanel";
@@ -30,6 +34,9 @@ export default function DashboardPage() {
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState<ConsoleTab>("chat");
+  const [cognitionBySystem, setCognitionBySystem] = useState<
+    Partial<Record<SystemId, CognitiveMetadataEvent>>
+  >({});
 
   const activeSystem = SYSTEMS.find((system) => system.id === activeSystemId)!;
   const thread: Message[] = threads[activeSystemId] ?? [];
@@ -101,6 +108,18 @@ export default function DashboardPage() {
         try {
           chunk = JSON.parse(payload);
         } catch {
+          return;
+        }
+
+        if (
+          typeof chunk === "object" &&
+          chunk !== null &&
+          (chunk as { type?: unknown }).type === "cognition"
+        ) {
+          setCognitionBySystem((previous) => ({
+            ...previous,
+            [activeSystemId]: chunk as CognitiveMetadataEvent,
+          }));
           return;
         }
 
@@ -192,6 +211,7 @@ export default function DashboardPage() {
             systemId={activeSystemId as SystemId}
             messages={thread}
             loading={loading}
+            cognition={cognitionBySystem[activeSystemId] ?? null}
             onSend={(content) => {
               void handleSend(content);
             }}

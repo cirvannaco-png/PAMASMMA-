@@ -1,5 +1,5 @@
 """
-PAMASMMA v4.1 — FastAPI application.
+PAMASMMA v4.2 — FastAPI application.
 """
 import time
 from contextlib import asynccontextmanager
@@ -14,6 +14,7 @@ from app.config import get_settings
 from app.database import close_db, init_db, pg_event_bus
 from app.events.handlers import (
     handle_cognitive_invocation,
+    handle_cognitive_outcome,
     handle_override_queue,
     handle_scheduler_event,
 )
@@ -51,13 +52,14 @@ async def lifespan(app: FastAPI):
     )
 
     await init_db()
-
     await pg_event_bus.connect()
+
     pg_event_bus.subscribe("cognitive_invocation", handle_cognitive_invocation)
+    pg_event_bus.subscribe("cognitive_outcome", handle_cognitive_outcome)
     pg_event_bus.subscribe("override_queue", handle_override_queue)
     pg_event_bus.subscribe("scheduler_event", handle_scheduler_event)
-    # Bridge Postgres/in-process events into authenticated SSE subscribers.
-    for channel in ("cognitive_invocation", "override_queue", "scheduler_event"):
+
+    for channel in ("cognitive_invocation", "cognitive_outcome", "override_queue", "scheduler_event"):
         pg_event_bus.subscribe(channel, broadcast)
     await pg_event_bus.start_listening()
 
@@ -95,41 +97,23 @@ def create_app() -> FastAPI:
         allow_origins=settings.allowed_origins,
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        allow_headers=[
-            "Authorization",
-            "Content-Type",
-            "X-Bootstrap-Token",
-            "X-Request-ID",
-        ],
-        expose_headers=[
-            "X-Request-ID",
-            "X-Response-Time-Ms",
-            "X-RateLimit-Remaining",
-        ],
+        allow_headers=["Authorization","Content-Type","X-Bootstrap-Token","X-Request-ID"],
+        expose_headers=["X-Request-ID","X-Response-Time-Ms","X-RateLimit-Remaining"],
     )
 
     @app.middleware("http")
     async def add_timing(request: Request, call_next):
-        start = time.perf_counter()
-        response = await call_next(request)
-        response.headers["X-Response-Time-Ms"] = (
-            f"{(time.perf_counter() - start) * 1000:.2f}"
-        )
+        start=time.perf_counter()
+        response=await call_next(request)
+        response.headers["X-Response-Time-Ms"]=f"{(time.perf_counter()-start)*1000:.2f}"
         return response
 
     @app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception):
-        log.error(
-            "Unhandled exception",
-            path=request.url.path,
-            error=str(exc),
-        )
+        log.error("Unhandled exception", path=request.url.path, error=str(exc))
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content={
-                "detail": "Internal server error.",
-                "path": str(request.url.path),
-            },
+            content={"detail":"Internal server error.","path":str(request.url.path)},
         )
 
     app.include_router(health_router)

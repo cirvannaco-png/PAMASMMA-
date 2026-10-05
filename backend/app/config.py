@@ -1,5 +1,5 @@
 """
-PAMASMMA v4.1 — Configuration
+PAMASMMA v4.2 — Configuration
 Provider-neutral intelligence with explicit durable/ephemeral persistence modes.
 """
 from functools import lru_cache
@@ -18,11 +18,10 @@ class Settings(BaseSettings):
     )
 
     app_name: str = "PAMASMMA"
-    app_version: str = "4.1.0"
+    app_version: str = "4.2.0"
     app_env: str = "production"
     debug: bool = False
 
-    # Production must inject SECRET_KEY; non-production gets an ephemeral process secret.
     secret_key: str | None = Field(default=None, min_length=32)
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 30
@@ -33,9 +32,6 @@ class Settings(BaseSettings):
     founder_user_id: str = "kelson-mwangi-cirvanna"
     founder_username: str = "kelson@cirvanna.co"
 
-    # Persistence
-    # postgres = durable Postgres + Redis
-    # memory = explicit ephemeral single-instance mode for demos/CI
     persistence_mode: str = "postgres"
     database_url: str | None = None
     database_pool_size: int = 5
@@ -45,7 +41,6 @@ class Settings(BaseSettings):
     redis_session_ttl_seconds: int = 1800
     redis_cache_ttl_seconds: int = 300
 
-    # Intelligence provider
     model_provider: str = "kernel"
     model_name: str = "llama3.2:3b"
     model_max_tokens: int = 2048
@@ -53,18 +48,24 @@ class Settings(BaseSettings):
     model_api_key: SecretStr | None = None
     model_timeout_seconds: int = 60
 
-    # Optional cloud model adapter
     anthropic_api_key: str | None = None
     anthropic_model: str = "claude-sonnet-4-6"
     anthropic_max_tokens: int = 2048
     anthropic_timeout_seconds: int = 60
 
-    # Embeddings
+    # "local"/"hash" = deterministic dependency-free fallback.
+    # "openai" = semantic embeddings through the configured OpenAI API.
     embedding_provider: str = "local"
     openai_api_key: str | None = None
     embedding_model: str = "text-embedding-3-small"
     embedding_dimensions: int = 1536
     vector_similarity_threshold: float = 0.78
+
+    # Cognitive operating system controls
+    intelligence_memory_limit: int = 5
+    intelligence_max_specialists: int = 4
+    intelligence_revision_enabled: bool = True
+    intelligence_cloud_for_sensitive: bool = False
 
     webauthn_rp_id: str = "pamasmma.app"
     webauthn_rp_name: str = "PAMASMMA"
@@ -98,37 +99,20 @@ class Settings(BaseSettings):
     def validate_security(self) -> "Settings":
         if self.persistence_mode not in {"postgres", "memory"}:
             raise ValueError("PERSISTENCE_MODE must be 'postgres' or 'memory'.")
-
         if not self.secret_key:
             if self.is_production:
                 raise ValueError("SECRET_KEY must be configured in production.")
             self.secret_key = token_urlsafe(48)
-
         if self.is_production and not self.bootstrap_token.get_secret_value().strip():
-            raise ValueError(
-                "PAMASMMA_BOOTSTRAP_TOKEN must be configured in production."
-            )
-
+            raise ValueError("PAMASMMA_BOOTSTRAP_TOKEN must be configured in production.")
         if self.is_persistent and (not self.database_url or not self.redis_url):
-            raise ValueError(
-                "DATABASE_URL and REDIS_URL are required when PERSISTENCE_MODE=postgres."
-            )
-
+            raise ValueError("DATABASE_URL and REDIS_URL are required when PERSISTENCE_MODE=postgres.")
         if self.embedding_provider == "openai" and not self.openai_api_key:
-            raise ValueError(
-                "OPENAI_API_KEY is required when EMBEDDING_PROVIDER=openai."
-            )
-
+            raise ValueError("OPENAI_API_KEY is required when EMBEDDING_PROVIDER=openai.")
         if self.model_provider == "anthropic" and not self.anthropic_api_key:
-            raise ValueError(
-                "ANTHROPIC_API_KEY is required when MODEL_PROVIDER=anthropic."
-            )
-
+            raise ValueError("ANTHROPIC_API_KEY is required when MODEL_PROVIDER=anthropic.")
         if self.model_provider == "openai-compatible" and not self.model_api_base_url:
-            raise ValueError(
-                "MODEL_API_BASE_URL is required for openai-compatible provider."
-            )
-
+            raise ValueError("MODEL_API_BASE_URL is required for openai-compatible provider.")
         return self
 
 
