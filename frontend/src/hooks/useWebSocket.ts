@@ -31,6 +31,7 @@ export function useEventStream({
   const retryCount  = useRef(0);
   const retryTimer  = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isMounted   = useRef(true);
+  const connectRef  = useRef<(() => void) | null>(null);
 
   const connect = useCallback(() => {
     if (!enabled || !isMounted.current) return;
@@ -69,16 +70,18 @@ export function useEventStream({
 
       const delay = BASE_DELAY_MS * Math.pow(2, retryCount.current);
       retryCount.current += 1;
-      retryTimer.current = setTimeout(connect, delay);
+      retryTimer.current = setTimeout(() => connectRef.current?.(), delay);
     };
   }, [enabled, onEvent, onConnect, onDisconnect]);
 
   useEffect(() => {
+    connectRef.current = connect;
     isMounted.current = true;
     if (enabled) connect();
 
     return () => {
       isMounted.current = false;
+      connectRef.current = null;
       if (retryTimer.current) clearTimeout(retryTimer.current);
       esRef.current?.close();
       esRef.current = null;
@@ -103,7 +106,10 @@ export function useEventSubscription(
   enabled = true,
 ) {
   const handlerRef = useRef(handler);
-  handlerRef.current = handler;
+
+  useEffect(() => {
+    handlerRef.current = handler;
+  }, [handler]);
 
   useEventStream({
     enabled,

@@ -68,7 +68,7 @@ async function apiFetch<T>(
 
     clearTokens();
     if (typeof window !== "undefined") {
-      window.location.href = "/auth";
+      window.location.replace(new URL("/auth", window.location.origin).toString());
     }
     throw new Error("Session expired");
   }

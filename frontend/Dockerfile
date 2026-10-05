@@ -9,7 +9,8 @@ ENV NODE_ENV=production
 # ── Builder ───────────────────────────────────────────────────────────────────
 FROM base AS builder
 COPY package.json package-lock.json* ./
-RUN npm install
+RUN npm install --include=dev
+RUN npm audit --omit=dev --audit-level=high
 COPY . .
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
