@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import QRCode from "qrcode";
@@ -35,7 +36,7 @@ export default function AuthPage() {
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) router.replace("/dashboard");
-  }, [isAuthenticated]);
+  }, [isAuthenticated, router]);
 
   // Boot animation
   useEffect(() => {
@@ -185,7 +186,7 @@ export default function AuthPage() {
               {qrDataUrl && (
                 <div style={{ display: "flex", justifyContent: "center", marginBottom: 20 }}>
                   <div style={{ padding: 12, background: "#07071A", border: "1px solid #6B3FFB30", borderRadius: 12 }}>
-                    <img src={qrDataUrl} alt="TOTP QR Code" width={180} height={180} />
+                    <Image src={qrDataUrl} alt="TOTP QR Code" width={180} height={180} unoptimized />
                   </div>
                 </div>
               )}
@@ -196,7 +197,7 @@ export default function AuthPage() {
                 onClick={() => setStep("verify")}
                 style={{ width: "100%", padding: "13px 0", borderRadius: 12, border: "none", background: "#6B3FFB", color: "#E8E8FA", fontSize: 13, fontWeight: 700, cursor: "pointer", letterSpacing: 1 }}
               >
-                I've scanned it — Enter Code →
+                I’ve scanned it — Enter Code →
               </button>
             </div>
           )}
