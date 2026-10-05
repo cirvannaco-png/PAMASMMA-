@@ -83,7 +83,7 @@ class CognitiveSystem(ABC):
         raw_response = await _provider.generate(
             prompt,
             messages,
-            settings.anthropic_max_tokens,
+            settings.model_max_tokens,
         )
         response = ResponseEvaluator.validate(raw_response)
         await self._post_invoke(user_id, last_user_msg, response, (time.perf_counter() - start) * 1000)
