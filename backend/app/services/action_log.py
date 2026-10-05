@@ -22,6 +22,12 @@ def _serialize_entry(entry: dict[str, Any]) -> dict[str, Any]:
         "system_name": entry.get("system_name"),
         "query_preview": entry.get("query_preview", ""),
         "latency_ms": entry.get("latency_ms"),
+        "decision_id": entry.get("decision_id"),
+        "confidence": entry.get("confidence"),
+        "provider": entry.get("provider"),
+        "verification_score": entry.get("verification_score"),
+        "evidence_status": entry.get("evidence_status"),
+        "routed_systems": entry.get("routed_systems", []),
         "created_at": (
             created_at.isoformat()
             if hasattr(created_at, "isoformat")
@@ -40,7 +46,10 @@ def _filter_memory_entries(
         entry
         for entry in reversed(list(entries))
         if entry.get("user_id") == user_id
-        and (not system_id or entry.get("system_id") == system_id.upper())
+        and (
+            not system_id
+            or entry.get("system_id") == system_id.upper()
+        )
     ][:limit]
     return [_serialize_entry(entry) for entry in selected]
 
@@ -60,13 +69,32 @@ async def list_action_log(
         )
 
     assert AsyncSessionLocal is not None
-    system_filter = "AND system_id = :system_id" if system_id else ""
-    params: dict[str, object] = {"user_id": user_id, "limit": limit}
+    system_filter = (
+        "AND system_id = :system_id"
+        if system_id
+        else ""
+    )
+    params: dict[str, object] = {
+        "user_id": user_id,
+        "limit": limit,
+    }
     if system_id:
         params["system_id"] = system_id.upper()
 
     query = f"""
-        SELECT id, system_id, system_name, query_preview, latency_ms, created_at
+        SELECT
+            id,
+            system_id,
+            system_name,
+            query_preview,
+            latency_ms,
+            decision_id,
+            confidence,
+            provider,
+            verification_score,
+            evidence_status,
+            routed_systems,
+            created_at
         FROM pamasmma_action_log
         WHERE user_id = :user_id
         {system_filter}
@@ -85,6 +113,12 @@ async def list_action_log(
             "system_name": row.system_name,
             "query_preview": row.query_preview,
             "latency_ms": row.latency_ms,
+            "decision_id": row.decision_id,
+            "confidence": row.confidence,
+            "provider": row.provider,
+            "verification_score": row.verification_score,
+            "evidence_status": row.evidence_status,
+            "routed_systems": row.routed_systems or [],
             "created_at": row.created_at.isoformat(),
         }
         for row in rows
