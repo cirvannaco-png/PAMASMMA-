@@ -1,19 +1,15 @@
 # PAMASMMA v4 — Frontend Dockerfile
-# Next.js standalone build. Non-root. Railway-ready.
+# Next.js standalone build. Non-root.
 
 FROM node:20-alpine AS base
 WORKDIR /app
 ENV NODE_ENV=production
 
 # ── Deps ─────────────────────────────────────────────────────────────────────
-FROM base AS deps
-COPY package.json package-lock.json* ./
-RUN npm ci --only=production
-
 # ── Builder ───────────────────────────────────────────────────────────────────
 FROM base AS builder
 COPY package.json package-lock.json* ./
-RUN npm ci
+RUN npm install
 COPY . .
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
