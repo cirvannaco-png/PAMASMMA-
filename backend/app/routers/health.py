@@ -1,8 +1,8 @@
 """
-PAMASMMA v4.1 — Health endpoint.
-The endpoint reports infrastructure capability separately from service liveness.
+PAMASMMA v4.1 — Health and readiness endpoints.
+Liveness is diagnostic; readiness fails closed for durable production.
 """
-from fastapi import APIRouter
+from fastapi import APIRouter, Response, status
 from sqlalchemy import text
 
 from app.config import get_settings
@@ -13,11 +13,9 @@ router = APIRouter(prefix="/health", tags=["Health"])
 settings = get_settings()
 
 
-@router.get("")
-async def health() -> dict:
+async def _dependency_status() -> dict:
     if not settings.is_persistent:
         return {
-            "status": "healthy",
             "database": False,
             "redis": False,
             "persistence": "memory",
@@ -36,9 +34,7 @@ async def health() -> dict:
             pass
 
     redis_ok = await redis_ping()
-
     return {
-        "status": "healthy" if db_ok and redis_ok else "degraded",
         "database": db_ok,
         "redis": redis_ok,
         "persistence": "postgres",
@@ -46,3 +42,28 @@ async def health() -> dict:
         "embeddings": settings.embedding_provider,
         "version": settings.app_version,
     }
+
+
+@router.get("")
+async def health() -> dict:
+    """Liveness endpoint."""
+    data = await _dependency_status()
+    data["status"] = (
+        "healthy"
+        if not settings.is_persistent or (data["database"] and data["redis"])
+        else "degraded"
+    )
+    return data
+
+
+@router.get("/ready")
+async def readiness(response: Response) -> dict:
+    """Render readiness endpoint; returns 503 when durable dependencies are unavailable."""
+    data = await _dependency_status()
+    ready = not settings.is_persistent or (data["database"] and data["redis"])
+    if not ready:
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+        data["status"] = "not_ready"
+        return data
+    data["status"] = "ready"
+    return data
