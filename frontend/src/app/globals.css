@@ -106,6 +106,8 @@ html, body {
 .animate-blink { animation: blink 0.9s step-end infinite; }
 
 
+.pamasmma-status-short { display: none; }
+
 /* Mobile navigation overlay */
 .pamasmma-sidebar-backdrop {
   display: none;
@@ -145,8 +147,16 @@ html, body {
     gap: 9px !important;
   }
 
+  .pamasmma-header-tabs {
+    gap: 10px !important;
+  }
+
   .pamasmma-status-label {
     display: none;
+  }
+
+  .pamasmma-status-short {
+    display: inline;
   }
 }
 
