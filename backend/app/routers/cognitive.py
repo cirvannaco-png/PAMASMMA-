@@ -3,6 +3,7 @@ PAMASMMA v4.1 — Cognitive Router
 System invocation, action logs and governed overrides.
 All endpoints require authenticated sessions.
 """
+import json
 import logging
 from typing import Annotated
 
@@ -66,7 +67,6 @@ async def invoke_system(
             generator = await system.invoke(messages, user_id, stream=True)
             async for chunk in generator:
                 # JSON framing prevents newline/control-character ambiguity.
-                import json
                 yield f"data: {json.dumps(chunk)}\n\n"
             yield "data: [DONE]\n\n"
 
