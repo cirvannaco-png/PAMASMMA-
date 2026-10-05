@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCognitiveStore } from "@/lib/store";
 import { useAuth } from "@/hooks/useAuth";
-import { cognitive, auth } from "@/lib/api";
+import { cognitive } from "@/lib/api";
 import { SYSTEMS, PERSONALITY } from "@/lib/constants";
 import type { SystemId, Message, ActionLogEntry } from "@/types";
 import toast from "react-hot-toast";
