@@ -16,11 +16,11 @@ from app.intelligence.contracts import (
 )
 from app.intelligence.critic import ContradictionChecker
 from app.intelligence.engine import CognitiveEngine
-from app.intelligence.provider_router import ProviderRouter, ProviderSelection
 from app.intelligence.learning import (
     estimate_prediction_error,
     infer_failure_domain,
 )
+from app.intelligence.provider_router import ProviderRouter, ProviderSelection
 from app.intelligence.router import SpecialistRouter
 from app.systems.s1_executive import s1_executive_system
 
