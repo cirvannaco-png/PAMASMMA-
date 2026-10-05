@@ -23,6 +23,7 @@ from app.intelligence.metacognition import MetacognitiveGovernor
 from app.intelligence.persistence import (
     create_decision,
     list_beliefs,
+    list_outcomes,
     upsert_belief,
 )
 from app.intelligence.planner import ExecutivePlanner
@@ -163,6 +164,14 @@ class CognitiveEngine:
                 context.contradictions
             ),
             evidence_status=verification.evidence_status,
+        )
+        recent_outcomes = await list_outcomes(
+            user_id,
+            limit=20,
+        )
+        confidence = self.confidence_engine.calibrate(
+            confidence,
+            recent_outcomes,
         )
 
         # DECIDE -> persist a structured decision object
