@@ -134,7 +134,7 @@ async def event_stream(token: str = Query(..., min_length=1)) -> StreamingRespon
         user_id = str(payload["sub"])
         session_id = str(payload["sid"])
     except Exception:
-        raise HTTPException(status_code=401, detail="Invalid or expired token.")
+        raise HTTPException(status_code=401, detail="Invalid or expired token.") from None
 
     session = await get_session(session_id)
     if not session or session.get("user_id") != user_id:
