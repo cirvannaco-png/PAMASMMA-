@@ -199,6 +199,7 @@ class OutcomeRecord(BaseModel):
     prediction_error: float | None = None
     failure_domain: FailureDomain = FailureDomain.UNKNOWN
     lesson: str = ""
+    metadata: dict = Field(default_factory=dict)
     created_at: datetime | None = None
 
 
