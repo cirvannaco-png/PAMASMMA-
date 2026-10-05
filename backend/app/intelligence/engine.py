@@ -10,14 +10,13 @@ from app.config import get_settings
 from app.intelligence.beliefs import BeliefResolver
 from app.intelligence.confidence import ConfidenceEngine
 from app.intelligence.context import ContextAssembler
-from app.intelligence.critic import CognitiveCritic
 from app.intelligence.contracts import (
     CognitiveContext,
-    CognitivePlan,
     CognitiveResult,
     CognitiveTrace,
     DecisionRecord,
 )
+from app.intelligence.critic import CognitiveCritic
 from app.intelligence.evidence import EvidenceGate
 from app.intelligence.hypotheses import HypothesisEngine
 from app.intelligence.metacognition import MetacognitiveGovernor
