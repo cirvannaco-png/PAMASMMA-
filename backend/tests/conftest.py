@@ -4,7 +4,7 @@ External services are mocked by default; tests must explicitly exercise real
 integration boundaries.
 """
 import asyncio
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
