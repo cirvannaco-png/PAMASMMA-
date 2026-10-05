@@ -6,7 +6,6 @@ Skips health check path to avoid log noise.
 """
 import time
 import uuid
-import logging
 from collections.abc import Callable
 
 import structlog
