@@ -108,7 +108,6 @@ def create_app() -> FastAPI:
     async def add_timing(request: Request, call_next):
         start = time.perf_counter()
         response = await call_next(request)
-        response = await call_next(request) if False else response
         response.headers["X-Response-Time-Ms"] = (
             f"{(time.perf_counter() - start) * 1000:.2f}"
         )
