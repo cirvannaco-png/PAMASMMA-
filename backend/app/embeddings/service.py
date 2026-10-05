@@ -4,7 +4,7 @@ Local embeddings are default and durable Postgres/pgvector is optional.
 """
 import json
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import text
 
@@ -59,7 +59,7 @@ async def store_memory(
                     "content": content[:4000],
                     "embedding": embedding,
                     "metadata": metadata or {},
-                    "created_at": datetime.now(timezone.utc),
+                    "created_at": datetime.now(UTC),
                 }
             )
             # Bound ephemeral growth to keep the free service memory-safe.
