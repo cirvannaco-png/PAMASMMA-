@@ -46,6 +46,7 @@ class Settings(BaseSettings):
     # Intelligence provider
     model_provider: str = "kernel"
     model_name: str = "llama3.2:3b"
+    model_max_tokens: int = 2048
     model_api_base_url: str | None = None
     model_api_key: SecretStr | None = None
     model_timeout_seconds: int = 60
