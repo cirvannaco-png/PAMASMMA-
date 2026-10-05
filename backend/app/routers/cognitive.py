@@ -46,7 +46,7 @@ async def list_systems(_: CurrentUser) -> dict:
     return {"systems": SYSTEM_METADATA, "count": len(SYSTEM_METADATA)}
 
 
-@router.post("/invoke")
+@router.post("/invoke", response_model=None)
 async def invoke_system(
     body: InvokeRequest,
     current_user: CurrentUser,
