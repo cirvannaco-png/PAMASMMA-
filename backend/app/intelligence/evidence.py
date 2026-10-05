@@ -6,7 +6,6 @@ class EvidenceGate:
     CURRENT_MARKERS = (
         "today",
         "latest",
-        "current",
         "now",
         "price",
         "market",
