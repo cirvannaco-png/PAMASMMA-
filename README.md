@@ -182,9 +182,9 @@ GET /health
 
 The frontend uses the API configured through `NEXT_PUBLIC_API_URL`.
 
-The repository currently contains a zero-key, ephemeral Render blueprint because the Render workspace does not have a second free PostgreSQL allocation available for PAMASMMA. The existing free PostgreSQL instance is owned by another project and is not reused.
+The production `render.yaml` now declares isolated PAMASMMA PostgreSQL and persistent Key Value resources, wires them into the API, runs Alembic before rollout, and uses `/health/ready` for traffic admission. It deliberately uses the kernel/local-embedding path so baseline production does not require an external model API key.
 
-A production durable deployment must provision a PAMASMMA-specific PostgreSQL database and durable Redis-compatible storage, then set `PERSISTENCE_MODE=postgres` and wire `DATABASE_URL` and `REDIS_URL` into the API service. Do not share another repository's database.
+Render billing is required before those durable resources can be provisioned. The existing Midas Touch2 PostgreSQL instance must not be reused, and the free `pamasmma-cache` Key Value instance must not be classified as durable production storage. The current `pamasmma-api-staging` and `pamasmma-web-staging` services are validation environments running the hardening branch.
 
 ## Database migrations
 
