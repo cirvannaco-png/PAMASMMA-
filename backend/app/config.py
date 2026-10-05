@@ -3,6 +3,7 @@ PAMASMMA v4.1 — Configuration
 Provider-neutral intelligence with explicit durable/ephemeral persistence modes.
 """
 from functools import lru_cache
+from secrets import token_urlsafe
 
 from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -21,7 +22,8 @@ class Settings(BaseSettings):
     app_env: str = "production"
     debug: bool = False
 
-    secret_key: str = Field(default="", min_length=32)
+    # Production must inject SECRET_KEY; non-production gets an ephemeral process secret.
+    secret_key: str | None = Field(default=None, min_length=32)
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 30
     jwt_refresh_token_expire_days: int = 7
@@ -96,6 +98,11 @@ class Settings(BaseSettings):
     def validate_security(self) -> "Settings":
         if self.persistence_mode not in {"postgres", "memory"}:
             raise ValueError("PERSISTENCE_MODE must be 'postgres' or 'memory'.")
+
+        if not self.secret_key:
+            if self.is_production:
+                raise ValueError("SECRET_KEY must be configured in production.")
+            self.secret_key = token_urlsafe(48)
 
         if self.is_production and not self.bootstrap_token.get_secret_value().strip():
             raise ValueError(
