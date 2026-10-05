@@ -3,10 +3,10 @@
   "version": "4.1.0",
   "private": true,
   "scripts": {
-    "dev":   "next dev --turbopack",
+    "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint":  "eslint .",
+    "lint": "eslint .",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
@@ -30,6 +30,7 @@
     "autoprefixer": "^10.4.20",
     "postcss": "^8.4.49",
     "eslint": "^9.17.0",
-    "eslint-config-next": "15.5.27"
+    "eslint-config-next": "15.5.27",
+    "@eslint/eslintrc": "^3.3.0"
   }
 }
