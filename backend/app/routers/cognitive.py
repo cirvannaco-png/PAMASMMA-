@@ -225,6 +225,13 @@ async def record_decision_outcome(
         ),
         failure_domain=failure_domain,
         lesson=body.lesson,
+        metadata={
+            "calibration_delta": (
+                body.success_score - confidence
+                if body.success_score is not None
+                else None
+            ),
+        },
     )
     lesson = await OutcomeLearningEngine().learn(
         outcome
