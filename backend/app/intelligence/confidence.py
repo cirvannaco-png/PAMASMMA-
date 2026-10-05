@@ -1,12 +1,15 @@
 """Confidence scoring and certainty-band calibration."""
-from app.intelligence.contracts import CognitiveContext, CognitivePlan
+from app.intelligence.calibration import ConfidenceCalibrator
 
 
 class ConfidenceEngine:
+    def __init__(self) -> None:
+        self.calibrator = ConfidenceCalibrator()
+
     def score(
         self,
-        context: CognitiveContext,
-        plan: CognitivePlan,
+        context,
+        plan,
         verification_score: float,
         specialist_count: int,
         hypothesis_count: int,
@@ -20,9 +23,24 @@ class ConfidenceEngine:
         score += 0.06 if plan.steps else 0.0
         score += (verification_score - 0.8) * 0.45
         score -= min(0.28, 0.14 * contradiction_count)
+
         if evidence_status == "requires_external_evidence":
             score -= 0.10
-        return round(max(0.05, min(0.95, score)), 3)
+
+        return round(
+            max(0.05, min(0.95, score)),
+            3,
+        )
+
+    def calibrate(
+        self,
+        confidence: float,
+        outcomes: list[dict],
+    ) -> float:
+        return self.calibrator.adjust(
+            confidence,
+            outcomes,
+        )
 
     @staticmethod
     def certainty_band(confidence: float) -> str:
