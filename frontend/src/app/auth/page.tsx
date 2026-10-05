@@ -78,6 +78,7 @@ export default function AuthPage() {
     try {
       const data = await auth.totpSetup(FOUNDER_ID, FOUNDER_USERNAME, bootstrapToken.trim());
       setSecret(data.secret);
+      setBootstrapToken("");
       setQrDataUrl(await QRCode.toDataURL(data.uri, {
         width: 220,
         margin: 2,
@@ -240,7 +241,7 @@ export default function AuthPage() {
               ))}
             </div>
 
-            {method === "totp" && status.totp_enabled && (
+            {method === "totp" && (status.totp_enabled || Boolean(secret)) && (
               <div className="mt-5">
                 <input
                   inputMode="numeric"
