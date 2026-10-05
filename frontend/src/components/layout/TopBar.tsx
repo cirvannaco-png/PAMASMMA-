@@ -31,7 +31,7 @@ export function TopBar({ activeSystemId, activeTab, onTabChange, onToggleSidebar
         gap: 12,
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+      <div className="pamasmma-header" style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
         <button
           type="button"
           aria-label="Toggle navigation"
