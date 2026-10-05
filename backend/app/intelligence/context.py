@@ -78,40 +78,7 @@ class ContextAssembler:
     @staticmethod
     def _intent(text: str) -> IntentType:
         lower = text.lower()
-        if any(
-            item in lower
-            for item in (
-                "implement",
-                "build",
-                "code",
-                "fix",
-                "debug",
-                "refactor",
-            )
-        ):
-            return IntentType.IMPLEMENTATION
-        if any(
-            item in lower
-            for item in (
-                "choose",
-                "decide",
-                "should we",
-                "which is better",
-                "priority",
-            )
-        ):
-            return IntentType.DECISION
-        if any(
-            item in lower
-            for item in (
-                "plan",
-                "strategy",
-                "roadmap",
-                "next steps",
-                "sequence",
-            )
-        ):
-            return IntentType.PLANNING
+
         if any(
             item in lower
             for item in (
@@ -123,6 +90,7 @@ class ContextAssembler:
             )
         ):
             return IntentType.RESEARCH
+
         if any(
             item in lower
             for item in (
@@ -133,6 +101,47 @@ class ContextAssembler:
             )
         ):
             return IntentType.REVIEW
+
+        if any(
+            item in lower
+            for item in (
+                "choose",
+                "decide",
+                "should we",
+                "which is better",
+                "priority",
+            )
+        ):
+            return IntentType.DECISION
+
+        if any(
+            item in lower
+            for item in (
+                "plan",
+                "strategy",
+                "roadmap",
+                "next steps",
+                "sequence",
+                "prioritize",
+            )
+        ):
+            return IntentType.PLANNING
+
+        if any(
+            item in lower
+            for item in (
+                "implement",
+                "write code",
+                "code",
+                "fix",
+                "debug",
+                "refactor",
+                "build the app",
+                "build the system",
+            )
+        ):
+            return IntentType.IMPLEMENTATION
+
         if any(
             item in lower
             for item in (
@@ -145,6 +154,7 @@ class ContextAssembler:
             )
         ):
             return IntentType.COMMUNICATION
+
         if any(
             item in lower
             for item in (
@@ -155,6 +165,7 @@ class ContextAssembler:
             )
         ):
             return IntentType.ANALYSIS
+
         return IntentType.GENERAL
 
     @classmethod
@@ -178,6 +189,7 @@ class ContextAssembler:
             or len(text) > 1800
         ):
             return TaskComplexity.COMPLEX
+
         if (
             intent in {IntentType.PLANNING, IntentType.DECISION}
             or any(
@@ -192,11 +204,13 @@ class ContextAssembler:
             )
         ):
             return TaskComplexity.STRATEGIC
+
         if (
             intent in {IntentType.IMPLEMENTATION, IntentType.ANALYSIS}
             or len(text) > 600
         ):
             return TaskComplexity.MODERATE
+
         return TaskComplexity.ROUTINE
 
     @staticmethod
@@ -235,7 +249,11 @@ class ContextAssembler:
 
         for key, kind in cls._KNOWN_SYSTEM_ENTITIES.items():
             if key in lower:
-                display = "Midas-Touch2" if key == "midas-touch2" else key.title()
+                display = (
+                    "Midas-Touch2"
+                    if key == "midas-touch2"
+                    else key.title()
+                )
                 found[display] = WorldEntity(
                     name=display,
                     entity_type=kind,
