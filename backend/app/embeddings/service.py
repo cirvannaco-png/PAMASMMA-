@@ -192,3 +192,27 @@ async def purge_old_memories(
         )
         await session.commit()
         return int(getattr(result, "rowcount", 0) or 0)
+
+
+async def purge_expired_memories(max_age_days: int = 180) -> int:
+    """Delete all persisted memory records outside the retention window."""
+    cutoff = datetime.now(UTC) - timedelta(days=max_age_days)
+
+    if not settings.is_persistent:
+        before = len(memory_store.memories)
+        memory_store.memories[:] = [
+            item for item in memory_store.memories if item["created_at"] >= cutoff
+        ]
+        return before - len(memory_store.memories)
+
+    assert AsyncSessionLocal is not None
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            text(
+                "DELETE FROM pamasmma_memories "
+                "WHERE created_at < :cutoff"
+            ),
+            {"cutoff": cutoff},
+        )
+        await session.commit()
+        return int(getattr(result, "rowcount", 0) or 0)
