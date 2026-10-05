@@ -1,6 +1,6 @@
 /**
- * PAMASMMA v4.0.1 — Auth session hook
- * Restores a persisted refresh session before protected UI redirects fire.
+ * PAMASMMA — Auth session hook.
+ * Restores the refresh session before protected UI decides whether to redirect.
  */
 "use client";
 
@@ -15,21 +15,22 @@ export function useAuth() {
   const { isAuthenticated, userId, setAuth, clearAuth } = useAuthStore();
   const router = useRouter();
   const attempted = useRef(false);
-  const [isRestoring, setIsRestoring] = useState(true);
+  const [isRestoring, setIsRestoring] = useState(!isAuthenticated);
 
   useEffect(() => {
     if (isAuthenticated || attempted.current) {
       setIsRestoring(false);
       return;
     }
+
     attempted.current = true;
+    let cancelled = false;
 
     void (async () => {
       try {
         const tokens = await restoreSession();
         if (!tokens) return;
 
-      try {
         const payload = decodeJwt(tokens.access_token);
         const subject = typeof payload.sub === "string" ? payload.sub : null;
 
@@ -38,13 +39,23 @@ export function useAuth() {
           return;
         }
 
-        setAuth(subject, tokens);
+        if (!cancelled) {
+          setAuth(subject, tokens);
+        }
       } catch {
-        clearAuth();
+        if (!cancelled) {
+          clearAuth();
+        }
       } finally {
-        setIsRestoring(false);
+        if (!cancelled) {
+          setIsRestoring(false);
+        }
       }
     })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [clearAuth, isAuthenticated, setAuth]);
 
   const logout = async () => {
