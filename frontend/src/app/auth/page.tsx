@@ -59,7 +59,7 @@ export default function AuthPage() {
       { id: "totp" as const, label: "Authenticator", enabled: status.totp_enabled || Boolean(secret) },
       { id: "webauthn" as const, label: "Passkey / Security Key", enabled: status.webauthn_registered },
     ],
-    [status],
+    [status, secret],
   );
 
   const completeLogin = (tokens: Awaited<ReturnType<typeof auth.totpVerify>>) => {
