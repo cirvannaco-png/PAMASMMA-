@@ -1,9 +1,6 @@
 """
-PAMASMMA v4.0.1 — FastAPI Application
-Lifespan: DB connectivity → PGEventBus → Scheduler → Shutdown.
-Middleware: RateLimiting → Logging → CORS → Timing.
+PAMASMMA v4.1 — FastAPI application.
 """
-import logging
 import time
 from contextlib import asynccontextmanager
 
@@ -22,7 +19,7 @@ from app.events.handlers import (
 )
 from app.middleware.logging import LoggingMiddleware
 from app.middleware.rate_limit import RateLimitMiddleware
-from app.redis_client import redis_client
+from app.redis_client import close_redis
 from app.routers.cognitive import router as cognitive_router
 from app.routers.events import router as events_router
 from app.routers.health import router as health_router
@@ -44,7 +41,13 @@ log = structlog.get_logger()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    log.info("PAMASMMA starting", version=settings.app_version, env=settings.app_env)
+    log.info(
+        "PAMASMMA starting",
+        version=settings.app_version,
+        env=settings.app_env,
+        persistence=settings.persistence_mode,
+        intelligence=settings.model_provider,
+    )
 
     await init_db()
 
@@ -53,21 +56,22 @@ async def lifespan(app: FastAPI):
     pg_event_bus.subscribe("override_queue", handle_override_queue)
     pg_event_bus.subscribe("scheduler_event", handle_scheduler_event)
     await pg_event_bus.start_listening()
-    log.info("PGEventBus ready — 3 channels")
 
-    configure_scheduler()
-    scheduler.start()
-    log.info("Scheduler started — 6 jobs active")
+    if settings.scheduler_enabled:
+        configure_scheduler()
+        scheduler.start()
+        log.info("Scheduler started")
+    else:
+        log.info("Scheduler disabled")
 
-    log.info("PAMASMMA ONLINE")
     yield
 
-    log.info("PAMASMMA shutting down")
-    scheduler.shutdown(wait=False)
+    if settings.scheduler_enabled:
+        scheduler.shutdown(wait=False)
     await pg_event_bus.disconnect()
-    await redis_client.aclose()
+    await close_redis()
     await close_db()
-    log.info("Shutdown complete")
+    log.info("PAMASMMA shutdown complete")
 
 
 def create_app() -> FastAPI:
@@ -104,8 +108,10 @@ def create_app() -> FastAPI:
     async def add_timing(request: Request, call_next):
         start = time.perf_counter()
         response = await call_next(request)
-        elapsed = (time.perf_counter() - start) * 1000
-        response.headers["X-Response-Time-Ms"] = f"{elapsed:.2f}"
+        response = await call_next(request) if False else response
+        response.headers["X-Response-Time-Ms"] = (
+            f"{(time.perf_counter() - start) * 1000:.2f}"
+        )
         return response
 
     @app.exception_handler(Exception)
@@ -127,7 +133,6 @@ def create_app() -> FastAPI:
     app.include_router(auth_router, prefix="/api/v1")
     app.include_router(cognitive_router, prefix="/api/v1")
     app.include_router(events_router, prefix="/api/v1")
-
     return app
 
 
