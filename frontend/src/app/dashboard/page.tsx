@@ -1,19 +1,20 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAuthStore, useCognitiveStore } from "@/lib/store";
+import { useCognitiveStore } from "@/lib/store";
+import { useAuth } from "@/hooks/useAuth";
 import { cognitive, auth } from "@/lib/api";
 import { SYSTEMS, PERSONALITY } from "@/lib/constants";
-import type { SystemId, Message } from "@/types";
+import type { SystemId, Message, ActionLogEntry } from "@/types";
 import toast from "react-hot-toast";
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { isAuthenticated, userId, clearAuth } = useAuthStore();
+  const { isAuthenticated, isRestoring, logout } = useAuth();
   const {
     activeSystemId, threads, loading,
     setActiveSystem, addMessage, appendToLastMessage,
-    setLoading, setActionLog,
+    setLoading,
   } = useCognitiveStore();
 
   const [input, setInput] = useState("");
@@ -24,8 +25,8 @@ export default function DashboardPage() {
   const thread: Message[] = threads[activeSystemId] ?? [];
 
   useEffect(() => {
-    if (!isAuthenticated) router.replace("/auth");
-  }, [isAuthenticated, router]);
+    if (!isRestoring && !isAuthenticated) router.replace("/auth");
+  }, [isAuthenticated, isRestoring, router]);
 
   useEffect(() => {
     const el = document.getElementById("chat-bottom");
@@ -115,17 +116,27 @@ export default function DashboardPage() {
   };
 
   const handleLogout = async () => {
-    try { await auth.logout(); } catch {}
-    clearAuth();
-    router.replace("/auth");
+    await logout();
   };
+
+  if (isRestoring || !isAuthenticated) {
+    return (
+      <main className="grid h-screen place-items-center bg-[#04040D] px-6 text-[#6D6DA0]">
+        <div className="text-center">
+          <div className="font-mono text-xs tracking-[0.24em]">RESTORING SECURE SESSION…</div>
+          <div className="mt-3 text-[11px] text-[#3A3A6A]">Credentials remain in memory until access is confirmed.</div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#04040D]" style={{ color: "#D0D0EC" }}>
+      {sidebarOpen && <button aria-label="Close navigation" onClick={() => setSidebarOpen(false)} className="pamasmma-sidebar-backdrop" />}
 
       {/* ── SIDEBAR ── */}
       {sidebarOpen && (
-        <aside style={{ width: 264, background: "#07071A", borderRight: "1px solid #161630", display: "flex", flexDirection: "column", flexShrink: 0 }}>
+        <aside className="pamasmma-sidebar" style={{ width: 264, background: "#07071A", borderRight: "1px solid #161630", display: "flex", flexDirection: "column", flexShrink: 0 }}>
           {/* Brand */}
           <div style={{ padding: "18px 16px", borderBottom: "1px solid #161630", display: "flex", alignItems: "center", gap: 10 }}>
             <span style={{ fontSize: 22, color: "#6B3FFB" }}>⬡</span>
@@ -194,7 +205,7 @@ export default function DashboardPage() {
       )}
 
       {/* ── MAIN ── */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+      <div className="pamasmma-main" style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
 
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px", borderBottom: "1px solid #161630", background: "#07071A", flexShrink: 0 }}>
@@ -303,7 +314,7 @@ export default function DashboardPage() {
 }
 
 function ActionLogPanel({ systemId }: { systemId: SystemId }) {
-  const [entries, setEntries] = useState<any[]>([]);
+  const [entries, setEntries] = useState<ActionLogEntry[]>([]);
   const activeSystem = SYSTEMS.find(s => s.id === systemId)!;
 
   useEffect(() => {
