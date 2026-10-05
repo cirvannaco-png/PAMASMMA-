@@ -14,6 +14,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Validate deployment credentials
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          if [ -z "$RAILWAY_TOKEN" ]; then
+            echo "::error::RAILWAY_TOKEN is missing from the GitHub production environment."
+            echo "::error::Add a Railway project-scoped token as the production environment secret before deployment."
+            exit 1
+          fi
+
       - name: Install Railway CLI
         run: npm install -g @railway/cli
 
@@ -38,4 +48,4 @@ jobs:
         run: |
           sleep 20
           curl --fail https://api.pamasmma.app/health || exit 1
-          echo "PAMASMMA v4 deployment verified ✓"
+          echo "PAMASMMA v4.0.1 deployment verified"
