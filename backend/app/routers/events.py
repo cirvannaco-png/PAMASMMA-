@@ -23,17 +23,30 @@ CHANNELS = [
     "override_queue",
     "scheduler_event",
 ]
-USER_SCOPED_CHANNELS = {"cognitive_invocation", "cognitive_outcome", "override_queue"}
+USER_SCOPED_CHANNELS = {
+    "cognitive_invocation",
+    "cognitive_outcome",
+    "override_queue",
+}
 
 
-def register_subscriber(channel: str, user_id: str) -> asyncio.Queue:
+def register_subscriber(
+    channel: str,
+    user_id: str,
+) -> asyncio.Queue:
     queue: asyncio.Queue = asyncio.Queue(maxsize=100)
-    subscribers = _subscribers.setdefault(channel, {})
+    subscribers = _subscribers.setdefault(
+        channel,
+        {},
+    )
     subscribers[id(queue)] = (user_id, queue)
     return queue
 
 
-def unregister_subscriber(channel: str, queue: asyncio.Queue) -> None:
+def unregister_subscriber(
+    channel: str,
+    queue: asyncio.Queue,
+) -> None:
     subscribers = _subscribers.get(channel)
     if not subscribers:
         return
@@ -42,58 +55,110 @@ def unregister_subscriber(channel: str, queue: asyncio.Queue) -> None:
         _subscribers.pop(channel, None)
 
 
-async def broadcast(channel: str, data: dict) -> None:
-    for subscriber_user_id, queue in list(_subscribers.get(channel, {}).values()):
-        if channel in USER_SCOPED_CHANNELS and data.get("user_id") != subscriber_user_id:
+async def broadcast(
+    channel: str,
+    data: dict,
+) -> None:
+    for subscriber_user_id, queue in list(
+        _subscribers.get(channel, {}).values()
+    ):
+        if (
+            channel in USER_SCOPED_CHANNELS
+            and data.get("user_id") != subscriber_user_id
+        ):
             continue
         try:
-            queue.put_nowait({"type": channel, "data": data})
+            queue.put_nowait(
+                {"type": channel, "data": data}
+            )
         except asyncio.QueueFull:
-            log.warning("Dropping SSE event for slow client: channel=%s user=%s", channel, subscriber_user_id)
+            log.warning(
+                "Dropping SSE event for slow client: "
+                "channel=%s user=%s",
+                channel,
+                subscriber_user_id,
+            )
 
 
-async def _event_generator(user_id: str) -> AsyncGenerator[str, None]:
-    queues = {channel: register_subscriber(channel, user_id) for channel in CHANNELS}
+async def _event_generator(
+    user_id: str,
+) -> AsyncGenerator[str, None]:
+    queues = {
+        channel: register_subscriber(
+            channel,
+            user_id,
+        )
+        for channel in CHANNELS
+    }
+
     try:
-        yield "data: " + json.dumps({"type": "connected", "data": {"user_id": user_id}}) + "
+        yield (
+            "data: "
+            + json.dumps(
+                {
+                    "type": "connected",
+                    "data": {"user_id": user_id},
+                }
+            )
+            + "\n\n"
+        )
 
-"
         while True:
-            tasks={asyncio.create_task(queue.get()) for queue in queues.values()}
+            tasks = {
+                asyncio.create_task(queue.get())
+                for queue in queues.values()
+            }
             done: set[asyncio.Task] = set()
             pending: set[asyncio.Task] = set()
-            try:
-                done, pending = await asyncio.wait(tasks, timeout=30, return_when=asyncio.FIRST_COMPLETED)
-                if not done:
-                    yield 'data: {"type":"heartbeat"}
 
-'
+            try:
+                done, pending = await asyncio.wait(
+                    tasks,
+                    timeout=30,
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+                if not done:
+                    yield 'data: {"type":"heartbeat"}\n\n'
                     continue
+
                 for task in done:
                     try:
-                        event=task.result()
+                        event = task.result()
                     except asyncio.CancelledError:
                         continue
                     except Exception:
-                        log.exception("SSE event task failed")
+                        log.exception(
+                            "SSE event task failed"
+                        )
                         continue
-                    yield f"data: {json.dumps(event)}
-
-"
+                    yield (
+                        f"data: {json.dumps(event)}\n\n"
+                    )
             finally:
                 for task in pending:
                     task.cancel()
                 if pending:
-                    await asyncio.gather(*pending, return_exceptions=True)
+                    await asyncio.gather(
+                        *pending,
+                        return_exceptions=True,
+                    )
     except asyncio.CancelledError:
-        log.debug("SSE client disconnected: %s", user_id)
+        log.debug(
+            "SSE client disconnected: %s",
+            user_id,
+        )
     finally:
         for channel, queue in queues.items():
-            unregister_subscriber(channel, queue)
+            unregister_subscriber(
+                channel,
+                queue,
+            )
 
 
 @router.get("/stream")
-async def event_stream(token: str = Query(..., min_length=1)) -> StreamingResponse:
+async def event_stream(
+    token: str = Query(..., min_length=1),
+) -> StreamingResponse:
     try:
         payload = decode_token(token)
         if payload.get("type") != "access":
@@ -101,14 +166,24 @@ async def event_stream(token: str = Query(..., min_length=1)) -> StreamingRespon
         user_id = str(payload["sub"])
         session_id = str(payload["sid"])
     except Exception:
-        raise HTTPException(status_code=401, detail="Invalid or expired token.") from None
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired token.",
+        ) from None
 
     session = await get_session(session_id)
     if not session or session.get("user_id") != user_id:
-        raise HTTPException(status_code=401, detail="Session expired.")
+        raise HTTPException(
+            status_code=401,
+            detail="Session expired.",
+        )
 
     return StreamingResponse(
         _event_generator(user_id),
         media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache, no-transform", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
     )
