@@ -22,7 +22,7 @@ class OpenAICompatibleProvider:
         response = await self.client.chat.completions.create(
             model=self.model,
             max_tokens=max_tokens,
-            messages=[{"role": "system", "content": system_prompt}, *messages],
+            messages=cast(Any, [{"role": "system", "content": system_prompt}, *messages]),
         )
         return response.choices[0].message.content or ""
 
