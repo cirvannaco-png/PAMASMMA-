@@ -28,7 +28,7 @@ export default function DashboardPage() {
     appendToLastMessage,
   } = useCognitiveStore();
 
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<ConsoleTab>("chat");
 
   const activeSystem = SYSTEMS.find((system) => system.id === activeSystemId)!;
