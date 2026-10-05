@@ -2,7 +2,7 @@ name: PAMASMMA CI
 
 on:
   push:
-    branches: [main, develop, fix/production-hardening]
+    branches: [main, develop, fix/production-hardening, feature/website-completion]
   pull_request:
     branches: [main]
 
