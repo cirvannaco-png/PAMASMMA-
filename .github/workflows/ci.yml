@@ -24,31 +24,6 @@ jobs:
       run:
         working-directory: backend
 
-    services:
-      postgres:
-        image: pgvector/pgvector:pg16
-        env:
-          POSTGRES_DB: pamasmma_test
-          POSTGRES_USER: pamasmma
-          POSTGRES_PASSWORD: test_password
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
-      redis:
-        image: redis:7-alpine
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 6379:6379
-
     steps:
       - uses: actions/checkout@v4
 
@@ -73,14 +48,12 @@ jobs:
 
       - name: Run tests
         env:
-          DATABASE_URL: postgresql+asyncpg://pamasmma:test_password@localhost:5432/pamasmma_test
-          REDIS_URL: redis://localhost:6379/0
           SECRET_KEY: ${{ secrets.SECRET_KEY || 'test_secret_key_64_chars_minimum_for_ci_pipeline_security_00000' }}
           PAMASMMA_BOOTSTRAP_TOKEN: ${{ secrets.PAMASMMA_BOOTSTRAP_TOKEN || 'test-bootstrap-token' }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY || 'sk-test-dummy' }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || 'sk-test-dummy' }}
           APP_ENV: test
-          PERSISTENCE_MODE: postgres
+          PERSISTENCE_MODE: memory
           MODEL_PROVIDER: kernel
           EMBEDDING_PROVIDER: local
         run: |
