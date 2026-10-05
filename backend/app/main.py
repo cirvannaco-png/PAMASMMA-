@@ -21,7 +21,7 @@ from app.middleware.logging import LoggingMiddleware
 from app.middleware.rate_limit import RateLimitMiddleware
 from app.redis_client import close_redis
 from app.routers.cognitive import router as cognitive_router
-from app.routers.events import router as events_router
+from app.routers.events import broadcast, router as events_router
 from app.routers.health import router as health_router
 from app.scheduler.jobs import configure_scheduler, scheduler
 
@@ -55,6 +55,9 @@ async def lifespan(app: FastAPI):
     pg_event_bus.subscribe("cognitive_invocation", handle_cognitive_invocation)
     pg_event_bus.subscribe("override_queue", handle_override_queue)
     pg_event_bus.subscribe("scheduler_event", handle_scheduler_event)
+    # Bridge Postgres/in-process events into authenticated SSE subscribers.
+    for channel in ("cognitive_invocation", "override_queue", "scheduler_event"):
+        pg_event_bus.subscribe(channel, broadcast)
     await pg_event_bus.start_listening()
 
     if settings.scheduler_enabled:
