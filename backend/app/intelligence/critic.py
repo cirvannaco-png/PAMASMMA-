@@ -40,9 +40,9 @@ class CognitiveCritic:
         ):
             issues.append(
                 VerificationIssue(
-                    "medium",
-                    "constraint_alignment",
-                    "Response does not visibly address the extracted constraints.",
+                    severity="medium",
+                    category="constraint_alignment",
+                    message="Response does not visibly address the extracted constraints.",
                 )
             )
 
@@ -64,9 +64,9 @@ class CognitiveCritic:
         ):
             issues.append(
                 VerificationIssue(
-                    "medium",
-                    "actionability",
-                    "Decision-oriented output lacks an explicit next action.",
+                    severity="medium",
+                    category="actionability",
+                    message="Decision-oriented output lacks an explicit next action.",
                 )
             )
 
@@ -86,9 +86,9 @@ class CognitiveCritic:
         ):
             issues.append(
                 VerificationIssue(
-                    "high",
-                    "overconfidence",
-                    "Sensitive-context output contains absolute certainty language.",
+                    severity="high",
+                    category="overconfidence",
+                    message="Sensitive-context output contains absolute certainty language.",
                 )
             )
 
