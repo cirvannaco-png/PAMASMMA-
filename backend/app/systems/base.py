@@ -1,8 +1,8 @@
 """
-PAMASMMA v4 — Cognitive System Base
-All 10 systems (S1–S10) inherit from CognitiveSystem.
-Handles: Anthropic API calls, pgvector memory retrieval,
-         event emission, personality enforcement, token budgeting.
+PAMASMMA v4.0.1 — Cognitive System Base
+All 10 systems inherit from CognitiveSystem.
+Handles Anthropic calls, memory retrieval, event emission, personality and
+token budgeting.
 """
 import logging
 import time
@@ -12,53 +12,45 @@ from typing import AsyncGenerator
 import anthropic
 
 from app.config import get_settings
-from app.embeddings.service import embed_text, retrieve_relevant_memories
 from app.database import pg_event_bus
+from app.embeddings.service import retrieve_relevant_memories
 
 log = logging.getLogger(__name__)
 settings = get_settings()
 
 _anthropic = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
 
-# ── Personality enforcement clause injected into every system prompt ──────────
 PERSONALITY_CLAUSE = f"""
 PERSONALITY BASELINE (non-negotiable, enforce in every response):
-- Assertiveness: {settings.personality_assertiveness}  — direct, unwavering, no hedging
-- Verbosity: {settings.personality_verbosity}          — dense but not bloated
-- Formality: {settings.personality_formality}          — professional, not academic
-- Strategic Depth: {settings.personality_strategic_depth} — always operate two levels above the question
+- Assertiveness: {settings.personality_assertiveness} — direct, decisive, no fake certainty
+- Verbosity: {settings.personality_verbosity} — dense but not bloated
+- Formality: {settings.personality_formality} — professional, not academic
+- Strategic Depth: {settings.personality_strategic_depth} — operate above the immediate question
 
-Identity principal: Kelson Mwangi, founder of Cirvanna — "infrastructure of identity"
-Location: Nakuru, Kenya. Operating context: fashion-tech, East Africa + global.
+Identity principal: PAMASMMA founder principal.
+Operating context: founder operations, marketing, content, customer support and strategy.
 """.strip()
 
 
 class CognitiveSystem(ABC):
-    """
-    Abstract base for all PAMASMMA cognitive systems.
-    Each system defines its own identity, directive, and scope.
-    """
+    """Base contract for each governed cognitive system."""
 
     @property
     @abstractmethod
     def system_id(self) -> str:
-        """e.g. 'S1', 'S4'"""
         ...
 
     @property
     @abstractmethod
     def system_name(self) -> str:
-        """e.g. 'Executive Operations'"""
         ...
 
     @property
     @abstractmethod
     def directive(self) -> str:
-        """Core system prompt defining the cognitive role."""
         ...
 
     def build_system_prompt(self, memory_context: str = "") -> str:
-        """Assemble final system prompt with personality and memory."""
         parts = [
             f"You are PAMASMMA {self.system_id} — {self.system_name}.",
             self.directive,
@@ -74,16 +66,11 @@ class CognitiveSystem(ABC):
         user_id: str,
         stream: bool = False,
     ) -> str | AsyncGenerator[str, None]:
-        """
-        Invoke the cognitive system with conversation history.
-        Retrieves relevant memories from pgvector before calling the LLM.
-        Emits a pg_notify event after each invocation.
-        """
         start = time.perf_counter()
 
-        # Retrieve relevant memories from pgvector
         last_user_msg = next(
-            (m["content"] for m in reversed(messages) if m["role"] == "user"), ""
+            (m["content"] for m in reversed(messages) if m["role"] == "user"),
+            "",
         )
         memory_context = await retrieve_relevant_memories(
             query=last_user_msg,
@@ -116,7 +103,7 @@ class CognitiveSystem(ABC):
         user_id: str,
         start: float,
     ) -> AsyncGenerator[str, None]:
-        full_response = []
+        full_response: list[str] = []
         async with _anthropic.messages.stream(
             model=settings.anthropic_model,
             max_tokens=settings.anthropic_max_tokens,
@@ -129,9 +116,15 @@ class CognitiveSystem(ABC):
 
         elapsed = (time.perf_counter() - start) * 1000
         last_user_msg = next(
-            (m["content"] for m in reversed(messages) if m["role"] == "user"), ""
+            (m["content"] for m in reversed(messages) if m["role"] == "user"),
+            "",
         )
-        await self._post_invoke(user_id, last_user_msg, "".join(full_response), elapsed)
+        await self._post_invoke(
+            user_id,
+            last_user_msg,
+            "".join(full_response),
+            elapsed,
+        )
 
     async def _post_invoke(
         self,
@@ -140,7 +133,6 @@ class CognitiveSystem(ABC):
         response: str,
         latency_ms: float,
     ) -> None:
-        """Emit event and store memory asynchronously after each invocation."""
         try:
             await pg_event_bus.publish(
                 channel="cognitive_invocation",
@@ -152,16 +144,16 @@ class CognitiveSystem(ABC):
                     "latency_ms": round(latency_ms, 2),
                 },
             )
-        except Exception as exc:
-            log.warning(f"Event emission failed for {self.system_id}: {exc}")
+        except Exception:
+            log.exception("Event emission failed for %s", self.system_id)
 
-        # Store interaction as a memory embedding (non-blocking)
         try:
             from app.embeddings.service import store_memory
+
             await store_memory(
                 user_id=user_id,
                 system_id=self.system_id,
                 content=f"Q: {query}\n\nA: {response}",
             )
-        except Exception as exc:
-            log.warning(f"Memory storage failed for {self.system_id}: {exc}")
+        except Exception:
+            log.exception("Memory storage failed for %s", self.system_id)
