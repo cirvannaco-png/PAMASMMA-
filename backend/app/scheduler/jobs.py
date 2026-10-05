@@ -96,8 +96,8 @@ async def job_health_report() -> None:
     """J6: System health report — emit metrics for all 10 cognitive systems."""
     try:
         log.info("[J6] Health report job started")
-        from app.redis_client import redis_ping
         from app.database import engine
+        from app.redis_client import redis_ping
         redis_ok = await redis_ping()
         async with engine.connect() as conn:
             from sqlalchemy import text
@@ -119,7 +119,7 @@ async def _emit_scheduler_event(job_id: str, name: str, extra: dict | None = Non
         payload={
             "job": job_id,
             "name": name,
-            "triggered_at": datetime.now(timezone.utc).isoformat(),
+            "triggered_at": datetime.now(UTC).isoformat(),
             **(extra or {}),
         },
     )
