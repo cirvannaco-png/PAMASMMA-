@@ -4,8 +4,8 @@ import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 
 
-revision = "002"
-down_revision = "001"
+revision = "003"
+down_revision = "002"
 branch_labels = None
 depends_on = None
 
