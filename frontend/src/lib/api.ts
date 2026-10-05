@@ -157,6 +157,13 @@ async function refreshAccessToken(): Promise<AuthTokens | null> {
 }
 
 export const auth = {
+  status: (user_id: string) =>
+    apiFetch<{
+      setup_required: boolean;
+      totp_enabled: boolean;
+      webauthn_registered: boolean;
+    }>(`/auth/status?user_id=${encodeURIComponent(user_id)}`),
+
   totpSetup: (
     user_id: string,
     username: string,
