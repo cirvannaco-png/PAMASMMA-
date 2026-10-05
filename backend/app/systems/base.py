@@ -1,39 +1,36 @@
 """
-PAMASMMA v4.0.1 — Cognitive System Base
-All 10 systems inherit from CognitiveSystem.
-Handles Anthropic calls, memory retrieval, event emission, personality and
-token budgeting.
+PAMASMMA v4.1 — Cognitive System Base
+Cognitive systems are domain identities; model selection and infrastructure are
+owned by the intelligence layer.
 """
 import logging
 import time
 from abc import ABC, abstractmethod
-from typing import AsyncGenerator
-
-import anthropic
+from collections.abc import AsyncGenerator
 
 from app.config import get_settings
 from app.database import pg_event_bus
 from app.embeddings.service import retrieve_relevant_memories
+from app.intelligence.evaluator import ResponseEvaluator
+from app.intelligence.registry import get_model_provider
 
 log = logging.getLogger(__name__)
 settings = get_settings()
-
-_anthropic = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+_provider = get_model_provider()
 
 PERSONALITY_CLAUSE = f"""
-PERSONALITY BASELINE (non-negotiable, enforce in every response):
-- Assertiveness: {settings.personality_assertiveness} — direct, decisive, no fake certainty
-- Verbosity: {settings.personality_verbosity} — dense but not bloated
-- Formality: {settings.personality_formality} — professional, not academic
-- Strategic Depth: {settings.personality_strategic_depth} — operate above the immediate question
-
-Identity principal: PAMASMMA founder principal.
-Operating context: founder operations, marketing, content, customer support and strategy.
+PERSONALITY BASELINE:
+- Assertiveness: {settings.personality_assertiveness}
+- Verbosity: {settings.personality_verbosity}
+- Formality: {settings.personality_formality}
+- Strategic depth: {settings.personality_strategic_depth}
+Operate decisively, distinguish facts from assumptions, and expose uncertainty
+when evidence is insufficient.
 """.strip()
 
 
 class CognitiveSystem(ABC):
-    """Base contract for each governed cognitive system."""
+    """Stable domain contract implemented by S1–S10."""
 
     @property
     @abstractmethod
@@ -57,7 +54,7 @@ class CognitiveSystem(ABC):
             PERSONALITY_CLAUSE,
         ]
         if memory_context:
-            parts.append(f"\nRELEVANT MEMORY CONTEXT:\n{memory_context}")
+            parts.append("RELEVANT MEMORY CONTEXT:\n" + memory_context)
         return "\n\n".join(parts)
 
     async def invoke(
@@ -67,54 +64,48 @@ class CognitiveSystem(ABC):
         stream: bool = False,
     ) -> str | AsyncGenerator[str, None]:
         start = time.perf_counter()
-
         last_user_msg = next(
             (m["content"] for m in reversed(messages) if m["role"] == "user"),
             "",
         )
+
         memory_context = await retrieve_relevant_memories(
-            query=last_user_msg,
-            user_id=user_id,
-            system_id=self.system_id,
+            last_user_msg,
+            user_id,
+            self.system_id,
             limit=5,
         )
-
-        system_prompt = self.build_system_prompt(memory_context)
+        prompt = self.build_system_prompt(memory_context)
 
         if stream:
-            return self._stream(system_prompt, messages, user_id, start)
+            return self._stream(prompt, messages, user_id, start)
 
-        response = await _anthropic.messages.create(
-            model=settings.anthropic_model,
-            max_tokens=settings.anthropic_max_tokens,
-            system=system_prompt,
-            messages=messages,
+        raw_response = await _provider.generate(
+            prompt,
+            messages,
+            settings.anthropic_max_tokens,
         )
-        content = response.content[0].text
-        elapsed = (time.perf_counter() - start) * 1000
-
-        await self._post_invoke(user_id, last_user_msg, content, elapsed)
-        return content
+        response = ResponseEvaluator.validate(raw_response)
+        await self._post_invoke(user_id, last_user_msg, response, (time.perf_counter() - start) * 1000)
+        return response
 
     async def _stream(
         self,
-        system_prompt: str,
+        prompt: str,
         messages: list[dict],
         user_id: str,
         start: float,
     ) -> AsyncGenerator[str, None]:
-        full_response: list[str] = []
-        async with _anthropic.messages.stream(
-            model=settings.anthropic_model,
-            max_tokens=settings.anthropic_max_tokens,
-            system=system_prompt,
-            messages=messages,
-        ) as stream:
-            async for text in stream.text_stream:
-                full_response.append(text)
-                yield text
+        chunks: list[str] = []
+        async for chunk in _provider.stream(
+            prompt,
+            messages,
+            settings.anthropic_max_tokens,
+        ):
+            chunks.append(chunk)
+            yield chunk
 
-        elapsed = (time.perf_counter() - start) * 1000
+        response = ResponseEvaluator.validate("".join(chunks))
         last_user_msg = next(
             (m["content"] for m in reversed(messages) if m["role"] == "user"),
             "",
@@ -122,8 +113,8 @@ class CognitiveSystem(ABC):
         await self._post_invoke(
             user_id,
             last_user_msg,
-            "".join(full_response),
-            elapsed,
+            response,
+            (time.perf_counter() - start) * 1000,
         )
 
     async def _post_invoke(
