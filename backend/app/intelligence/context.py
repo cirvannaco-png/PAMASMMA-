@@ -281,23 +281,23 @@ class ContextAssembler:
     def _relationships(text: str) -> list[Relationship]:
         patterns = (
             (
-                r"\b([A-Za-z][A-Za-z0-9&- ]{1,50})\s+works with\s+"
-                r"([A-Za-z][A-Za-z0-9&- ]{1,50})\b",
+                r"\b([A-Za-z][A-Za-z0-9&\- ]{1,50})\s+works with\s+"
+                r"([A-Za-z][A-Za-z0-9&\- ]{1,50})\b",
                 "works_with",
             ),
             (
-                r"\b([A-Za-z][A-Za-z0-9&- ]{1,50})\s+is\s+(?:a|an)\s+partner of\s+"
-                r"([A-Za-z][A-Za-z0-9&- ]{1,50})\b",
+                r"\b([A-Za-z][A-Za-z0-9&\- ]{1,50})\s+is\s+(?:a|an)\s+partner of\s+"
+                r"([A-Za-z][A-Za-z0-9&\- ]{1,50})\b",
                 "partner_of",
             ),
             (
-                r"\b([A-Za-z][A-Za-z0-9&- ]{1,50})\s+owns\s+"
-                r"([A-Za-z][A-Za-z0-9&- ]{1,50})\b",
+                r"\b([A-Za-z][A-Za-z0-9&\- ]{1,50})\s+owns\s+"
+                r"([A-Za-z][A-Za-z0-9&\- ]{1,50})\b",
                 "owns",
             ),
             (
-                r"\b([A-Za-z][A-Za-z0-9&- ]{1,50})\s+serves\s+"
-                r"([A-Za-z][A-Za-z0-9&- ]{1,50})\b",
+                r"\b([A-Za-z][A-Za-z0-9&\- ]{1,50})\s+serves\s+"
+                r"([A-Za-z][A-Za-z0-9&\- ]{1,50})\b",
                 "serves",
             ),
         )
