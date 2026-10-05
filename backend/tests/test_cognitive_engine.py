@@ -249,3 +249,24 @@ async def test_provider_runtime_failure_falls_back_to_kernel():
     )
     assert routed.name == "kernel"
     assert response
+
+
+def test_confidence_calibrator_learns_from_signed_feedback():
+    from app.intelligence.calibration import ConfidenceCalibrator
+
+    calibrator = ConfidenceCalibrator()
+    assert calibrator.adjust(
+        0.70,
+        [
+            {"metadata": {"calibration_delta": 0.20}},
+            {"metadata": {"calibration_delta": 0.10}},
+        ],
+    ) > 0.70
+
+    assert calibrator.adjust(
+        0.70,
+        [
+            {"metadata": {"calibration_delta": -0.20}},
+            {"metadata": {"calibration_delta": -0.10}},
+        ],
+    ) < 0.70
