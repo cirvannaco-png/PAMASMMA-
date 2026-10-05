@@ -1,6 +1,6 @@
 """Optional OpenAI-compatible adapter for Ollama/local or hosted endpoints."""
-from collections.abc import AsyncGenerator
-from typing import Any, AsyncIterator, cast
+from collections.abc import AsyncGenerator, AsyncIterator
+from typing import Any, cast
 
 from openai import AsyncOpenAI
 
