@@ -1,5 +1,5 @@
 # PAMASMMA v4 — Backend Dockerfile
-# Multi-stage build. Non-root user. Railway-ready.
+# Multi-stage build. Non-root user. Render-compatible.
 
 FROM python:3.11-slim AS base
 WORKDIR /app
