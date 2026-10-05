@@ -6,8 +6,7 @@ fallback for the zero-datastore intelligence deployment.
 import json
 import logging
 import time
-from typing import cast
-from typing import Any
+from typing import Any, cast
 
 import redis.asyncio as aioredis
 from redis.asyncio import Redis
