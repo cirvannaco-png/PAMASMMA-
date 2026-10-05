@@ -12,7 +12,7 @@ class OpenAICompatibleProvider:
         if not settings.model_api_base_url:
             raise RuntimeError("MODEL_API_BASE_URL is not configured.")
         self.client = AsyncOpenAI(
-            api_key=settings.model_api_key or "local",
+            api_key=(settings.model_api_key.get_secret_value() if settings.model_api_key else "local"),
             base_url=settings.model_api_base_url.rstrip("/") + "/",
         )
         self.model = settings.model_name
