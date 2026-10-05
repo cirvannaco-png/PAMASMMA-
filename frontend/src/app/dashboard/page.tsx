@@ -42,9 +42,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth > 820) {
-        setSidebarOpen(true);
-      }
+      setSidebarOpen(window.innerWidth > 820);
     };
 
     handleResize();
@@ -175,7 +173,9 @@ export default function DashboardPage() {
       {sidebarOpen && (
         <Sidebar
           onLogout={logout}
-          onSystemSelect={() => setSidebarOpen(false)}
+          onSystemSelect={() => {
+            if (window.innerWidth <= 820) setSidebarOpen(false);
+          }}
         />
       )}
 
