@@ -35,7 +35,7 @@ class OpenAICompatibleProvider:
         stream = await self.client.chat.completions.create(
             model=self.model,
             max_tokens=max_tokens,
-            messages=[{"role": "system", "content": system_prompt}, *messages],
+            messages=cast(Any, [{"role": "system", "content": system_prompt}, *messages],),
             stream=True,
         )
         async for event in cast(AsyncIterator[Any], stream):
