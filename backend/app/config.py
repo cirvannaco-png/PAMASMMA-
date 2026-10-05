@@ -3,8 +3,6 @@ PAMASMMA v4.1 — Configuration
 Provider-neutral intelligence with explicit durable/ephemeral persistence modes.
 """
 from functools import lru_cache
-from typing import List
-
 from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -25,7 +23,7 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 30
     jwt_refresh_token_expire_days: int = 7
-    allowed_origins: List[str] = ["http://localhost:3000"]
+    allowed_origins: list[str] = ["http://localhost:3000"]
     bootstrap_token: SecretStr = SecretStr("")
 
     founder_user_id: str = "kelson-mwangi-cirvanna"
