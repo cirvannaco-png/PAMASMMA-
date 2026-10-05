@@ -13,13 +13,11 @@ from pydantic import BaseModel, Field
 from sqlalchemy import text
 
 from app.auth.dependencies import get_current_user
-from app.config import get_settings
-from app.database import AsyncSessionLocal, pg_event_bus
-from app.runtime import memory_store
+from app.database import pg_event_bus
+from app.services.action_log import list_action_log
 from app.systems import SYSTEM_METADATA, get_system
 
 log = logging.getLogger(__name__)
-settings = get_settings()
 router = APIRouter(prefix="/cognitive", tags=["Cognitive Systems"])
 CurrentUser = Annotated[dict, Depends(get_current_user)]
 
@@ -97,71 +95,12 @@ async def get_action_log(
     ),
 ) -> dict:
     """Return recent invocation history for the authenticated user."""
-    user_id = current_user["user_id"]
-
-    if not settings.is_persistent:
-        entries = [
-            entry
-            for entry in reversed(memory_store.action_log)
-            if entry.get("user_id") == user_id
-            and (
-                not system_id
-                or entry.get("system_id") == system_id.upper()
-            )
-        ][:limit]
-        return {
-            "entries": [
-                {
-                    "id": str(entry["id"]),
-                    "system_id": entry["system_id"],
-                    "system_name": entry["system_name"],
-                    "query_preview": entry["query_preview"],
-                    "latency_ms": entry["latency_ms"],
-                    "created_at": (
-                        entry["created_at"].isoformat()
-                        if hasattr(entry["created_at"], "isoformat")
-                        else str(entry["created_at"])
-                    ),
-                }
-                for entry in entries
-            ],
-            "count": len(entries),
-        }
-
-    assert AsyncSessionLocal is not None
-    system_filter = "AND system_id = :system_id" if system_id else ""
-    params: dict[str, object] = {"user_id": user_id, "limit": limit}
-    if system_id:
-        params["system_id"] = system_id.upper()
-
-    query = f"""
-        SELECT id, system_id, system_name, user_id,
-               query_preview, latency_ms, created_at
-        FROM pamasmma_action_log
-        WHERE user_id = :user_id
-        {system_filter}
-        ORDER BY created_at DESC
-        LIMIT :limit
-    """
-
-    async with AsyncSessionLocal() as session:
-        result = await session.execute(text(query), params)
-        rows = result.fetchall()
-
-    return {
-        "entries": [
-            {
-                "id": str(row.id),
-                "system_id": row.system_id,
-                "system_name": row.system_name,
-                "query_preview": row.query_preview,
-                "latency_ms": row.latency_ms,
-                "created_at": row.created_at.isoformat(),
-            }
-            for row in rows
-        ],
-        "count": len(rows),
-    }
+    entries = await list_action_log(
+        user_id=current_user["user_id"],
+        limit=limit,
+        system_id=system_id,
+    )
+    return {"entries": entries, "count": len(entries)}
 
 
 @router.post("/override")
