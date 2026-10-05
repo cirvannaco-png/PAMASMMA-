@@ -118,12 +118,12 @@ async def totp_setup(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="TOTP is already configured. Use the authenticated recovery flow.",
-        )
+        ) from None
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Identity configuration conflicts with the existing account.",
-        )
+        ) from None
 
     from app.auth.core import get_totp_uri
     return {
@@ -250,7 +250,7 @@ async def token_refresh(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired refresh token.",
-        )
+        ) from None
 
     session = await get_session(old_session_id)
     if not session or session.get("user_id") != user_id:
