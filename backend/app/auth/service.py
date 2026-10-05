@@ -128,3 +128,41 @@ async def mark_webauthn_registered(user_id: str) -> None:
         if user is not None:
             user.webauthn_registered = True
             await session.commit()
+
+
+async def get_auth_status(user_id: str) -> dict[str, bool]:
+    """Return authentication capabilities without exposing secrets or credentials."""
+    if not settings.is_persistent:
+        user = memory_store.users.get(user_id) or {}
+        totp_enabled = bool(user.get("totp_enabled"))
+        webauthn_registered = user_id in memory_store.webauthn_credentials
+        return {
+            "setup_required": not totp_enabled and not webauthn_registered,
+            "totp_enabled": totp_enabled,
+            "webauthn_registered": webauthn_registered,
+        }
+
+    assert AsyncSessionLocal is not None
+    async with AsyncSessionLocal() as session:
+        from sqlalchemy import select
+
+        result = await session.execute(
+            select(User.totp_enabled, User.webauthn_registered)
+            .where(User.user_key == user_id, User.is_active.is_(True))
+        )
+        row = result.one_or_none()
+
+    if row is None:
+        return {
+            "setup_required": True,
+            "totp_enabled": False,
+            "webauthn_registered": False,
+        }
+
+    totp_enabled = bool(row.totp_enabled)
+    webauthn_registered = bool(row.webauthn_registered)
+    return {
+        "setup_required": not totp_enabled and not webauthn_registered,
+        "totp_enabled": totp_enabled,
+        "webauthn_registered": webauthn_registered,
+    }
