@@ -6,6 +6,7 @@ fallback for the zero-datastore intelligence deployment.
 import json
 import logging
 import time
+from typing import cast
 from typing import Any
 
 import redis.asyncio as aioredis
@@ -51,7 +52,7 @@ async def get_session(session_id: str) -> dict | None:
         return memory_store.sessions.get(session_id)
     assert redis_client is not None
     raw = await redis_client.get(f"{NS_SESSION}{session_id}")
-    return json.loads(raw) if raw else None
+    return cast(dict[str, Any] | None, json.loads(raw) if raw else None)
 
 
 async def delete_session(session_id: str) -> None:
@@ -91,7 +92,7 @@ async def pop_webauthn_challenge(user_id: str) -> str | None:
         pipe.get(key)
         pipe.delete(key)
         results = await pipe.execute()
-    return results[0]
+    return cast(str | None, results[0])
 
 
 async def store_webauthn_credential(user_id: str, credential: dict) -> None:
@@ -111,7 +112,7 @@ async def get_webauthn_credential(user_id: str) -> dict | None:
         return dict(credential) if credential else None
     assert redis_client is not None
     raw = await redis_client.get(f"{NS_WEBAUTHN}credential:{user_id}")
-    return json.loads(raw) if raw else None
+    return cast(dict[str, Any] | None, json.loads(raw) if raw else None)
 
 
 async def check_rate_limit(
@@ -198,4 +199,4 @@ async def redis_ping() -> bool:
 
 async def close_redis() -> None:
     if redis_client is not None:
-        await redis_client.aclose()
+        await redis_client.close()
