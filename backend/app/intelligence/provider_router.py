@@ -21,14 +21,20 @@ class ProviderRouter:
         settings = get_settings()
         configured = settings.model_provider.lower()
 
-        # Sensitive requests stay in-process unless an explicitly local provider is chosen.
-        if sensitivity == Sensitivity.SENSITIVE and configured not in {"kernel", "local", "ollama"}:
+        if (
+            sensitivity == Sensitivity.SENSITIVE
+            and not settings.intelligence_cloud_for_sensitive
+            and configured not in {"kernel", "local", "ollama"}
+        ):
             return ProviderSelection("kernel", KernelProvider())
 
         if configured == "hybrid":
             candidates = (
                 ["anthropic", "openai-compatible", "kernel"]
-                if complexity in {TaskComplexity.COMPLEX, TaskComplexity.STRATEGIC}
+                if complexity in {
+                    TaskComplexity.COMPLEX,
+                    TaskComplexity.STRATEGIC,
+                }
                 else ["openai-compatible", "kernel"]
             )
         elif configured in {"local", "kernel"}:
@@ -38,18 +44,26 @@ class ProviderRouter:
 
         for candidate in candidates:
             try:
-                provider = self._instantiate(candidate)
-                return ProviderSelection(candidate, provider)
+                return ProviderSelection(
+                    candidate,
+                    self._instantiate(candidate),
+                )
             except Exception:
                 continue
-        return ProviderSelection("kernel", KernelProvider())
+
+        return ProviderSelection(
+            "kernel",
+            KernelProvider(),
+        )
 
     @staticmethod
     def _instantiate(name: str):
         if name in {"kernel", "local"}:
             return KernelProvider()
         if name in {"openai-compatible", "ollama"}:
-            from app.intelligence.providers.openai_compatible import OpenAICompatibleProvider
+            from app.intelligence.providers.openai_compatible import (
+                OpenAICompatibleProvider,
+            )
             return OpenAICompatibleProvider()
         if name == "anthropic":
             from app.intelligence.providers.anthropic import AnthropicProvider
