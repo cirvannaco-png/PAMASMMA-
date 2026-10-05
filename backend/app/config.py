@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     app_env: str = "production"
     debug: bool = False
 
-    secret_key: str = Field(min_length=32)
+    secret_key: str = Field(default="", min_length=32)
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 30
     jwt_refresh_token_expire_days: int = 7
