@@ -33,7 +33,7 @@ DATABASE_URL=<PAMASMMA PostgreSQL connection string>
 REDIS_URL=<PAMASMMA Redis-compatible connection string>
 MODEL_PROVIDER=kernel
 EMBEDDING_PROVIDER=local
-SCHEDULER_ENABLED=false
+SCHEDULER_ENABLED=true
 WEBAUTHN_RP_ID=<production web domain>
 WEBAUTHN_RP_NAME=PAMASMMA
 WEBAUTHN_ORIGIN=https://<production web domain>
@@ -67,7 +67,7 @@ It defines:
 - `pamasmma-api`
 - `pamasmma-web`
 
-The API is a Python 3.11.9 deployment and exposes `/health`.
+The API is a Python 3.11.9 deployment. Render admits production traffic only when `/health/ready` reports the Postgres and Valkey dependencies as available.
 The frontend uses Next.js standalone output.
 
 The production web command uses the standalone server directly:
@@ -95,9 +95,8 @@ schema.
 Migration `002_auth_hardening` creates the stable `user_key` identity column,
 backfills it from the existing username, and adds uniqueness.
 
-On Render free compute, automatic `preDeployCommand` migrations are not available;
-use a controlled migration execution path or paid compute with a pre-deploy migration
-command.
+The production Blueprint uses a pre-deploy Alembic migration command. The API is pinned
+to one instance while the scheduler remains embedded in the API process.
 
 ## 4. Security
 
