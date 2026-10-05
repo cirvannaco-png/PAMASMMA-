@@ -10,7 +10,6 @@ import { useCognitiveStore } from "@/lib/store";
 import { SYSTEMS } from "@/lib/constants";
 import type {
   CognitiveMetadataEvent,
-  DecisionRecord,
   Message,
   SystemId,
 } from "@/types";
