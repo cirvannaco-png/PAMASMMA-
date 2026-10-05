@@ -4,7 +4,7 @@
  */
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { decodeJwt } from "jose";
 import { useRouter } from "next/navigation";
 
@@ -15,14 +15,19 @@ export function useAuth() {
   const { isAuthenticated, userId, setAuth, clearAuth } = useAuthStore();
   const router = useRouter();
   const attempted = useRef(false);
+  const [isRestoring, setIsRestoring] = useState(true);
 
   useEffect(() => {
-    if (isAuthenticated || attempted.current) return;
+    if (isAuthenticated || attempted.current) {
+      setIsRestoring(false);
+      return;
+    }
     attempted.current = true;
 
     void (async () => {
-      const tokens = await restoreSession();
-      if (!tokens) return;
+      try {
+        const tokens = await restoreSession();
+        if (!tokens) return;
 
       try {
         const payload = decodeJwt(tokens.access_token);
@@ -36,6 +41,8 @@ export function useAuth() {
         setAuth(subject, tokens);
       } catch {
         clearAuth();
+      } finally {
+        setIsRestoring(false);
       }
     })();
   }, [clearAuth, isAuthenticated, setAuth]);
@@ -50,5 +57,5 @@ export function useAuth() {
     router.replace("/auth");
   };
 
-  return { isAuthenticated, userId, logout };
+  return { isAuthenticated, userId, isRestoring, logout };
 }
