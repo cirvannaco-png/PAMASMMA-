@@ -23,11 +23,21 @@ export function ActionLog({ systemId }: ActionLogProps) {
   const sys = systemId ? SYSTEM_MAP[systemId] : null;
 
   useEffect(() => {
-    setLoading(true);
+    let active = true;
     cognitive.getActionLog(systemId, 100)
-      .then(d => setEntries(d.entries))
-      .catch(() => toast.error("Failed to load action log"))
-      .finally(() => setLoading(false));
+      .then((d) => {
+        if (active) setEntries(d.entries);
+      })
+      .catch(() => {
+        if (active) toast.error("Failed to load action log");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
   }, [systemId]);
 
   return (
