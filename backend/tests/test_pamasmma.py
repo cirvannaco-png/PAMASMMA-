@@ -25,8 +25,6 @@ async def test_health_endpoint(client):
     assert response.json()["status"] == "healthy"
     assert response.json()["version"] == "4.1.0"
 
-
-
 @pytest.mark.asyncio
 async def test_health_ready_endpoint(client):
     with patch("app.routers.health.redis_ping", new=AsyncMock(return_value=True)), \
@@ -39,8 +37,6 @@ async def test_health_ready_endpoint(client):
 
     assert response.status_code == 200
     assert response.json()["status"] == "ready"
-
-
 
 @pytest.mark.asyncio
 async def test_auth_status_is_non_sensitive(client):
