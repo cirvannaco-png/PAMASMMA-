@@ -5,7 +5,7 @@ All jobs are idempotent and logged. Failures do not crash the process.
 Timezone: Africa/Nairobi (EAT, UTC+3).
 """
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -24,7 +24,6 @@ scheduler = AsyncIOScheduler(timezone=settings.scheduler_timezone)
 async def job_memory_purge() -> None:
     """J1: Purge stale memory embeddings older than 180 days."""
     try:
-        from app.embeddings.service import purge_old_memories
         # In production: iterate over all active user_ids from DB
         log.info("[J1] Memory purge job started")
         # Placeholder — production impl queries active users from DB
@@ -65,7 +64,7 @@ async def job_behavioral_consistency_audit() -> None:
             payload={
                 "job": "J3",
                 "name": "behavioral_consistency_audit",
-                "triggered_at": datetime.now(timezone.utc).isoformat(),
+                "triggered_at": datetime.now(UTC).isoformat(),
             },
         )
         log.info("[J3] Behavioral consistency audit complete")
