@@ -33,8 +33,14 @@ export default function DashboardPage() {
   }, [threads, loading]);
 
   const handleSend = async () => {
-    if (!input.trim() || loading) return;
-    const userMsg: Message = { role: "user", content: input.trim(), timestamp: new Date().toISOString() };
+    const trimmed = input.trim();
+    if (!trimmed || loading) return;
+
+    const userMsg: Message = {
+      role: "user",
+      content: trimmed,
+      timestamp: new Date().toISOString(),
+    };
     addMessage(activeSystemId, userMsg);
     setInput("");
     setLoading(true);
@@ -42,35 +48,67 @@ export default function DashboardPage() {
     const allMessages = [...thread, userMsg];
 
     try {
-      // Streaming invoke
       const res = await cognitive.invokeStream(
         activeSystemId,
         allMessages.map(m => ({ role: m.role, content: m.content })),
       );
 
-      if (!res.ok) throw new Error("Stream failed");
+      if (!res.ok) {
+        throw new Error("Stream failed");
+      }
+      if (!res.body) {
+        throw new Error("Streaming response has no body");
+      }
 
-      // Seed empty assistant message
-      addMessage(activeSystemId, { role: "assistant", content: "" });
-
-      const reader = res.body!.getReader();
+      const reader = res.body.getReader();
       const decoder = new TextDecoder();
+      let buffer = "";
+      let streamDone = false;
+      let assistantSeeded = false;
 
-      while (true) {
+      const consumeFrame = (line: string): void => {
+        if (!line.startsWith("data: ")) return;
+
+        const payload = line.slice(6);
+        if (payload === "[DONE]") {
+          streamDone = true;
+          return;
+        }
+
+        let chunk: string;
+        try {
+          chunk = JSON.parse(payload) as string;
+        } catch {
+          return;
+        }
+
+        if (!assistantSeeded) {
+          addMessage(activeSystemId, { role: "assistant", content: "" });
+          assistantSeeded = true;
+        }
+        appendToLastMessage(activeSystemId, chunk);
+      };
+
+      while (!streamDone) {
         const { done, value } = await reader.read();
         if (done) break;
-        const text = decoder.decode(value);
-        const lines = text.split("\n");
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split(/\r?\n/);
+        buffer = lines.pop() ?? "";
+
         for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            const chunk = line.slice(6);
-            if (chunk === "[DONE]") break;
-            appendToLastMessage(activeSystemId, chunk);
-          }
+          consumeFrame(line);
+          if (streamDone) break;
         }
       }
+
+      buffer += decoder.decode();
+      if (!streamDone && buffer.startsWith("data: ")) {
+        consumeFrame(buffer);
+      }
     } catch {
-      toast.error(`${activeSystem.id} system error — check connection`);
+      toast.error(activeSystemId + " system error — check connection");
     } finally {
       setLoading(false);
     }
