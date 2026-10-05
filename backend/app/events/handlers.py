@@ -64,7 +64,7 @@ async def handle_override_queue(channel: str, data: dict) -> None:
                 "reason": data.get("reason"),
                 "user_id": data.get("user_id", "UNKNOWN"),
                 "status": "pending",
-                "created_at": datetime.now(timezone.utc),
+                "created_at": datetime.now(UTC),
             }
         )
         del memory_store.overrides[:-500]
