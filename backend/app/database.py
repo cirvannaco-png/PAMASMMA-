@@ -15,7 +15,6 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.orm import DeclarativeBase
 
 from app.config import get_settings
-from app.runtime import memory_store
 
 log = logging.getLogger(__name__)
 settings = get_settings()
