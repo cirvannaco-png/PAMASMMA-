@@ -171,7 +171,7 @@ async def purge_old_memories(
     user_id: str,
     max_age_days: int = 180,
 ) -> int:
-    cutoff = datetime.now(timezone.utc) - timedelta(days=max_age_days)
+    cutoff = datetime.now(UTC) - timedelta(days=max_age_days)
 
     if not settings.is_persistent:
         before = len(memory_store.memories)
