@@ -1,15 +1,25 @@
 """Task-aware model provider routing with deterministic failover."""
 from dataclasses import dataclass
+from typing import Protocol
 
 from app.config import get_settings
 from app.intelligence.contracts import Sensitivity, TaskComplexity
 from app.intelligence.providers.kernel import KernelProvider
 
 
+class Provider(Protocol):
+    async def generate(
+        self,
+        system_prompt: str,
+        messages: list[dict],
+        max_tokens: int,
+    ) -> str: ...
+
+
 @dataclass(frozen=True)
 class ProviderSelection:
     name: str
-    provider: object
+    provider: Provider
 
 
 class ProviderRouter:
@@ -91,7 +101,7 @@ class ProviderRouter:
             return fallback, response
 
     @staticmethod
-    def _instantiate(name: str):
+    def _instantiate(name: str) -> Provider:
         if name in {"kernel", "local"}:
             return KernelProvider()
         if name in {"openai-compatible", "ollama"}:
