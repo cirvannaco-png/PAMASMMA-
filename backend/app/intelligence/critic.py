@@ -24,10 +24,12 @@ class CognitiveCritic:
         if len(clean) < 80:
             issues.append(
                 VerificationIssue(
-                    "high",
-                    "completeness",
-                    "Response is too short to carry a strategic "
-                    "or decision-grade conclusion.",
+                    severity="high",
+                    category="completeness",
+                    message=(
+                        "Response is too short to carry a strategic "
+                        "or decision-grade conclusion."
+                    ),
                 )
             )
 
