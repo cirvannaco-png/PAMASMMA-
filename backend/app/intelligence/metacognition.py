@@ -13,18 +13,18 @@ class MetacognitiveGovernor:
         if context.contradictions:
             issues.append(
                 VerificationIssue(
-                    "medium",
-                    "belief_conflict",
-                    "Conflicting beliefs are present; the answer must surface them instead of silently resolving them.",
+                    severity="medium",
+                    category="belief_conflict",
+                    message="Conflicting beliefs are present; the answer must surface them instead of silently resolving them.",
                 )
             )
 
         if not context.memories and context.complexity.value in {"complex", "strategic"}:
             issues.append(
                 VerificationIssue(
-                    "low",
-                    "context_depth",
-                    "A complex task has little historical context; preserve uncertainty rather than inferring a strong personalized conclusion.",
+                    severity="low",
+                    category="context_depth",
+                    message="A complex task has little historical context; preserve uncertainty rather than inferring a strong personalized conclusion.",
                 )
             )
 
