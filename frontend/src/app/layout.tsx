@@ -22,7 +22,7 @@ export default function RootLayout({
     <html lang="en" className={`${inter.className} ${jetbrainsMono.className}`}>
       <head>
       </head>
-      <body className="h-screen overflow-hidden bg-[#04040D]">
+      <body className="min-h-screen overflow-x-hidden bg-[#04040D]">
         {children}
         <Toaster
           position="bottom-right"
