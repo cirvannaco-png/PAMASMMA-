@@ -84,6 +84,13 @@ class Belief(BaseModel):
     status: str = "active"
 
 
+class Hypothesis(BaseModel):
+    statement: str
+    basis: str
+    test: str
+    confidence: float = Field(default=0.5, ge=0.0, le=1.0)
+
+
 class WorldEntity(BaseModel):
     name: str
     entity_type: str = "concept"
@@ -111,6 +118,7 @@ class CognitiveContext(BaseModel):
     goals: list[str] = Field(default_factory=list)
     entities: list[WorldEntity] = Field(default_factory=list)
     relationships: list[Relationship] = Field(default_factory=list)
+    hypotheses: list[Hypothesis] = Field(default_factory=list)
     memories: list[MemoryItem] = Field(default_factory=list)
     beliefs: list[Belief] = Field(default_factory=list)
     contradictions: list[str] = Field(default_factory=list)
