@@ -1,180 +1,236 @@
-# ⬡ PAMASMMA v4
-**Governed Synthetic Executive Intelligence**  
-*Principal cognitive infrastructure for Kelson Mwangi · Cirvanna · Nakuru, Kenya*
+# PAMASMMA v4.1
 
----
+**Governed Synthetic Executive Intelligence**  
+Provider-neutral cognitive infrastructure for the PAMASMMA assistant platform.
+
+## System boundary
+
+PAMASMMA owns the assistant-facing cognitive platform: intent handling, context, memory, reasoning/planning, model routing, tool orchestration, validation, authentication, audit events, and outcome persistence.
+
+Nakima is a separate repository and must not be embedded into PAMASMMA.
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    PAMASMMA v4                          │
-│              Governed Synthetic Executive AI            │
-├────────────────┬────────────────┬───────────────────────┤
-│   Frontend     │    Backend     │    Infrastructure     │
-│   Next.js 15   │   FastAPI      │   Supabase (Postgres) │
-│   TypeScript   │   Python 3.11  │   Upstash (Redis)     │
-│   Tailwind CSS │   Async/await  │   Railway (Deploy)    │
-└────────────────┴────────────────┴───────────────────────┘
+USER
+  ↓
+PAMASMMA ORCHESTRATOR
+  ↓
+INTENT + CONTEXT
+  ↓
+MEMORY
+  ↓
+REASONING / PLANNING
+  ↓
+PROVIDER ROUTER
+  ├── Intelligence Kernel (no model key)
+  ├── Local / OpenAI-compatible model
+  └── Optional Anthropic model
+  ↓
+TOOLS / KNOWLEDGE
+  ↓
+RESPONSE VALIDATION
+  ↓
+RESPONSE
+  ↓
+ACTION LOG + MEMORY
 ```
 
-## Cognitive Systems (S1–S10)
+### Provider boundary
 
-| ID  | System                | Color     | Role                                    |
-|-----|-----------------------|-----------|-----------------------------------------|
-| S1  | Executive Operations  | `#6B3FFB` | Decision core · priority synthesis      |
-| S2  | Marketing Intelligence| `#00D4FF` | Brand positioning · market signals      |
-| S3  | Relationship Mgmt     | `#D4AF37` | Stakeholder mapping · trust calibration |
-| S4  | Creator Economy       | `#3BFFA0` | Content strategy · distribution intel   |
-| S5  | Narrative Governance  | `#FF5B8B` | Story coherence · message sovereignty   |
-| S6  | Audience Psychology   | `#FF8C42` | Behavioral modeling · identity resonance|
-| S7  | Behavioral Consistency| `#A97FFF` | Pattern enforcement · persona integrity |
-| S8  | Persuasion Governance | `#FF4D6D` | Ethical influence · conversion intel    |
-| S9  | Voice & Presence      | `#5BFFD0` | Tone synthesis · presence amplification |
-| S10 | Strategic Narrative   | `#FFD700` | Long-arc positioning · vision crystalize|
+All cognitive systems depend on the provider-neutral `ModelProvider` interface. Vendor SDKs are isolated inside adapter modules, so changing model providers does not require rewriting the cognitive systems.
 
-## Personality Baseline
+### No-key intelligence
 
-| Trait           | Value | Description                    |
-|-----------------|-------|--------------------------------|
-| Assertiveness   | 0.84  | Direct · unwavering · decisive |
-| Verbosity       | 0.72  | Dense but not bloated          |
-| Formality       | 0.61  | Professional · not academic    |
-| Strategic Depth | 0.91  | Operate two levels above       |
+The deterministic **PAMASMMA Intelligence Kernel** can operate without Anthropic or OpenAI credentials. Local hashing embeddings provide semantic-memory behavior without an embedding API key.
 
-## Tech Stack
+This is an orchestration and reasoning layer, not a claim that a deterministic kernel is equivalent to a frontier generative model.
 
-**Backend**
-- FastAPI + Uvicorn (async, uvloop)
-- SQLAlchemy 2.0 async + asyncpg
-- Postgres LISTEN/NOTIFY event bus (replaces Kafka)
-- pgvector for semantic memory retrieval
-- TOTP (pyotp) + WebAuthn/FIDO2 (py_webauthn)
-- APScheduler — 6 background jobs
-- Redis (Upstash) — sessions, WebAuthn challenges, rate limiting
-- OpenAI `text-embedding-3-small` for pgvector memory embeddings
-- Anthropic Claude for all 10 cognitive system responses
+## Cognitive systems
 
-**Frontend**
-- Next.js 15 (App Router, standalone output)
-- TypeScript 5 + Tailwind CSS
-- Zustand state management (ESM-safe static imports)
-- SSE streaming for cognitive system responses
-- Design system: Obsidian / Gold / Silver / Magenta
+PAMASMMA currently exposes ten governed cognitive systems, S1–S10. All cognitive endpoints require an authenticated session.
 
-**Infrastructure**
-- Supabase (Postgres + pgvector hosting)
-- Upstash (Redis, serverless)
-- Railway (API + Web deployment)
-- GitHub Actions (CI + deploy)
+## Runtime modes
 
-## Local Development
+### Durable production
 
-**Prerequisites:** Docker Desktop, Python 3.11+, Node 20+
+Set:
+
+```text
+PERSISTENCE_MODE=postgres
+DATABASE_URL=<PostgreSQL connection string>
+REDIS_URL=<Redis-compatible connection string>
+```
+
+Durable mode uses:
+- PostgreSQL + Alembic for application persistence
+- PostgreSQL LISTEN/NOTIFY for the event bus
+- Redis-compatible storage for sessions, WebAuthn challenges/credentials, rate limits, replay protection, and cache
+- pgvector-backed semantic memory when the database schema provides the vector extension
+
+### Ephemeral validation
+
+Set:
+
+```text
+PERSISTENCE_MODE=memory
+MODEL_PROVIDER=kernel
+EMBEDDING_PROVIDER=local
+SCHEDULER_ENABLED=false
+```
+
+Memory mode is explicitly bounded and single-instance. It is appropriate for demos, CI, and integration validation, not durable production data.
+
+## Security model
+
+- Production requires an explicitly injected `SECRET_KEY` with at least 32 characters.
+- Non-production environments generate an ephemeral signing secret at process startup.
+- First-time founder enrollment requires `PAMASMMA_BOOTSTRAP_TOKEN`.
+- TOTP secrets are encrypted at rest with AES-256-GCM.
+- TOTP verification reads the secret from server-side persistence; clients cannot supply it.
+- WebAuthn registration requires an authenticated founder session.
+- Refresh tokens are bound to live server-side sessions and rotated.
+- Authentication state uses versioned namespaces so legacy state can be invalidated deliberately.
+- Rate limiting applies at global, API, authentication, and cognitive boundaries.
+
+## Repository layout
+
+```text
+backend/
+  app/
+    auth/
+    embeddings/
+    events/
+    intelligence/
+    middleware/
+    models/
+    routers/
+    runtime/
+    security/
+    services/
+    systems/
+  migrations/
+  tests/
+
+frontend/
+  src/
+    app/
+    components/
+    hooks/
+    lib/
+
+docs/
+render.yaml
+```
+
+Routers own HTTP transport only. Application services own use-case logic and persistence access. Infrastructure modules own database, Redis, provider SDK, and event-bus boundaries.
+
+## Local development
+
+Prerequisites: Python 3.11+, Node.js 20+.
 
 ```bash
-# 1. Clone and configure
-git clone https://github.com/cirvannaco-png/PAMASMMA-.git
-cd PAMASMMA-
 cp .env.example .env
-# Edit .env with your actual credentials — see Environment Variables below
 
-# 2. Start full stack with Docker
-docker compose -f infrastructure/docker-compose.dev.yml up
-
-# OR run services individually:
-
-# Backend
 cd backend
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 alembic upgrade head
 uvicorn app.main:app --reload --port 8000
+```
 
-# Frontend
+In a second terminal:
+
+```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-Open http://localhost:3000
+Open `http://localhost:3000`.
 
-## Testing
+## Quality gates
+
+Backend:
 
 ```bash
 cd backend
+ruff check app/ tests/
+mypy app/ --ignore-missing-imports --no-strict-optional
 pytest tests/ -v --cov=app
 ```
 
-## Deployment (Render)
+Frontend:
 
-The repository contains `render.yaml` for the no-key intelligence deployment.
+```bash
+cd frontend
+npm run type-check
+npm run lint
+npm run build
+```
 
-Render services:
-- `pamasmma-api` — FastAPI backend
-- `pamasmma-web` — Next.js frontend
+GitHub Actions enforces the backend and frontend gates. Docker build validation runs on `main`.
 
-The default deployment uses:
-- `MODEL_PROVIDER=kernel`
-- `EMBEDDING_PROVIDER=local`
-- `PERSISTENCE_MODE=memory`
+## Render deployment
 
-This mode removes the Anthropic/OpenAI key requirement and is suitable for
-demonstrations and functional validation. It is intentionally ephemeral.
+The root `render.yaml` defines the Render deployment contract and pins the backend runtime to Python 3.11.9.
 
-For durable production, provision PostgreSQL + persistent Redis-compatible
-storage and switch to `PERSISTENCE_MODE=postgres`.
+The API health endpoint is:
 
-## Environment Variables
+```text
+GET /health
+```
 
-See `.env.example` for all required variables.
+The frontend uses the API configured through `NEXT_PUBLIC_API_URL`.
 
-| Variable | Required | Description |
-|---|---|---|
-| `SECRET_KEY` | ✅ | Application signing key; minimum 32 characters |
-| `PAMASMMA_BOOTSTRAP_TOKEN` | ✅ | First-time founder enrollment token |
-| `PERSISTENCE_MODE` | ✅ | `postgres` for durable mode or `memory` for ephemeral mode |
-| `DATABASE_URL` | durable only | PostgreSQL/pgvector connection string |
-| `REDIS_URL` | durable only | Redis-compatible connection string |
-| `MODEL_PROVIDER` | ✅ | `kernel`, `anthropic`, `openai-compatible`, or `hybrid` |
-| `EMBEDDING_PROVIDER` | ✅ | `local` by default; `openai` is optional |
-| `ANTHROPIC_API_KEY` | optional | Required only when `MODEL_PROVIDER=anthropic` |
-| `OPENAI_API_KEY` | optional | Required only when `EMBEDDING_PROVIDER=openai` |
-| `WEBAUTHN_RP_ID` | ✅ | Relying party domain (e.g. `pamasmma.app`) |
-| `WEBAUTHN_ORIGIN` | ✅ | Full origin URL (e.g. `https://pamasmma.app`) |
-| `ALLOWED_ORIGINS` | ✅ | JSON list of allowed CORS origins |
-| `NEXT_PUBLIC_API_URL` | ✅ | Frontend → API URL (e.g. `https://api.pamasmma.app/api/v1`) |
+The repository currently contains a zero-key, ephemeral Render blueprint because the Render workspace does not have a second free PostgreSQL allocation available for PAMASMMA. The existing free PostgreSQL instance is owned by another project and is not reused.
 
-**GitHub Secrets required for CI/CD:**
-- `SECRET_KEY` — 64-char hex secret
-- `ANTHROPIC_API_KEY` — Anthropic API key
-- `OPENAI_API_KEY` — OpenAI API key (for embeddings)
-- `RAILWAY_TOKEN` — Railway deploy token
+A production durable deployment must provision a PAMASMMA-specific PostgreSQL database and durable Redis-compatible storage, then set `PERSISTENCE_MODE=postgres` and wire `DATABASE_URL` and `REDIS_URL` into the API service. Do not share another repository's database.
 
-## Changelog
+## Database migrations
 
-### v4.1.0 (current)
-- Initial release: 10 cognitive systems (S1–S10)
-- TOTP + WebAuthn/FIDO2 dual-factor auth
-- pgvector semantic memory with 90-day freshness policy
-- Postgres LISTEN/NOTIFY event bus (zero external message broker)
-- APScheduler — 6 background jobs (purge, sessions, audit, digest, coherence, health)
-- SSE streaming for real-time cognitive system responses
+Alembic owns schema evolution. Application startup verifies connectivity but does not mutate production schema.
 
-### Bug Fixes Applied
-- **`config.py`** — Added missing `openai_api_key` field to `Settings` (required for embeddings service)
-- **`embeddings/service.py`** — `AsyncOpenAI` now receives `api_key` from Settings explicitly
-- **`database.py`** — Removed unused `asynccontextmanager` and `sa_event` imports
-- **`migrations/001_initial.py`** — Added missing columns to `pamasmma_users` table: `totp_enabled`, `is_active`, `updated_at`, `last_login_at` (ORM model and migration were out of sync)
-- **`store.ts`** — Replaced CommonJS `require()` calls inside Zustand actions with ESM-safe static imports
-- **`ci.yml`** — Fixed `npm ci` → `npm install` (no lock file in repo) and corrected `cache-dependency-path` to `frontend/package.json`; added `OPENAI_API_KEY` to CI environment
+Before starting a durable environment:
 
----
+```bash
+cd backend
+alembic upgrade head
+```
 
-*"Infrastructure of identity."*  
-Cirvanna · Nakuru, Kenya · 2025
+Migration `002_auth_hardening` introduces the stable `user_key` identity key and its unique index.
 
+## Environment variables
 
-## v4.1 production hardening
+See [`.env.example`](.env.example) for the complete template.
 
-See [docs/MIGRATION_V4.1.md](docs/MIGRATION_V4.1.md) for migration, persistence,
-intelligence-provider and Render deployment guidance.
+Core settings include:
+
+| Variable | Purpose |
+|---|---|
+| `SECRET_KEY` | JWT signing and application security |
+| `PAMASMMA_BOOTSTRAP_TOKEN` | Founder enrollment protection |
+| `PERSISTENCE_MODE` | `postgres` or `memory` |
+| `DATABASE_URL` | Durable PostgreSQL connection |
+| `REDIS_URL` | Durable Redis-compatible connection |
+| `MODEL_PROVIDER` | `kernel`, `anthropic`, `openai-compatible`, or `hybrid` |
+| `EMBEDDING_PROVIDER` | `local` or `openai` |
+| `WEBAUTHN_RP_ID` | WebAuthn relying-party domain |
+| `WEBAUTHN_ORIGIN` | WebAuthn browser origin |
+| `ALLOWED_ORIGINS` | CORS allow-list |
+| `NEXT_PUBLIC_API_URL` | Frontend API base URL |
+
+## Release status
+
+v4.1 hardening includes:
+- provider-neutral intelligence architecture
+- deterministic no-key intelligence kernel
+- local semantic embeddings
+- explicit durable and ephemeral runtime modes
+- TOTP/WebAuthn/JWT authentication hardening
+- user-isolated SSE events
+- Alembic-owned schema migrations
+- Render deployment configuration
+- backend/frontend CI gates
+- production-oriented logging and rate limiting
+
+The remaining production gate is infrastructure: PAMASMMA needs isolated durable PostgreSQL and Redis-compatible storage before the deployment can truthfully be classified as durable production.
