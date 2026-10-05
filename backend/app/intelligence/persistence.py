@@ -430,15 +430,16 @@ async def list_world_entities(user_id: str, names: list[str] | None = None, limi
     assert AsyncSessionLocal is not None
     filters="WHERE user_id=:user_id"
     params={"user_id":user_id,"limit":limit}
-    if names:
-        filters+=" AND lower(name) = ANY(:names)"
-        params["names"]=[x.lower() for x in names]
     async with AsyncSessionLocal() as session:
         result=await session.execute(
             text(f"SELECT * FROM pamasmma_world_entities {filters} ORDER BY updated_at DESC LIMIT :limit"),
             params,
         )
-        return [dict(row) for row in result.mappings().all()]
+        rows = [dict(row) for row in result.mappings().all()]
+    if names:
+        wanted = {value.lower() for value in names}
+        rows = [row for row in rows if str(row.get("name", "")).lower() in wanted]
+    return rows
 
 
 async def list_outcomes(user_id: str, limit: int = 50) -> list[dict[str, Any]]:
