@@ -202,3 +202,50 @@ async def test_engine_runs_context_plan_specialists_verification_and_decision(mo
     assert result.trace.verification.score >= 0.78
     assert result.trace.evidence_status == "structural_only"
     assert result.decision.context["hypotheses"]
+
+
+def test_planner_marks_specialists_parallel_after_context():
+    from app.intelligence.planner import ExecutivePlanner
+
+    context = ContextAssembler.assemble(
+        [{"role": "user", "content": "Plan a brand strategy for investors."}],
+        "test-user",
+        "S1",
+    )
+    plan = ExecutivePlanner().build(context)
+    specialist_steps = [
+        step for step in plan.steps
+        if step.id != "P1" and step.owner_system != "S1"
+    ]
+    assert specialist_steps
+    assert all(step.dependencies == ["P1"] for step in specialist_steps)
+
+
+def test_evidence_gate_marks_research_as_external_evidence_required():
+    from app.intelligence.evidence import EvidenceGate
+
+    context = ContextAssembler.assemble(
+        [{"role": "user", "content": "Research the latest market position."}],
+        "test-user",
+        "S1",
+    )
+    status, issues = EvidenceGate().assess(context, "Here is the analysis.")
+    assert status == "requires_external_evidence"
+    assert issues
+
+
+@pytest.mark.asyncio
+async def test_provider_runtime_failure_falls_back_to_kernel():
+    class BrokenProvider:
+        async def generate(self, system_prompt, messages, max_tokens):
+            raise RuntimeError("provider unavailable")
+
+    selection = ProviderSelection("broken", BrokenProvider())
+    routed, response = await ProviderRouter().generate(
+        selection,
+        "Answer deterministically.",
+        [{"role": "user", "content": "Test"}],
+        256,
+    )
+    assert routed.name == "kernel"
+    assert response
