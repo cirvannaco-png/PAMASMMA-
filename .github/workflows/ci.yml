@@ -143,7 +143,7 @@ jobs:
         run: npm run lint
       - name: Build
         env:
-          NEXT_PUBLIC_API_URL: https://api.pamasmma.app/api/v1
+          NEXT_PUBLIC_API_URL: https://pamasmma-api.onrender.com/api/v1
         run: npm run build
 
   docker:
@@ -158,6 +158,6 @@ jobs:
       - name: Build frontend image
         run: |
           docker build \
-            --build-arg NEXT_PUBLIC_API_URL=https://api.pamasmma.app/api/v1 \
+            --build-arg NEXT_PUBLIC_API_URL=https://pamasmma-api.onrender.com/api/v1 \
             -t pamasmma-web:ci \
             ./frontend
