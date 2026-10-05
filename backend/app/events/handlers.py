@@ -3,7 +3,7 @@ PAMASMMA v4.1 — Event Handlers
 Durable mode persists to Postgres; memory mode records bounded in-process events.
 """
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import text
 
@@ -25,7 +25,7 @@ async def handle_cognitive_invocation(channel: str, data: dict) -> None:
                 "user_id": data.get("user_id", "UNKNOWN"),
                 "query_preview": (data.get("query_preview") or "")[:500],
                 "latency_ms": data.get("latency_ms"),
-                "created_at": datetime.now(timezone.utc),
+                "created_at": datetime.now(UTC),
             }
         )
         del memory_store.action_log[:-1000]
