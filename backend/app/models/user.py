@@ -1,10 +1,10 @@
 """
-PAMASMMA v4 — User Model
+PAMASMMA v4.0.1 — User Model
 Founder identity record. One principal per deployment.
-TOTP secret stored encrypted at rest via application-layer AES-GCM.
+TOTP secret is encrypted at rest via application-layer AES-GCM.
 """
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, String, Text
 from sqlalchemy.dialects.postgresql import UUID
@@ -23,9 +23,20 @@ class User(Base):
         default=uuid.uuid4,
         server_default=func.uuid_generate_v4(),
     )
-    username: Mapped[str] = mapped_column(String(100), unique=True, nullable=False, index=True)
+    user_key: Mapped[str] = mapped_column(
+        String(255),
+        unique=True,
+        nullable=False,
+        index=True,
+    )
+    username: Mapped[str] = mapped_column(
+        String(100),
+        unique=True,
+        nullable=False,
+        index=True,
+    )
 
-    # TOTP — secret stored AES-GCM encrypted, base64url encoded
+    # TOTP — secret stored AES-GCM encrypted
     totp_secret_enc: Mapped[str | None] = mapped_column(Text, nullable=True)
     totp_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
@@ -51,4 +62,4 @@ class User(Base):
     )
 
     def __repr__(self) -> str:
-        return f"<User id={self.id} username={self.username}>"
+        return f"<User id={self.id} user_key={self.user_key}>"
