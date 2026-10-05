@@ -1,15 +1,13 @@
 """
-PAMASMMA v4 — Events Router
-Server-Sent Events (SSE) stream for real-time frontend updates.
-Subscribes to Postgres LISTEN/NOTIFY channels and forwards to the client.
-Auth: token query param (Bearer not usable in EventSource).
+PAMASMMA v4.0.1 — Events Router
+User-isolated Server-Sent Events stream for realtime frontend updates.
 """
 import asyncio
 import json
 import logging
 from collections.abc import AsyncGenerator
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
 
 from app.auth.core import decode_token
@@ -18,102 +16,135 @@ from app.redis_client import get_session
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/events", tags=["Events"])
 
-# In-process subscriber queues: channel → list[asyncio.Queue]
-_subscribers: dict[str, list[asyncio.Queue]] = {}
+# channel -> subscriber id -> (user_id, queue)
+_subscribers: dict[str, dict[int, tuple[str, asyncio.Queue]]] = {}
+
+CHANNELS = [
+    "cognitive_invocation",
+    "override_queue",
+    "scheduler_event",
+]
+USER_SCOPED_CHANNELS = {"cognitive_invocation", "override_queue"}
 
 
-def register_subscriber(channel: str) -> asyncio.Queue:
-    q: asyncio.Queue = asyncio.Queue(maxsize=100)
-    _subscribers.setdefault(channel, []).append(q)
-    return q
+def register_subscriber(channel: str, user_id: str) -> asyncio.Queue:
+    queue: asyncio.Queue = asyncio.Queue(maxsize=100)
+    subscribers = _subscribers.setdefault(channel, {})
+    subscribers[id(queue)] = (user_id, queue)
+    return queue
 
 
-def unregister_subscriber(channel: str, q: asyncio.Queue) -> None:
-    if channel in _subscribers:
-        try:
-            _subscribers[channel].remove(q)
-        except ValueError:
-            pass
+def unregister_subscriber(channel: str, queue: asyncio.Queue) -> None:
+    subscribers = _subscribers.get(channel)
+    if not subscribers:
+        return
+    subscribers.pop(id(queue), None)
+    if not subscribers:
+        _subscribers.pop(channel, None)
 
 
 async def broadcast(channel: str, data: dict) -> None:
-    """Called by PGEventBus handlers to fan-out to all SSE subscribers."""
-    for q in list(_subscribers.get(channel, [])):
+    """Fan out only events authorized for each connected SSE subscriber."""
+    for subscriber_user_id, queue in list(_subscribers.get(channel, {}).values()):
+        if (
+            channel in USER_SCOPED_CHANNELS
+            and data.get("user_id") != subscriber_user_id
+        ):
+            continue
         try:
-            q.put_nowait({"type": channel, "data": data})
+            queue.put_nowait({"type": channel, "data": data})
         except asyncio.QueueFull:
-            pass  # slow client — drop event
-
-
-CHANNELS = ["cognitive_invocation", "override_queue", "scheduler_event"]
+            log.warning(
+                "Dropping SSE event for slow client: channel=%s user=%s",
+                channel,
+                subscriber_user_id,
+            )
 
 
 async def _event_generator(user_id: str) -> AsyncGenerator[str, None]:
-    queues = {ch: register_subscriber(ch) for ch in CHANNELS}
+    queues = {
+        channel: register_subscriber(channel, user_id)
+        for channel in CHANNELS
+    }
 
     try:
-        # Initial connection confirmation
-        yield f"data: {json.dumps({'type': 'connected', 'data': {'user_id': user_id}})}\n\n"
+        yield (
+            "data: "
+            + json.dumps(
+                {
+                    "type": "connected",
+                    "data": {"user_id": user_id},
+                }
+            )
+            + "\n\n"
+        )
 
         while True:
-            # Wait for any event across all channels
-            done, _ = await asyncio.wait(
-                [asyncio.ensure_future(q.get()) for q in queues.values()],
-                timeout=30,
-                return_when=asyncio.FIRST_COMPLETED,
-            )
-            if not done:
-                # 30s heartbeat to keep connection alive
-                yield "data: {\"type\":\"heartbeat\"}\n\n"
-                continue
+            tasks = {
+                asyncio.create_task(queue.get())
+                for queue in queues.values()
+            }
 
-            for task in done:
-                try:
-                    event = task.result()
+            done: set[asyncio.Task] = set()
+            pending: set[asyncio.Task] = set()
+            try:
+                done, pending = await asyncio.wait(
+                    tasks,
+                    timeout=30,
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+
+                if not done:
+                    yield "data: {\"type\":\"heartbeat\"}\n\n"
+                    continue
+
+                for task in done:
+                    try:
+                        event = task.result()
+                    except asyncio.CancelledError:
+                        continue
+                    except Exception:
+                        log.exception("SSE event task failed")
+                        continue
+
                     yield f"data: {json.dumps(event)}\n\n"
-                except Exception as exc:
-                    log.debug(f"SSE event error: {exc}")
-
-            # Cancel pending tasks
-            for task in [t for t in done if not t.done()]:
-                task.cancel()
+            finally:
+                for task in pending:
+                    task.cancel()
+                if pending:
+                    await asyncio.gather(*pending, return_exceptions=True)
 
     except asyncio.CancelledError:
-        pass
+        log.debug("SSE client disconnected: %s", user_id)
     finally:
-        for ch, q in queues.items():
-            unregister_subscriber(ch, q)
-        log.debug(f"SSE client disconnected: {user_id}")
+        for channel, queue in queues.items():
+            unregister_subscriber(channel, queue)
 
 
 @router.get("/stream")
-async def event_stream(token: str = Query(...)) -> StreamingResponse:
+async def event_stream(token: str = Query(..., min_length=1)) -> StreamingResponse:
     """
-    SSE endpoint. Auth via ?token= query param (EventSource doesn't support headers).
-    Streams cognitive_invocation, override_queue, scheduler_event channels.
+    SSE endpoint. Authentication remains query-token based for native
+    EventSource compatibility; sessions are still validated in Redis.
     """
-    # Validate token
     try:
         payload = decode_token(token)
         if payload.get("type") != "access":
             raise ValueError("Not an access token")
-        user_id = payload["sub"]
-        session_id = payload["sid"]
+        user_id = str(payload["sub"])
+        session_id = str(payload["sid"])
     except Exception:
-        from fastapi import HTTPException
         raise HTTPException(status_code=401, detail="Invalid or expired token.")
 
-    # Confirm session is live
     session = await get_session(session_id)
     if not session or session.get("user_id") != user_id:
-        from fastapi import HTTPException
         raise HTTPException(status_code=401, detail="Session expired.")
 
     return StreamingResponse(
         _event_generator(user_id),
         media_type="text/event-stream",
         headers={
-            "Cache-Control": "no-cache",
+            "Cache-Control": "no-cache, no-transform",
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no",
         },
