@@ -100,7 +100,8 @@ class CognitiveEngine:
                     world_state,
                     role="specialist",
                 )
-                raw = await provider_selection.provider.generate(
+                _, raw = await self.provider_router.generate(
+                    provider_selection,
                     prompt,
                     context.recent_messages[-6:],
                     settings.model_max_tokens,
@@ -137,15 +138,16 @@ class CognitiveEngine:
             specialist_text=specialist_text,
         )
 
-        raw_response = await provider_selection.provider.generate(
+        provider_selection, raw_response = await self.provider_router.generate(
+            provider_selection,
             final_prompt,
             context.recent_messages,
             settings.model_max_tokens,
         )
 
         # VERIFY -> METACOGNITIVE GOVERNANCE -> optional REVISION
-        response, verification = await self._verify_and_revise(
-            provider_selection.provider,
+        response, verification, provider_selection = await self._verify_and_revise(
+            provider_selection,
             final_prompt,
             context,
             plan,
@@ -279,7 +281,7 @@ class CognitiveEngine:
         final_prompt,
         context,
         plan,
-        raw_response,
+        provider_selection,
     ):
         response = (
             raw_response or ""
@@ -327,7 +329,8 @@ class CognitiveEngine:
                   "facts from assumptions, and produce a "
                   "decision-grade answer."
             )
-            revised = await provider.generate(
+            provider_selection, revised = await self.provider_router.generate(
+                provider_selection,
                 revision_prompt,
                 context.recent_messages,
                 settings.model_max_tokens,
@@ -361,7 +364,7 @@ class CognitiveEngine:
                     )
                 )
 
-        return response, verification
+        return response, verification, provider_selection
 
     def _analysis_prompt(
         self,
