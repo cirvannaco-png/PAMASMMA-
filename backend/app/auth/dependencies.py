@@ -5,7 +5,6 @@ FastAPI dependency injection for protected routes.
 import logging
 
 import jwt as pyjwt
-
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
