@@ -24,7 +24,7 @@ from webauthn.helpers.structs import (
     UserVerificationRequirement,
 )
 
-from app.auth.redis_adapter import (
+from app.redis_client import (
     delete_session,
     get_webauthn_credential,
     mark_totp_used,
