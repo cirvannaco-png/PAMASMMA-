@@ -37,7 +37,7 @@ class AnthropicProvider:
             model=self.model,
             max_tokens=max_tokens,
             system=system_prompt,
-            messages=messages,
+            messages=cast(Any, messages),
         ) as stream:
             async for text in stream.text_stream:
                 yield text
