@@ -86,6 +86,42 @@ async function apiFetch<T>(
   return res.json() as Promise<T>;
 }
 
+async function invokeStreamRequest(
+  system_id: string,
+  messages: Message[],
+  retry = true,
+): Promise<Response> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Accept: "text/event-stream",
+  };
+
+  if (_accessToken) {
+    headers.Authorization = "Bearer " + _accessToken;
+  }
+
+  const response = await fetch(API_BASE + "/cognitive/invoke", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      system_id,
+      messages,
+      stream: true,
+    }),
+  });
+
+  if (response.status === 401 && retry && _refreshToken) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) {
+      return invokeStreamRequest(system_id, messages, false);
+    }
+    clearTokens();
+    throw new Error("Session expired");
+  }
+
+  return response;
+}
+
 async function refreshAccessToken(): Promise<AuthTokens | null> {
   if (!_refreshToken) return null;
 
@@ -185,26 +221,7 @@ export const cognitive = {
   invokeStream: (
     system_id: string,
     messages: Message[],
-  ): Promise<Response> => {
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-      Accept: "text/event-stream",
-    };
-
-    if (_accessToken) {
-      headers.Authorization = "Bearer " + _accessToken;
-    }
-
-    return fetch(API_BASE + "/cognitive/invoke", {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        system_id,
-        messages,
-        stream: true,
-      }),
-    });
-  },
+  ): Promise<Response> => invokeStreamRequest(system_id, messages),
 
   getActionLog: (system_id?: string, limit = 50) => {
     const params = new URLSearchParams({ limit: String(limit) });
