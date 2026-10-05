@@ -19,10 +19,12 @@ SESSION_KEY_PATTERN = "pamasmma:v2:session:*"
 
 
 async def job_memory_purge() -> None:
-    """J1: Memory retention hook; purge implementation remains policy-dependent."""
+    """J1: Delete memory records older than the retention window."""
     try:
-        log.info("[J1] Memory purge job started")
-        log.info("[J1] Memory purge complete")
+        from app.embeddings.service import purge_expired_memories
+
+        deleted = await purge_expired_memories(max_age_days=180)
+        log.info("[J1] Memory purge complete — deleted %s records", deleted)
     except Exception as exc:
         log.error("[J1] Memory purge failed: %s", exc)
 
