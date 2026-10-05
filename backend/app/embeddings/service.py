@@ -55,19 +55,24 @@ def _parse_metadata(value) -> dict:
         return {}
 
 
-def _recency_score(created_at: datetime | None, half_life_days: float = 45.0) -> float:
+def _recency_score(
+    created_at: datetime | None,
+    half_life_days: float = 45.0,
+) -> float:
     if not created_at:
         return 0.5
-    now = datetime.now(UTC)
     if created_at.tzinfo is None:
         created_at = created_at.replace(tzinfo=UTC)
-    age_days = max(0.0, (now - created_at).total_seconds() / 86400)
+    age_days = max(
+        0.0,
+        (datetime.now(UTC) - created_at).total_seconds() / 86400,
+    )
     return math.exp(-age_days / half_life_days)
 
 
 def _lexical_fit(query: str, content: str) -> float:
-    q = {x for x in query.lower().split() if len(x) > 3}
-    c = {x for x in content.lower().split() if len(x) > 3}
+    q = {word for word in query.lower().split() if len(word) > 3}
+    c = {word for word in content.lower().split() if len(word) > 3}
     if not q or not c:
         return 0.0
     return min(1.0, len(q & c) / max(1, min(len(q), 12)))
@@ -99,7 +104,12 @@ def _score_memory(
     return max(0.0, min(1.0, score)), contextual_fit
 
 
-async def store_memory(user_id: str, system_id: str, content: str, metadata: dict | None = None) -> None:
+async def store_memory(
+    user_id: str,
+    system_id: str,
+    content: str,
+    metadata: dict | None = None,
+) -> None:
     try:
         embedding = await embed_text(content)
         metadata = metadata or {}
@@ -157,7 +167,8 @@ async def retrieve_memory_items(
 
         if not settings.is_persistent:
             candidates = [
-                item for item in memory_store.memories
+                item
+                for item in memory_store.memories
                 if item["user_id"] == user_id
                 and item["system_id"] == system_id
                 and item["created_at"] > cutoff
@@ -166,7 +177,10 @@ async def retrieve_memory_items(
                 (
                     item["content"],
                     item["created_at"],
-                    _cosine_similarity(query_embedding, item["embedding"]),
+                    _cosine_similarity(
+                        query_embedding,
+                        item["embedding"],
+                    ),
                     item.get("metadata", {}),
                 )
                 for item in candidates
@@ -196,19 +210,37 @@ async def retrieve_memory_items(
                 )
                 fetched = result.fetchall()
             rows = [
-                (row.content, row.created_at, float(row.similarity or 0.0), _parse_metadata(row.metadata))
+                (
+                    row.content,
+                    row.created_at,
+                    float(row.similarity or 0.0),
+                    _parse_metadata(row.metadata),
+                )
                 for row in fetched
             ]
 
         scored: list[MemoryItem] = []
         for content, created_at, similarity, metadata in rows:
             score, contextual_fit = _score_memory(
-                similarity, created_at, metadata, query, content
+                similarity,
+                created_at,
+                metadata,
+                query,
+                content,
             )
-            if similarity < settings.vector_similarity_threshold and score < settings.vector_similarity_threshold:
+            if (
+                similarity < settings.vector_similarity_threshold
+                and score < settings.vector_similarity_threshold
+            ):
                 continue
+
             try:
-                memory_kind = MemoryType(metadata.get("memory_type", MemoryType.SEMANTIC.value))
+                memory_kind = MemoryType(
+                    metadata.get(
+                        "memory_type",
+                        MemoryType.SEMANTIC.value,
+                    )
+                )
             except ValueError:
                 memory_kind = MemoryType.SEMANTIC
 
@@ -217,10 +249,15 @@ async def retrieve_memory_items(
                     content=content,
                     memory_type=memory_kind,
                     similarity=round(similarity, 4),
-                    recency=round(_recency_score(created_at), 4),
+                    recency=round(
+                        _recency_score(created_at),
+                        4,
+                    ),
                     importance=float(metadata.get("importance", 0.5)),
                     reliability=float(metadata.get("reliability", 0.5)),
-                    outcome_relevance=float(metadata.get("outcome_relevance", 0.5)),
+                    outcome_relevance=float(
+                        metadata.get("outcome_relevance", 0.5)
+                    ),
                     contextual_fit=round(contextual_fit, 4),
                     score=round(score, 4),
                     created_at=created_at,
@@ -228,41 +265,69 @@ async def retrieve_memory_items(
                 )
             )
 
-        scored.sort(key=lambda item: item.score, reverse=True)
+        scored.sort(
+            key=lambda item: item.score,
+            reverse=True,
+        )
         return scored[:limit]
     except Exception:
         log.exception("Memory retrieval failed")
         return []
 
 
-async def retrieve_relevant_memories(query: str, user_id: str, system_id: str, limit: int = 5, max_age_days: int = 90) -> str:
-    items = await retrieve_memory_items(query, user_id, system_id, limit, max_age_days)
-    return "
----
-".join(
+async def retrieve_relevant_memories(
+    query: str,
+    user_id: str,
+    system_id: str,
+    limit: int = 5,
+    max_age_days: int = 90,
+) -> str:
+    items = await retrieve_memory_items(
+        query,
+        user_id,
+        system_id,
+        limit,
+        max_age_days,
+    )
+    return "\n---\n".join(
         f"[{item.created_at:%Y-%m-%d} | score={item.score:.2f} | "
-        f"type={item.memory_type.value} | reliability={item.reliability:.2f}]
-{item.content}"
+        f"type={item.memory_type.value} | reliability={item.reliability:.2f}]\n"
+        f"{item.content}"
         for item in items
     )
 
 
-def _cosine_similarity(a: list[float], b: list[float]) -> float:
-    numerator = sum(x * y for x, y in zip(a, b, strict=False))
+def _cosine_similarity(
+    a: list[float],
+    b: list[float],
+) -> float:
+    numerator = sum(
+        x * y for x, y in zip(a, b, strict=False)
+    )
     norm_a = sum(x * x for x in a) ** 0.5
     norm_b = sum(y * y for y in b) ** 0.5
     if not norm_a or not norm_b:
         return 0.0
-    return float(numerator / (norm_a * norm_b))
+    return float(
+        numerator / (norm_a * norm_b)
+    )
 
 
-async def purge_old_memories(user_id: str, max_age_days: int = 180) -> int:
+async def purge_old_memories(
+    user_id: str,
+    max_age_days: int = 180,
+) -> int:
     cutoff = datetime.now(UTC) - timedelta(days=max_age_days)
+
     if not settings.is_persistent:
         before = len(memory_store.memories)
         memory_store.memories[:] = [
-            item for item in memory_store.memories
-            if not (item["user_id"] == user_id and item["created_at"] < cutoff)
+            item
+            for item in memory_store.memories
+            if not (
+                item["user_id"] == user_id
+                and item["created_at"] < cutoff
+            )
         ]
         return before - len(memory_store.memories)
 
@@ -271,28 +336,44 @@ async def purge_old_memories(user_id: str, max_age_days: int = 180) -> int:
         result = await session.execute(
             text("""
                 DELETE FROM pamasmma_memories
-                WHERE user_id = :user_id AND created_at < :cutoff
+                WHERE user_id = :user_id
+                  AND created_at < :cutoff
             """),
-            {"user_id": user_id, "cutoff": cutoff},
+            {
+                "user_id": user_id,
+                "cutoff": cutoff,
+            },
         )
         await session.commit()
-        return int(getattr(result, "rowcount", 0) or 0)
+        return int(
+            getattr(result, "rowcount", 0) or 0
+        )
 
 
-async def purge_expired_memories(max_age_days: int = 180) -> int:
+async def purge_expired_memories(
+    max_age_days: int = 180,
+) -> int:
     cutoff = datetime.now(UTC) - timedelta(days=max_age_days)
+
     if not settings.is_persistent:
         before = len(memory_store.memories)
         memory_store.memories[:] = [
-            item for item in memory_store.memories if item["created_at"] >= cutoff
+            item
+            for item in memory_store.memories
+            if item["created_at"] >= cutoff
         ]
         return before - len(memory_store.memories)
 
     assert AsyncSessionLocal is not None
     async with AsyncSessionLocal() as session:
         result = await session.execute(
-            text("DELETE FROM pamasmma_memories WHERE created_at < :cutoff"),
+            text(
+                "DELETE FROM pamasmma_memories "
+                "WHERE created_at < :cutoff"
+            ),
             {"cutoff": cutoff},
         )
         await session.commit()
-        return int(getattr(result, "rowcount", 0) or 0)
+        return int(
+            getattr(result, "rowcount", 0) or 0
+        )
