@@ -1,17 +1,34 @@
-# PAMASMMA Render deployment
-# Default blueprint is intentionally zero-key and zero-datastore so the
-# intelligence kernel can run without Anthropic/OpenAI credentials.
+# PAMASMMA production Render Blueprint
+# Durable infrastructure is isolated to PAMASMMA. Render billing is required.
+databases:
+  - name: pamasmma-production-db
+    databaseName: pamasmma
+    plan: basic-256mb
+    region: frankfurt
+    postgresMajorVersion: 18
+    diskSizeGB: 1
+
 services:
+  - type: keyvalue
+    name: pamasmma-cache-prod
+    plan: 256mb
+    region: frankfurt
+    maxmemoryPolicy: noeviction
+    persistenceMode: journal_snapshot
+    ipAllowList: []
+
   - type: web
     name: pamasmma-api
     runtime: python
-    plan: free
+    plan: starter
     region: frankfurt
     branch: main
-    autoDeploy: true
+    autoDeployTrigger: checksPass
+    numInstances: 1
     buildCommand: pip install -r backend/requirements.txt
+    preDeployCommand: cd backend && alembic upgrade head
     startCommand: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
-    healthCheckPath: /health
+    healthCheckPath: /health/ready
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.9"
@@ -24,9 +41,18 @@ services:
       - key: PAMASMMA_BOOTSTRAP_TOKEN
         generateValue: true
       - key: PERSISTENCE_MODE
-        value: memory
+        value: postgres
+      - key: DATABASE_URL
+        fromDatabase:
+          name: pamasmma-production-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: pamasmma-cache-prod
+          type: keyvalue
+          property: connectionString
       - key: SCHEDULER_ENABLED
-        value: "false"
+        value: "true"
       - key: MODEL_PROVIDER
         value: kernel
       - key: EMBEDDING_PROVIDER
@@ -43,10 +69,10 @@ services:
   - type: web
     name: pamasmma-web
     runtime: node
-    plan: free
+    plan: starter
     region: frankfurt
     branch: main
-    autoDeploy: true
+    autoDeployTrigger: checksPass
     buildCommand: cd frontend && npm install && npm run build && mkdir -p .next/standalone/.next && cp -R .next/static .next/standalone/.next/static && if [ -d public ]; then cp -R public .next/standalone/public; fi
     startCommand: cd frontend && HOSTNAME=0.0.0.0 node .next/standalone/server.js
     envVars:
@@ -58,4 +84,4 @@ services:
         value: kelson@cirvanna.co
 
 previews:
-  generation: none
+  generation: off
