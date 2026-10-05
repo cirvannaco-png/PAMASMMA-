@@ -3,8 +3,10 @@ PAMASMMA v4.0.1 — Authentication primitives
 TOTP + WebAuthn/FIDO2 + JWT session issuance.
 """
 import base64
+import json
 import logging
 import secrets
+from typing import Any, cast
 from datetime import UTC, datetime, timedelta
 
 import jwt as pyjwt
@@ -115,10 +117,13 @@ def issue_refresh_token(user_id: str, session_id: str) -> str:
 
 
 def decode_token(token: str) -> dict:
-    return pyjwt.decode(
-        token,
-        settings.secret_key,
-        algorithms=[settings.jwt_algorithm],
+    return cast(
+        dict[str, Any],
+        pyjwt.decode(
+            token,
+            settings.secret_key,
+            algorithms=[settings.jwt_algorithm],
+        ),
     )
 
 
@@ -140,7 +145,7 @@ async def begin_webauthn_registration(user_id: str, username: str) -> dict:
     )
     challenge_b64 = base64.b64encode(options.challenge).decode("ascii")
     await store_webauthn_challenge(user_id, challenge_b64)
-    return options_to_json(options)
+    return cast(dict[str, Any], json.loads(options_to_json(options)))
 
 
 async def complete_webauthn_registration(
