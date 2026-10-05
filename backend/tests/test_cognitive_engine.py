@@ -7,6 +7,8 @@ import pytest
 
 from app.intelligence.context import ContextAssembler
 from app.intelligence.contracts import (
+    FailureDomain,
+    IntentType,
     MemoryItem,
     MemoryType,
     Sensitivity,
@@ -15,9 +17,11 @@ from app.intelligence.contracts import (
 from app.intelligence.critic import ContradictionChecker
 from app.intelligence.engine import CognitiveEngine
 from app.intelligence.provider_router import ProviderRouter, ProviderSelection
-from app.intelligence.learning import infer_failure_domain, estimate_prediction_error
+from app.intelligence.learning import (
+    estimate_prediction_error,
+    infer_failure_domain,
+)
 from app.intelligence.router import SpecialistRouter
-from app.intelligence.contracts import FailureDomain, IntentType
 from app.systems.s1_executive import s1_executive_system
 
 
@@ -197,3 +201,5 @@ async def test_engine_runs_context_plan_specialists_verification_and_decision(mo
     assert result.trace.memory_count == 1
     assert result.trace.routed_systems
     assert result.trace.verification.score >= 0.78
+    assert result.trace.evidence_status == "structural_only"
+    assert result.decision.context["hypotheses"]
