@@ -43,19 +43,22 @@ class CognitiveSystem(ABC):
     def directive(self) -> str:
         ...
 
-    def build_system_prompt(self, memory_context: str = "") -> str:
-        """Backward-compatible prompt helper for integrations outside the engine."""
+    def build_system_prompt(
+        self,
+        memory_context: str = "",
+    ) -> str:
+        """Backward-compatible prompt helper for external integrations."""
         parts = [
             f"You are PAMASMMA {self.system_id} — {self.system_name}.",
             self.directive,
             PERSONALITY_CLAUSE,
         ]
         if memory_context:
-            parts.append("RELEVANT MEMORY CONTEXT:
-" + memory_context)
-        return "
-
-".join(parts)
+            parts.append(
+                "RELEVANT MEMORY CONTEXT:\n"
+                + memory_context
+            )
+        return "\n\n".join(parts)
 
     async def invoke(
         self,
@@ -68,15 +71,28 @@ class CognitiveSystem(ABC):
 
         engine = CognitiveEngine()
         if stream:
-            return self._stream(engine, messages, user_id, start)
+            return self._stream(
+                engine,
+                messages,
+                user_id,
+                start,
+            )
 
-        result = await engine.run(self, messages, user_id)
+        result = await engine.run(
+            self,
+            messages,
+            user_id,
+        )
         await self._post_invoke(
             user_id=user_id,
             query=self._last_user_message(messages),
             response=result.response,
-            latency_ms=(time.perf_counter() - start) * 1000,
-            trace=result.trace.model_dump(mode="json"),
+            latency_ms=(
+                time.perf_counter() - start
+            ) * 1000,
+            trace=result.trace.model_dump(
+                mode="json"
+            ),
         )
         return result.response
 
@@ -88,17 +104,30 @@ class CognitiveSystem(ABC):
         start: float,
     ) -> AsyncGenerator[str, None]:
         chunks: list[str] = []
-        async for chunk in engine.stream(self, messages, user_id):
+        async for chunk in engine.stream(
+            self,
+            messages,
+            user_id,
+        ):
             chunks.append(chunk)
             yield chunk
 
         response = "".join(chunks).strip()
+        trace = (
+            engine.last_result.trace.model_dump(
+                mode="json"
+            )
+            if engine.last_result is not None
+            else None
+        )
         await self._post_invoke(
             user_id=user_id,
             query=self._last_user_message(messages),
             response=response,
-            latency_ms=(time.perf_counter() - start) * 1000,
-            trace=None,
+            latency_ms=(
+                time.perf_counter() - start
+            ) * 1000,
+            trace=trace,
         )
 
     async def _post_invoke(
@@ -114,18 +143,44 @@ class CognitiveSystem(ABC):
             "system_name": self.system_name,
             "user_id": user_id,
             "query_preview": query[:120],
-            "latency_ms": round(latency_ms, 2),
+            "latency_ms": round(
+                latency_ms,
+                2,
+            ),
         }
+
         if trace:
-            verification = trace.get("verification") if isinstance(trace, dict) else None
+            verification = (
+                trace.get("verification")
+                if isinstance(trace, dict)
+                else None
+            )
             payload.update(
                 {
-                    "decision_id": trace.get("decision_id"),
-                    "confidence": trace.get("confidence"),
-                    "provider": trace.get("provider"),
-                    "routed_systems": trace.get("routed_systems", []),
-                    "verification_score": verification.get("score") if isinstance(verification, dict) else None,
-                    "evidence_status": trace.get("evidence_status"),
+                    "decision_id": trace.get(
+                        "decision_id"
+                    ),
+                    "confidence": trace.get(
+                        "confidence"
+                    ),
+                    "provider": trace.get(
+                        "provider"
+                    ),
+                    "routed_systems": trace.get(
+                        "routed_systems",
+                        [],
+                    ),
+                    "verification_score": (
+                        verification.get("score")
+                        if isinstance(
+                            verification,
+                            dict,
+                        )
+                        else None
+                    ),
+                    "evidence_status": trace.get(
+                        "evidence_status"
+                    ),
                 }
             )
 
@@ -135,7 +190,10 @@ class CognitiveSystem(ABC):
                 payload=payload,
             )
         except Exception:
-            log.exception("Event emission failed for %s", self.system_id)
+            log.exception(
+                "Event emission failed for %s",
+                self.system_id,
+            )
 
         try:
             from app.embeddings.service import store_memory
@@ -143,24 +201,49 @@ class CognitiveSystem(ABC):
             await store_memory(
                 user_id=user_id,
                 system_id=self.system_id,
-                content=f"Q: {query}
-
-A: {response}",
+                content=(
+                    f"Q: {query}\n\n"
+                    f"A: {response}"
+                ),
                 metadata={
                     "memory_type": "episodic",
                     "importance": 0.7,
-                    "reliability": 0.8,
+                    "reliability": (
+                        trace.get(
+                            "verification",
+                            {},
+                        ).get("score", 0.8)
+                        if trace
+                        else 0.8
+                    ),
                     "outcome_relevance": 0.8,
-                    "decision_id": trace.get("decision_id") if trace else None,
-                    "confidence": trace.get("confidence") if trace else 0.5,
+                    "decision_id": (
+                        trace.get("decision_id")
+                        if trace
+                        else None
+                    ),
+                    "confidence": (
+                        trace.get("confidence")
+                        if trace
+                        else 0.5
+                    ),
                 },
             )
         except Exception:
-            log.exception("Memory storage failed for %s", self.system_id)
+            log.exception(
+                "Memory storage failed for %s",
+                self.system_id,
+            )
 
     @staticmethod
-    def _last_user_message(messages: list[dict]) -> str:
+    def _last_user_message(
+        messages: list[dict],
+    ) -> str:
         return next(
-            (m["content"] for m in reversed(messages) if m["role"] == "user"),
+            (
+                m["content"]
+                for m in reversed(messages)
+                if m["role"] == "user"
+            ),
             "",
         )
