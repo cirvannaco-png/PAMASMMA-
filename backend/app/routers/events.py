@@ -1,6 +1,5 @@
 """
-PAMASMMA v4.0.1 — Events Router
-User-isolated Server-Sent Events stream for realtime frontend updates.
+PAMASMMA v4.2 — User-isolated realtime event stream.
 """
 import asyncio
 import json
@@ -16,15 +15,15 @@ from app.redis_client import get_session
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/events", tags=["Events"])
 
-# channel -> subscriber id -> (user_id, queue)
 _subscribers: dict[str, dict[int, tuple[str, asyncio.Queue]]] = {}
 
 CHANNELS = [
     "cognitive_invocation",
+    "cognitive_outcome",
     "override_queue",
     "scheduler_event",
 ]
-USER_SCOPED_CHANNELS = {"cognitive_invocation", "override_queue"}
+USER_SCOPED_CHANNELS = {"cognitive_invocation", "cognitive_outcome", "override_queue"}
 
 
 def register_subscriber(channel: str, user_id: str) -> asyncio.Queue:
@@ -44,76 +43,48 @@ def unregister_subscriber(channel: str, queue: asyncio.Queue) -> None:
 
 
 async def broadcast(channel: str, data: dict) -> None:
-    """Fan out only events authorized for each connected SSE subscriber."""
     for subscriber_user_id, queue in list(_subscribers.get(channel, {}).values()):
-        if (
-            channel in USER_SCOPED_CHANNELS
-            and data.get("user_id") != subscriber_user_id
-        ):
+        if channel in USER_SCOPED_CHANNELS and data.get("user_id") != subscriber_user_id:
             continue
         try:
             queue.put_nowait({"type": channel, "data": data})
         except asyncio.QueueFull:
-            log.warning(
-                "Dropping SSE event for slow client: channel=%s user=%s",
-                channel,
-                subscriber_user_id,
-            )
+            log.warning("Dropping SSE event for slow client: channel=%s user=%s", channel, subscriber_user_id)
 
 
 async def _event_generator(user_id: str) -> AsyncGenerator[str, None]:
-    queues = {
-        channel: register_subscriber(channel, user_id)
-        for channel in CHANNELS
-    }
-
+    queues = {channel: register_subscriber(channel, user_id) for channel in CHANNELS}
     try:
-        yield (
-            "data: "
-            + json.dumps(
-                {
-                    "type": "connected",
-                    "data": {"user_id": user_id},
-                }
-            )
-            + "\n\n"
-        )
+        yield "data: " + json.dumps({"type": "connected", "data": {"user_id": user_id}}) + "
 
+"
         while True:
-            tasks = {
-                asyncio.create_task(queue.get())
-                for queue in queues.values()
-            }
-
+            tasks={asyncio.create_task(queue.get()) for queue in queues.values()}
             done: set[asyncio.Task] = set()
             pending: set[asyncio.Task] = set()
             try:
-                done, pending = await asyncio.wait(
-                    tasks,
-                    timeout=30,
-                    return_when=asyncio.FIRST_COMPLETED,
-                )
-
+                done, pending = await asyncio.wait(tasks, timeout=30, return_when=asyncio.FIRST_COMPLETED)
                 if not done:
-                    yield "data: {\"type\":\"heartbeat\"}\n\n"
-                    continue
+                    yield 'data: {"type":"heartbeat"}
 
+'
+                    continue
                 for task in done:
                     try:
-                        event = task.result()
+                        event=task.result()
                     except asyncio.CancelledError:
                         continue
                     except Exception:
                         log.exception("SSE event task failed")
                         continue
+                    yield f"data: {json.dumps(event)}
 
-                    yield f"data: {json.dumps(event)}\n\n"
+"
             finally:
                 for task in pending:
                     task.cancel()
                 if pending:
                     await asyncio.gather(*pending, return_exceptions=True)
-
     except asyncio.CancelledError:
         log.debug("SSE client disconnected: %s", user_id)
     finally:
@@ -123,10 +94,6 @@ async def _event_generator(user_id: str) -> AsyncGenerator[str, None]:
 
 @router.get("/stream")
 async def event_stream(token: str = Query(..., min_length=1)) -> StreamingResponse:
-    """
-    SSE endpoint. Authentication remains query-token based for native
-    EventSource compatibility; sessions are still validated in Redis.
-    """
     try:
         payload = decode_token(token)
         if payload.get("type") != "access":
@@ -143,9 +110,5 @@ async def event_stream(token: str = Query(..., min_length=1)) -> StreamingRespon
     return StreamingResponse(
         _event_generator(user_id),
         media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache, no-transform",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",
-        },
+        headers={"Cache-Control": "no-cache, no-transform", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
     )
