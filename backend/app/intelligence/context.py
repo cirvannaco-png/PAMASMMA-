@@ -6,6 +6,7 @@ import re
 from app.intelligence.contracts import (
     CognitiveContext,
     IntentType,
+    Relationship,
     Sensitivity,
     TaskComplexity,
     WorldEntity,
@@ -14,9 +15,18 @@ from app.intelligence.contracts import (
 
 class ContextAssembler:
     _SENSITIVE = (
-        "password", "secret", "token", "api key", "private key", "seed phrase",
-        "bank account", "credit card", "medical record", "diagnosis",
+        "password",
+        "secret",
+        "token",
+        "api key",
+        "private key",
+        "seed phrase",
+        "bank account",
+        "credit card",
+        "medical record",
+        "diagnosis",
     )
+
     _KNOWN_SYSTEM_ENTITIES = {
         "pamasmma": "software_project",
         "cirvanna": "software_project",
@@ -33,71 +43,159 @@ class ContextAssembler:
         primary_system_id: str,
     ) -> CognitiveContext:
         query = next(
-            (str(m.get("content", "")).strip() for m in reversed(messages) if m.get("role") == "user"),
+            (
+                str(message.get("content", "")).strip()
+                for message in reversed(messages)
+                if message.get("role") == "user"
+            ),
             "",
         )
         intent = cls._intent(query)
         sensitivity = cls._sensitivity(query)
         complexity = cls._complexity(query, intent)
 
-        constraints = cls._constraints(query)
-        goals = cls._goals(query)
-        entities = cls._entities(query)
-        relationships = cls._relationships(query)
-
-        recent = [
-            {"role": m["role"], "content": str(m["content"])[:8000]}
-            for m in messages[-8:]
-        ]
         return CognitiveContext(
             user_id=user_id,
             primary_system_id=primary_system_id.upper(),
             query=query,
-            recent_messages=recent,
+            recent_messages=[
+                {
+                    "role": message["role"],
+                    "content": str(message["content"])[:8000],
+                }
+                for message in messages[-8:]
+            ],
             objective=query,
             intent=intent,
             sensitivity=sensitivity,
             complexity=complexity,
-            constraints=constraints,
-            goals=goals,
-            entities=entities,
-            relationships=relationships,
+            constraints=cls._constraints(query),
+            goals=cls._goals(query),
+            entities=cls._entities(query),
+            relationships=cls._relationships(query),
         )
 
-    @classmethod
-    def _intent(cls, text: str) -> IntentType:
+    @staticmethod
+    def _intent(text: str) -> IntentType:
         lower = text.lower()
-        if any(x in lower for x in ("implement", "build", "code", "fix", "debug", "refactor")):
+        if any(
+            item in lower
+            for item in (
+                "implement",
+                "build",
+                "code",
+                "fix",
+                "debug",
+                "refactor",
+            )
+        ):
             return IntentType.IMPLEMENTATION
-        if any(x in lower for x in ("choose", "decide", "should we", "which is better", "priority")):
+        if any(
+            item in lower
+            for item in (
+                "choose",
+                "decide",
+                "should we",
+                "which is better",
+                "priority",
+            )
+        ):
             return IntentType.DECISION
-        if any(x in lower for x in ("plan", "strategy", "roadmap", "next steps", "sequence")):
+        if any(
+            item in lower
+            for item in (
+                "plan",
+                "strategy",
+                "roadmap",
+                "next steps",
+                "sequence",
+            )
+        ):
             return IntentType.PLANNING
-        if any(x in lower for x in ("research", "latest", "compare", "benchmark", "find evidence")):
+        if any(
+            item in lower
+            for item in (
+                "research",
+                "latest",
+                "compare",
+                "benchmark",
+                "find evidence",
+            )
+        ):
             return IntentType.RESEARCH
-        if any(x in lower for x in ("review", "audit", "assess", "critique")):
+        if any(
+            item in lower
+            for item in (
+                "review",
+                "audit",
+                "assess",
+                "critique",
+            )
+        ):
             return IntentType.REVIEW
-        if any(x in lower for x in ("write", "draft", "caption", "email", "message", "script")):
+        if any(
+            item in lower
+            for item in (
+                "write",
+                "draft",
+                "caption",
+                "email",
+                "message",
+                "script",
+            )
+        ):
             return IntentType.COMMUNICATION
-        if any(x in lower for x in ("analyze", "analyse", "why", "explain")):
+        if any(
+            item in lower
+            for item in (
+                "analyze",
+                "analyse",
+                "why",
+                "explain",
+            )
+        ):
             return IntentType.ANALYSIS
         return IntentType.GENERAL
 
     @classmethod
     def _sensitivity(cls, text: str) -> Sensitivity:
         lower = text.lower()
-        return Sensitivity.SENSITIVE if any(token in lower for token in cls._SENSITIVE) else Sensitivity.STANDARD
+        return (
+            Sensitivity.SENSITIVE
+            if any(token in lower for token in cls._SENSITIVE)
+            else Sensitivity.STANDARD
+        )
 
     @classmethod
-    def _complexity(cls, text: str, intent: IntentType) -> TaskComplexity:
+    def _complexity(
+        cls,
+        text: str,
+        intent: IntentType,
+    ) -> TaskComplexity:
         lower = text.lower()
-        if intent in {IntentType.RESEARCH, IntentType.REVIEW} or len(text) > 1800:
+        if (
+            intent in {IntentType.RESEARCH, IntentType.REVIEW}
+            or len(text) > 1800
+        ):
             return TaskComplexity.COMPLEX
-        if intent in {IntentType.PLANNING, IntentType.DECISION} or any(
-            token in lower for token in ("architecture", "system", "strategy", "investor", "business model")
+        if (
+            intent in {IntentType.PLANNING, IntentType.DECISION}
+            or any(
+                token in lower
+                for token in (
+                    "architecture",
+                    "system",
+                    "strategy",
+                    "investor",
+                    "business model",
+                )
+            )
         ):
             return TaskComplexity.STRATEGIC
-        if intent in {IntentType.IMPLEMENTATION, IntentType.ANALYSIS} or len(text) > 600:
+        if (
+            intent in {IntentType.IMPLEMENTATION, IntentType.ANALYSIS}
+            or len(text) > 600
+        ):
             return TaskComplexity.MODERATE
         return TaskComplexity.ROUTINE
 
@@ -105,7 +203,8 @@ class ContextAssembler:
     def _constraints(text: str) -> list[str]:
         constraints: list[str] = []
         for match in re.finditer(
-            r"(?:must|need to|needs to|avoid|cannot|can't|only|under|within|before|without)[^.\n;]{0,180}",
+            r"\b(?:must|need to|needs to|avoid|cannot|can't|only|under|within|before|without)\b"
+            r"[^.\n;]{0,180}",
             text,
             flags=re.IGNORECASE,
         ):
@@ -118,7 +217,9 @@ class ContextAssembler:
     def _goals(text: str) -> list[str]:
         goals: list[str] = []
         for match in re.finditer(
-            r"(?:to|for)s+(?:increase|reduce|improve|build|create|launch|complete|achieve|reach|optimize)[^.\n;]{0,180}",
+            r"\b(?:to|for)\s+"
+            r"(?:increase|reduce|improve|build|create|launch|complete|achieve|reach|optimize)\b"
+            r"[^.\n;]{0,180}",
             text,
             flags=re.IGNORECASE,
         ):
@@ -131,29 +232,65 @@ class ContextAssembler:
     def _entities(cls, text: str) -> list[WorldEntity]:
         found: dict[str, WorldEntity] = {}
         lower = text.lower()
+
         for key, kind in cls._KNOWN_SYSTEM_ENTITIES.items():
             if key in lower:
-                found[key.title()] = WorldEntity(name=key.title(), entity_type=kind, confidence=0.95)
+                display = "Midas-Touch2" if key == "midas-touch2" else key.title()
+                found[display] = WorldEntity(
+                    name=display,
+                    entity_type=kind,
+                    confidence=0.95,
+                )
 
-        for candidate in re.findall(r"[A-Z][A-Za-z0-9&-]{2,}", text):
+        for candidate in re.findall(
+            r"\b[A-Z][A-Za-z0-9&-]{2,}\b",
+            text,
+        ):
             normalized = candidate.strip(".,:;!?")
-            if normalized.lower() in {"I", "The", "You", "We", "Can"}:
+            if normalized in {"The", "You", "Can"}:
                 continue
-            found.setdefault(normalized, WorldEntity(name=normalized, entity_type="named_concept", confidence=0.7))
+            found.setdefault(
+                normalized,
+                WorldEntity(
+                    name=normalized,
+                    entity_type="named_concept",
+                    confidence=0.7,
+                ),
+            )
         return list(found.values())[:12]
 
     @staticmethod
-    def _relationships(text: str):
-        from app.intelligence.contracts import Relationship
+    def _relationships(text: str) -> list[Relationship]:
         patterns = (
-            (r"\b([A-Za-z][A-Za-z0-9&- ]{1,50})\s+works with\s+([A-Za-z][A-Za-z0-9&- ]{1,50})\b", "works_with"),
-            (r"\b([A-Za-z][A-Za-z0-9&- ]{1,50})\s+is\s+(?:a|an)\s+partner of\s+([A-Za-z][A-Za-z0-9&- ]{1,50})\b", "partner_of"),
-            (r"\b([A-Za-z][A-Za-z0-9&- ]{1,50})\s+owns\s+([A-Za-z][A-Za-z0-9&- ]{1,50})\b", "owns"),
-            (r"\b([A-Za-z][A-Za-z0-9&- ]{1,50})\s+serves\s+([A-Za-z][A-Za-z0-9&- ]{1,50})\b", "serves"),
+            (
+                r"\b([A-Za-z][A-Za-z0-9&- ]{1,50})\s+works with\s+"
+                r"([A-Za-z][A-Za-z0-9&- ]{1,50})\b",
+                "works_with",
+            ),
+            (
+                r"\b([A-Za-z][A-Za-z0-9&- ]{1,50})\s+is\s+(?:a|an)\s+partner of\s+"
+                r"([A-Za-z][A-Za-z0-9&- ]{1,50})\b",
+                "partner_of",
+            ),
+            (
+                r"\b([A-Za-z][A-Za-z0-9&- ]{1,50})\s+owns\s+"
+                r"([A-Za-z][A-Za-z0-9&- ]{1,50})\b",
+                "owns",
+            ),
+            (
+                r"\b([A-Za-z][A-Za-z0-9&- ]{1,50})\s+serves\s+"
+                r"([A-Za-z][A-Za-z0-9&- ]{1,50})\b",
+                "serves",
+            ),
         )
-        relationships=[]
+
+        relationships: list[Relationship] = []
         for pattern, relation in patterns:
-            for match in re.finditer(pattern, text, flags=re.IGNORECASE):
+            for match in re.finditer(
+                pattern,
+                text,
+                flags=re.IGNORECASE,
+            ):
                 relationships.append(
                     Relationship(
                         subject=" ".join(match.group(1).split()),
