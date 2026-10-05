@@ -57,7 +57,7 @@ async def invoke_system(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"System {body.system_id} not found.",
-        )
+        ) from None
 
     messages = [{"role": m.role, "content": m.content} for m in body.messages]
     user_id = current_user["user_id"]
@@ -175,7 +175,7 @@ async def queue_override(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"System {body.system_id} not found.",
-        )
+        ) from None
 
     await pg_event_bus.publish(
         channel="override_queue",
