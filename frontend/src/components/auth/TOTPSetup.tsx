@@ -13,12 +13,13 @@ import { Button } from "@/components/ui";
 interface TOTPSetupProps {
   userId: string;
   username: string;
+  bootstrapToken: string;
   onComplete: (secret: string) => void;
 }
 
 type Step = "generate" | "scan" | "verify";
 
-export function TOTPSetup({ userId, username, onComplete }: TOTPSetupProps) {
+export function TOTPSetup({ userId, username, bootstrapToken, onComplete }: TOTPSetupProps) {
   const [step, setStep]           = useState<Step>("generate");
   const [secret, setSecret]       = useState("");
   const [uri, setUri]             = useState("");
@@ -29,7 +30,7 @@ export function TOTPSetup({ userId, username, onComplete }: TOTPSetupProps) {
   const handleGenerate = async () => {
     setLoading(true);
     try {
-      const res = await auth.totpSetup(userId, username);
+      const res = await auth.totpSetup(userId, username, bootstrapToken);
       setSecret(res.secret);
       setUri(res.uri);
       const dataUrl = await QRCode.toDataURL(res.uri, {
@@ -50,7 +51,7 @@ export function TOTPSetup({ userId, username, onComplete }: TOTPSetupProps) {
     if (code.length < 6) return;
     setLoading(true);
     try {
-      await auth.totpVerify(userId, secret, code);
+      await auth.totpVerify(userId, code);
       toast.success("TOTP verified — authenticator configured");
       onComplete(secret);
     } catch (e: any) {
