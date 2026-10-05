@@ -4,6 +4,7 @@
  * Used on /auth page and in settings.
  */
 "use client";
+import Image from "next/image";
 import { useState } from "react";
 import QRCode from "qrcode";
 import toast from "react-hot-toast";
@@ -79,7 +80,7 @@ export function TOTPSetup({ userId, username, bootstrapToken, onComplete }: TOTP
       {step === "generate" && (
         <div>
           <p style={{ fontSize: 11, color: "#6060A0", lineHeight: 1.6, marginBottom: 16 }}>
-            PAMASMMA uses TOTP as its primary auth layer. You'll need Google
+            PAMASMMA uses TOTP as its primary auth layer. You’ll need Google
             Authenticator, Authy, or 1Password to scan the QR code.
           </p>
           <Button onClick={handleGenerate} loading={loading} style={{ width: "100%" }}>
@@ -96,7 +97,7 @@ export function TOTPSetup({ userId, username, bootstrapToken, onComplete }: TOTP
           {qrDataUrl && (
             <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
               <div style={{ padding: 12, background: "#07071A", border: "1px solid #6B3FFB30", borderRadius: 12 }}>
-                <img src={qrDataUrl} alt="TOTP QR Code" width={180} height={180} />
+                <Image src={qrDataUrl} alt="TOTP QR Code" width={180} height={180} unoptimized />
               </div>
             </div>
           )}
@@ -104,7 +105,7 @@ export function TOTPSetup({ userId, username, bootstrapToken, onComplete }: TOTP
             {secret}
           </div>
           <Button onClick={() => setStep("verify")} style={{ width: "100%" }}>
-            I've scanned it →
+            I’ve scanned it →
           </Button>
         </div>
       )}
