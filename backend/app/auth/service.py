@@ -1,20 +1,19 @@
 """
 PAMASMMA — Authentication persistence service.
-
-Keeps database state out of the authentication router and cryptographic
-primitives. This is the application boundary for founder identity state.
+Durable mode uses Postgres; memory mode uses the explicit ephemeral runtime store.
 """
 import logging
 from datetime import datetime, timezone
 
-from sqlalchemy import select
-
 from app.auth.core import generate_totp_secret, verify_totp
+from app.config import get_settings
 from app.database import AsyncSessionLocal
 from app.models.user import User
+from app.runtime import memory_store
 from app.security.crypto import decrypt_secret, encrypt_secret
 
 log = logging.getLogger(__name__)
+settings = get_settings()
 
 
 class TotpAlreadyConfiguredError(RuntimeError):
@@ -22,13 +21,28 @@ class TotpAlreadyConfiguredError(RuntimeError):
 
 
 async def setup_totp(user_id: str, username: str) -> str:
-    """
-    Create or refresh the founder's pending TOTP enrollment.
+    """Create a TOTP secret and store it encrypted in the configured repository."""
+    secret = generate_totp_secret()
 
-    A configured-but-unverified secret may be replaced. Once TOTP is enabled,
-    re-enrollment must use a separate authenticated recovery flow.
-    """
+    if not settings.is_persistent:
+        existing = memory_store.users.get(user_id)
+        if existing and existing.get("totp_enabled"):
+            raise TotpAlreadyConfiguredError("TOTP is already configured.")
+        if existing and existing.get("username") != username:
+            raise ValueError("Identity mismatch.")
+        memory_store.users[user_id] = {
+            "username": username,
+            "totp_secret_enc": encrypt_secret(secret),
+            "totp_enabled": False,
+            "is_active": True,
+            "last_login_at": None,
+        }
+        return secret
+
+    assert AsyncSessionLocal is not None
     async with AsyncSessionLocal() as session:
+        from sqlalchemy import select
+
         result = await session.execute(
             select(User).where(User.user_key == user_id)
         )
@@ -42,7 +56,6 @@ async def setup_totp(user_id: str, username: str) -> str:
         elif user.totp_enabled:
             raise TotpAlreadyConfiguredError("TOTP is already configured.")
 
-        secret = generate_totp_secret()
         user.totp_secret_enc = encrypt_secret(secret)
         user.totp_enabled = False
         await session.commit()
@@ -51,7 +64,25 @@ async def setup_totp(user_id: str, username: str) -> str:
 
 async def verify_totp_for_user(user_id: str, code: str) -> bool:
     """Verify the server-stored TOTP secret and activate the factor."""
+    if not settings.is_persistent:
+        user = memory_store.users.get(user_id)
+        if not user or not user.get("is_active") or not user.get("totp_secret_enc"):
+            return False
+        try:
+            secret = decrypt_secret(user["totp_secret_enc"])
+        except Exception:
+            log.exception("Unable to decrypt TOTP secret for user %s", user_id)
+            return False
+        if not await verify_totp(user_id, secret, code):
+            return False
+        user["totp_enabled"] = True
+        user["last_login_at"] = datetime.now(timezone.utc).isoformat()
+        return True
+
+    assert AsyncSessionLocal is not None
     async with AsyncSessionLocal() as session:
+        from sqlalchemy import select
+
         result = await session.execute(
             select(User).where(
                 User.user_key == user_id,
@@ -69,8 +100,7 @@ async def verify_totp_for_user(user_id: str, code: str) -> bool:
             log.exception("Unable to decrypt TOTP secret for user %s", user_id)
             return False
 
-        valid = await verify_totp(user_id, secret, code)
-        if not valid:
+        if not await verify_totp(user_id, secret, code):
             return False
 
         user.totp_enabled = True
@@ -80,8 +110,17 @@ async def verify_totp_for_user(user_id: str, code: str) -> bool:
 
 
 async def mark_webauthn_registered(user_id: str) -> None:
-    """Synchronize the persisted founder identity flag after registration."""
+    """Synchronize the persisted WebAuthn enrollment flag."""
+    if not settings.is_persistent:
+        user = memory_store.users.get(user_id)
+        if user is not None:
+            user["webauthn_registered"] = True
+        return
+
+    assert AsyncSessionLocal is not None
     async with AsyncSessionLocal() as session:
+        from sqlalchemy import select
+
         result = await session.execute(
             select(User).where(User.user_key == user_id)
         )
