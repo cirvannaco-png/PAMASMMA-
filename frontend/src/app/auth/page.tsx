@@ -25,7 +25,6 @@ export default function AuthPage() {
   const [method, setMethod] = useState<SignInMethod>("totp");
   const [bootstrapToken, setBootstrapToken] = useState("");
   const [secret, setSecret] = useState("");
-  const [uri, setUri] = useState("");
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
@@ -57,7 +56,7 @@ export default function AuthPage() {
 
   const loginMethods = useMemo(
     () => [
-      { id: "totp" as const, label: "Authenticator", enabled: status.totp_enabled },
+      { id: "totp" as const, label: "Authenticator", enabled: status.totp_enabled || Boolean(secret) },
       { id: "webauthn" as const, label: "Passkey / Security Key", enabled: status.webauthn_registered },
     ],
     [status],
@@ -79,7 +78,6 @@ export default function AuthPage() {
     try {
       const data = await auth.totpSetup(FOUNDER_ID, FOUNDER_USERNAME, bootstrapToken.trim());
       setSecret(data.secret);
-      setUri(data.uri);
       setQrDataUrl(await QRCode.toDataURL(data.uri, {
         width: 220,
         margin: 2,
@@ -237,7 +235,7 @@ export default function AuthPage() {
                   }
                 >
                   <div className="text-[11px] font-semibold">{item.label}</div>
-                  <div className="mt-1 text-[9px] text-[#49496D]">{item.enabled ? "Available" : "Not configured"}</div>
+                  <div className="mt-1 text-[9px] text-[#49496D]">{item.id === "totp" && secret && !status.totp_enabled ? "Ready to verify" : item.enabled ? "Available" : "Not configured"}</div>
                 </button>
               ))}
             </div>
