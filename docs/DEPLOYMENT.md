@@ -1,170 +1,214 @@
-# PAMASMMA v4 — Deployment Guide
+# PAMASMMA v4.1 — Deployment Guide
 
-Stack: **Railway** (compute) + **Supabase** (Postgres + pgvector) + **Upstash** (Redis)  
-Estimated setup time: ~30 minutes.
+PAMASMMA is deployed as two independently deployable services:
 
----
+- **API:** FastAPI
+- **Web:** Next.js
 
-## 1. Supabase — Postgres + pgvector
+The canonical deployment target is Render. PAMASMMA does not depend on Railway,
+Supabase, Upstash, Anthropic, or OpenAI for its baseline no-key deployment.
 
-1. Create project at [supabase.com](https://supabase.com)
-2. **Enable pgvector**: Dashboard → Database → Extensions → search `vector` → enable
-3. Copy connection string: Settings → Database → Connection string → URI
-   - Use **Transaction mode** (port `6543`) for Railway compatibility
-   - Format: `postgresql+asyncpg://postgres.xxxx:password@aws-0-us-east-1.pooler.supabase.com:6543/postgres`
-4. Keep the `anon` key for future frontend-direct reads if needed
+## 1. Deployment modes
 
----
+### Durable production
 
-## 2. Upstash — Redis
+Use this mode for real production data.
 
-1. Create database at [upstash.com](https://upstash.com) → Select **Redis**
-2. Region: closest to Railway region (e.g. `us-east-1` if using Railway US East)
-3. **TLS must be enabled** — use the `rediss://` URL (note double-s)
-4. Copy the `.env` connection string from the Upstash dashboard
+Required infrastructure:
 
----
+- PAMASMMA-specific PostgreSQL database with pgvector support
+- PAMASMMA-specific durable Redis-compatible Key Value store
+- Isolated from other repositories and applications
+- API environment: `PERSISTENCE_MODE=postgres`
 
-## 3. Anthropic + OpenAI Keys
+Required API variables:
 
-- **Anthropic API key**: [console.anthropic.com](https://console.anthropic.com) → API Keys → Create
-- **OpenAI API key** (embeddings): [platform.openai.com](https://platform.openai.com) → API keys → Create
-  - Only `text-embedding-3-small` is used — cheapest tier
-
----
-
-## 4. Railway — Backend (FastAPI)
-
-```bash
-# Install Railway CLI
-npm install -g @railway/cli
-railway login
-
-# From repo root
-railway init
-# Select: "Deploy from source" → choose your GitHub repo
-
-# Create backend service
-railway service create pamasmma-api
-railway service up --source=backend
-
-# Set environment variables
-railway variables set \
-  DATABASE_URL="postgresql+asyncpg://..." \
-  REDIS_URL="rediss://..." \
-  ANTHROPIC_API_KEY="sk-ant-..." \
-  OPENAI_API_KEY="sk-..." \
-  SECRET_KEY="$(python3 -c 'import secrets; print(secrets.token_hex(64))')" \
-  APP_ENV="production" \
-  WEBAUTHN_RP_ID="your-domain.app" \
-  WEBAUTHN_ORIGIN="https://your-domain.app" \
-  ALLOWED_ORIGINS='["https://your-domain.app"]'
-
-# Run migrations
-railway run alembic -c backend/alembic.ini upgrade head
-
-# Deploy
-railway up --service pamasmma-api
+```text
+APP_ENV=production
+DEBUG=false
+SECRET_KEY=<generated secret, at least 32 characters>
+PAMASMMA_BOOTSTRAP_TOKEN=<separate enrollment secret>
+PERSISTENCE_MODE=postgres
+DATABASE_URL=<PAMASMMA PostgreSQL connection string>
+REDIS_URL=<PAMASMMA Redis-compatible connection string>
+MODEL_PROVIDER=kernel
+EMBEDDING_PROVIDER=local
+SCHEDULER_ENABLED=false
+WEBAUTHN_RP_ID=<production web domain>
+WEBAUTHN_RP_NAME=PAMASMMA
+WEBAUTHN_ORIGIN=https://<production web domain>
+ALLOWED_ORIGINS=["https://<production web domain>"]
 ```
 
----
+Anthropic and OpenAI credentials are optional provider integrations. They are not
+required when the kernel and local embeddings are selected.
 
-## 5. Railway — Frontend (Next.js)
+### Ephemeral validation
 
-```bash
-railway service create pamasmma-web
-railway service up --source=frontend
+Use this mode for demonstrations, CI, and staging:
 
-railway variables set \
-  NEXT_PUBLIC_API_URL="https://pamasmma-api.up.railway.app/api/v1"
-
-railway up --service pamasmma-web
+```text
+APP_ENV=staging
+PERSISTENCE_MODE=memory
+MODEL_PROVIDER=kernel
+EMBEDDING_PROVIDER=local
+SCHEDULER_ENABLED=false
 ```
 
----
+The application uses bounded in-process state and deliberately does not claim
+durability.
 
-## 6. GitHub Actions Secrets
+## 2. Render services
 
-Set these in: `github.com/<org>/<repo>` → Settings → Secrets → Actions
+The repository root contains `render.yaml`.
 
-| Secret | Value |
-|--------|-------|
-| `SECRET_KEY` | 64-char hex string |
-| `ANTHROPIC_API_KEY` | `sk-ant-...` |
-| `RAILWAY_TOKEN` | From Railway → Account Settings → Tokens |
+It defines:
 
----
+- `pamasmma-api`
+- `pamasmma-web`
 
-## 7. Custom Domain (optional)
+The API is a Python 3.11.9 deployment and exposes `/health`.
+The frontend uses Next.js standalone output.
 
-Railway → Service → Settings → Custom Domains:
-- `api.pamasmma.app` → pamasmma-api service
-- `pamasmma.app` → pamasmma-web service
+The production web command uses the standalone server directly:
 
-Update environment variables:
-```bash
-railway variables set \
-  WEBAUTHN_RP_ID="pamasmma.app" \
-  WEBAUTHN_ORIGIN="https://pamasmma.app" \
-  ALLOWED_ORIGINS='["https://pamasmma.app"]' \
-  --service pamasmma-api
+```text
+node .next/standalone/server.js
 ```
 
----
+Do not change this back to `next start` while `output: standalone` is enabled.
 
-## 8. Verify Deployment
+## 3. Database migrations
 
-```bash
-# Health check
-curl https://api.pamasmma.app/health
-# Expected: {"status":"healthy","database":true,"redis":true,"version":"4.0.0"}
+Alembic owns all schema evolution.
 
-# TOTP setup test
-curl -X POST https://api.pamasmma.app/api/v1/auth/totp/setup \
-  -H "Content-Type: application/json" \
-  -d '{"user_id":"test","username":"test@test.com"}'
-# Expected: {"secret":"...","uri":"otpauth://..."}
-```
-
----
-
-## Local Development
+Before a durable production API is started:
 
 ```bash
-# Full stack via Docker
-docker compose -f infrastructure/docker-compose.dev.yml up
-
-# API only
 cd backend
-pip install -r requirements.txt
-cp ../../.env.example .env  # fill in values
 alembic upgrade head
-uvicorn app.main:app --reload --port 8000
-
-# Frontend only
-cd frontend
-npm install
-NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1 npm run dev
 ```
 
----
+Application startup verifies connectivity only. It does not mutate the production
+schema.
 
-## Rollback
+Migration `002_auth_hardening` creates the stable `user_key` identity column,
+backfills it from the existing username, and adds uniqueness.
+
+On Render free compute, automatic `preDeployCommand` migrations are not available;
+use a controlled migration execution path or paid compute with a pre-deploy migration
+command.
+
+## 4. Security
+
+Production secrets must be supplied through the deployment platform's secret
+configuration. Never commit real credentials.
+
+Required controls:
+
+- `SECRET_KEY` is mandatory in production.
+- `PAMASMMA_BOOTSTRAP_TOKEN` is mandatory for founder enrollment.
+- TOTP secrets are encrypted with AES-256-GCM.
+- TOTP verification reads the server-side secret.
+- WebAuthn registration requires an authenticated session.
+- Refresh tokens are bound to live server-side sessions and rotate on refresh.
+- Rate limiting applies globally and at authentication/API/cognitive boundaries.
+- CORS is an explicit allow-list.
+
+## 5. Health and observability
+
+The API exposes:
+
+```text
+GET /health
+```
+
+Durable production health should report:
+
+```json
+{
+  "status": "healthy",
+  "database": true,
+  "redis": true,
+  "persistence": "postgres",
+  "intelligence": "kernel",
+  "embeddings": "local"
+}
+```
+
+The structured logger emits JSON request/start/end and lifecycle events.
+
+Render logs and metrics are the first-line runtime observability surface.
+
+## 6. Verification gates
+
+Before release:
 
 ```bash
-# Railway keeps last 5 deployments
-railway deployments list --service pamasmma-api
-railway rollback --deployment <deployment-id> --service pamasmma-api
+cd backend
+ruff check app/ tests/
+mypy app/ --ignore-missing-imports --no-strict-optional
+pytest tests/ -v --cov=app
+
+cd ../frontend
+npm run type-check
+npm run lint
+npm run build
 ```
 
----
+GitHub Actions must finish successfully for the release head.
 
-## Monitoring
+After deployment:
 
-Railway provides:
-- Build + runtime logs: `railway logs --service pamasmma-api`
-- Metrics dashboard in Railway UI
-- Upstash dashboard shows Redis memory + ops/sec
-- Supabase dashboard shows DB size + query performance
+1. Confirm the deployment is `live`.
+2. Confirm `/health` is healthy.
+3. Confirm there are no new runtime error logs.
+4. Verify authentication and founder enrollment.
+5. Verify authenticated cognitive system listing.
+6. Invoke S1 using the kernel provider.
+7. Verify SSE streaming.
+8. Verify user-isolated action logs.
+9. Verify token refresh and logout.
+10. Verify persistent memory/action-log behavior in durable mode.
 
-All API requests are structured-logged (JSON via structlog) and visible in Railway's log drain.
+## 7. Staging validation completed
+
+A Render staging deployment of the PAMASMMA branch has been exercised with:
+
+- Python 3.11.9
+- Kernel intelligence
+- Local embeddings
+- Ephemeral memory mode
+- Next.js standalone frontend
+- Structured startup/shutdown logging
+
+The API and web staging services reached `live` state and the application startup
+completed successfully.
+
+## 8. Current infrastructure constraint
+
+The current Render workspace already has one active free PostgreSQL instance owned
+by another project. PAMASMMA must not reuse that database.
+
+The workspace's free Key Value resource does not provide the persistence guarantees
+required for durable production. A separate PAMASMMA PostgreSQL database and durable
+Redis-compatible resource must therefore be provisioned before PAMASMMA is declared
+durable production.
+
+Do not bypass this requirement by sharing another repository's database or by
+pretending memory-mode persistence is durable.
+
+## 9. Rollback
+
+Rollback the Render service to the last known-good deployment after preserving
+application logs and identifying the triggering commit.
+
+For database changes, use an explicit backward-compatible migration strategy.
+Do not rely on application startup to reverse schema changes.
+
+## 10. Repository boundary
+
+PAMASMMA owns the assistant platform and its cognitive infrastructure.
+
+Nakima is a separate repository and must remain outside the PAMASMMA deployment
+boundary.
