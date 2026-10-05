@@ -1,115 +1,141 @@
 """
-PAMASMMA v4 — Authentication
-TOTP (primary) + WebAuthn/FIDO2 (hardware key) + JWT sessions.
-Replay-attack prevention via Redis. Rate-limited on all auth endpoints.
+PAMASMMA v4.0.1 — Authentication primitives
+TOTP + WebAuthn/FIDO2 + JWT session issuance.
 """
 import base64
+import json
 import logging
 import secrets
-import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
+from typing import Any, cast
 
-import pyotp
 import jwt as pyjwt
+import pyotp
 from webauthn import (
-    generate_registration_options,
-    verify_registration_response,
     generate_authentication_options,
-    verify_authentication_response,
+    generate_registration_options,
     options_to_json,
-)
-from webauthn.helpers.structs import (
-    AuthenticatorSelectionCriteria,
-    ResidentKeyRequirement,
-    UserVerificationRequirement,
-    PublicKeyCredentialDescriptor,
+    verify_authentication_response,
+    verify_registration_response,
 )
 from webauthn.helpers.cose import COSEAlgorithmIdentifier
+from webauthn.helpers.structs import (
+    AuthenticatorSelectionCriteria,
+    PublicKeyCredentialDescriptor,
+    ResidentKeyRequirement,
+    UserVerificationRequirement,
+)
 
 from app.config import get_settings
 from app.redis_client import (
-    mark_totp_used,
-    store_webauthn_challenge,
-    pop_webauthn_challenge,
-    store_webauthn_credential,
-    get_webauthn_credential,
-    set_session,
     delete_session,
+    get_webauthn_credential,
+    mark_totp_used,
+    pop_webauthn_challenge,
+    set_session,
+    store_webauthn_challenge,
+    store_webauthn_credential,
 )
 
 log = logging.getLogger(__name__)
 settings = get_settings()
 
-# ── TOTP ──────────────────────────────────────────────────────────────────────
 
 def generate_totp_secret() -> str:
-    """Generate a fresh base32 TOTP secret for a new user."""
+    """Generate a fresh base32 TOTP secret."""
     return pyotp.random_base32()
 
 
 def get_totp_uri(secret: str, username: str) -> str:
-    """Return the otpauth:// URI for QR code generation."""
-    totp = pyotp.TOTP(secret, digits=settings.totp_digits, interval=settings.totp_interval)
-    return totp.provisioning_uri(name=username, issuer_name=settings.totp_issuer)
+    """Build an otpauth:// provisioning URI."""
+    totp = pyotp.TOTP(
+        secret,
+        digits=settings.totp_digits,
+        interval=settings.totp_interval,
+    )
+    return totp.provisioning_uri(
+        name=username,
+        issuer_name=settings.totp_issuer,
+    )
 
 
 async def verify_totp(user_id: str, secret: str, code: str) -> bool:
     """
-    Verify a TOTP code with:
-    - ±1 window tolerance for clock skew
-    - Redis-backed replay-attack prevention
+    Verify a TOTP code and reject reuse.
+
+    The secret argument is an internal value loaded by the authentication
+    persistence service; API clients never supply it.
     """
-    totp = pyotp.TOTP(secret, digits=settings.totp_digits, interval=settings.totp_interval)
-    valid = totp.verify(code, valid_window=1)
-    if not valid:
+    code = code.strip()
+    if not code.isdigit() or len(code) != settings.totp_digits:
         return False
+
+    totp = pyotp.TOTP(
+        secret,
+        digits=settings.totp_digits,
+        interval=settings.totp_interval,
+    )
+    if not totp.verify(code, valid_window=1):
+        return False
+
     fresh = await mark_totp_used(user_id, code)
     if not fresh:
-        log.warning(f"TOTP replay attempt blocked for user {user_id}")
+        log.warning("TOTP replay attempt blocked for user %s", user_id)
         return False
+
     return True
 
 
-# ── JWT ───────────────────────────────────────────────────────────────────────
-
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
+
+
+def _jwt_secret() -> str:
+    secret = settings.secret_key
+    if not secret:
+        raise RuntimeError("JWT signing secret is not configured.")
+    return secret
 
 
 def issue_access_token(user_id: str, session_id: str) -> str:
+    now = _utc_now()
     payload = {
         "sub": user_id,
         "sid": session_id,
-        "iat": _utc_now(),
-        "exp": _utc_now() + timedelta(minutes=settings.jwt_access_token_expire_minutes),
+        "iat": now,
+        "exp": now + timedelta(minutes=settings.jwt_access_token_expire_minutes),
         "type": "access",
+        "jti": secrets.token_hex(16),
     }
-    return pyjwt.encode(payload, settings.secret_key, algorithm=settings.jwt_algorithm)
+    return pyjwt.encode(payload, _jwt_secret(), algorithm=settings.jwt_algorithm)
 
 
 def issue_refresh_token(user_id: str, session_id: str) -> str:
+    now = _utc_now()
     payload = {
         "sub": user_id,
         "sid": session_id,
-        "iat": _utc_now(),
-        "exp": _utc_now() + timedelta(days=settings.jwt_refresh_token_expire_days),
+        "iat": now,
+        "exp": now + timedelta(days=settings.jwt_refresh_token_expire_days),
         "type": "refresh",
+        "jti": secrets.token_hex(16),
     }
-    return pyjwt.encode(payload, settings.secret_key, algorithm=settings.jwt_algorithm)
+    return pyjwt.encode(payload, _jwt_secret(), algorithm=settings.jwt_algorithm)
 
 
 def decode_token(token: str) -> dict:
-    return pyjwt.decode(
-        token,
-        settings.secret_key,
-        algorithms=[settings.jwt_algorithm],
+    return cast(
+        dict[str, Any],
+        pyjwt.decode(
+            token,
+            _jwt_secret(),
+            algorithms=[settings.jwt_algorithm],
+        ),
     )
 
 
-# ── WebAuthn ──────────────────────────────────────────────────────────────────
-
 async def begin_webauthn_registration(user_id: str, username: str) -> dict:
-    """Generate registration challenge and store it in Redis."""
+    """Generate a registration challenge and store it in Redis."""
     options = generate_registration_options(
         rp_id=settings.webauthn_rp_id,
         rp_name=settings.webauthn_rp_name,
@@ -124,19 +150,19 @@ async def begin_webauthn_registration(user_id: str, username: str) -> dict:
             COSEAlgorithmIdentifier.RSASSA_PKCS1_v1_5_SHA_256,
         ],
     )
-    challenge_b64 = base64.b64encode(options.challenge).decode()
+    challenge_b64 = base64.b64encode(options.challenge).decode("ascii")
     await store_webauthn_challenge(user_id, challenge_b64)
-    return options_to_json(options)
+    return cast(dict[str, Any], json.loads(options_to_json(options)))
 
 
 async def complete_webauthn_registration(
     user_id: str,
     credential_response: dict,
 ) -> bool:
-    """Verify registration response and store credential in Redis."""
+    """Verify registration response and persist the credential."""
     challenge_b64 = await pop_webauthn_challenge(user_id)
     if not challenge_b64:
-        log.warning(f"WebAuthn registration: no challenge for user {user_id}")
+        log.warning("WebAuthn registration: no challenge for user %s", user_id)
         return False
 
     challenge = base64.b64decode(challenge_b64)
@@ -148,21 +174,23 @@ async def complete_webauthn_registration(
             expected_origin=settings.webauthn_origin,
         )
         credential_data = {
-            "credential_id": base64.b64encode(verification.credential_id).decode(),
-            "public_key": base64.b64encode(verification.credential_public_key).decode(),
+            "credential_id": base64.b64encode(verification.credential_id).decode("ascii"),
+            "public_key": base64.b64encode(
+                verification.credential_public_key
+            ).decode("ascii"),
             "sign_count": verification.sign_count,
             "registered_at": _utc_now().isoformat(),
         }
         await store_webauthn_credential(user_id, credential_data)
-        log.info(f"WebAuthn credential registered for user {user_id}")
+        log.info("WebAuthn credential registered for user %s", user_id)
         return True
-    except Exception as exc:
-        log.error(f"WebAuthn registration failed for {user_id}: {exc}")
+    except Exception:
+        log.exception("WebAuthn registration failed for user %s", user_id)
         return False
 
 
 async def begin_webauthn_authentication(user_id: str) -> dict | None:
-    """Generate authentication challenge. Returns None if no credential registered."""
+    """Generate an authentication challenge for the stored credential."""
     credential = await get_webauthn_credential(user_id)
     if not credential:
         return None
@@ -175,23 +203,22 @@ async def begin_webauthn_authentication(user_id: str) -> dict | None:
         ],
         user_verification=UserVerificationRequirement.PREFERRED,
     )
-    challenge_b64 = base64.b64encode(options.challenge).decode()
+    challenge_b64 = base64.b64encode(options.challenge).decode("ascii")
     await store_webauthn_challenge(user_id, challenge_b64)
-    return options_to_json(options)
+    return cast(dict[str, Any], json.loads(options_to_json(options)))
 
 
 async def complete_webauthn_authentication(
     user_id: str,
     credential_response: dict,
 ) -> bool:
-    """Verify authentication response. Returns True on success."""
+    """Verify a WebAuthn authentication assertion."""
     stored_credential = await get_webauthn_credential(user_id)
     challenge_b64 = await pop_webauthn_challenge(user_id)
     if not stored_credential or not challenge_b64:
         return False
 
     challenge = base64.b64decode(challenge_b64)
-    credential_id = base64.b64decode(stored_credential["credential_id"])
     public_key = base64.b64decode(stored_credential["public_key"])
 
     try:
@@ -203,19 +230,19 @@ async def complete_webauthn_authentication(
             credential_public_key=public_key,
             credential_current_sign_count=stored_credential["sign_count"],
         )
-        # Update sign count to prevent cloning attacks
         stored_credential["sign_count"] = verification.new_sign_count
         await store_webauthn_credential(user_id, stored_credential)
         return True
-    except Exception as exc:
-        log.error(f"WebAuthn authentication failed for {user_id}: {exc}")
+    except Exception:
+        log.exception("WebAuthn authentication failed for user %s", user_id)
         return False
 
 
-# ── Session Management ────────────────────────────────────────────────────────
-
-async def create_auth_session(user_id: str, metadata: dict | None = None) -> str:
-    """Create a new authenticated session. Returns session_id."""
+async def create_auth_session(
+    user_id: str,
+    metadata: dict | None = None,
+) -> str:
+    """Create an active server-side session."""
     session_id = secrets.token_hex(32)
     session_data = {
         "user_id": user_id,

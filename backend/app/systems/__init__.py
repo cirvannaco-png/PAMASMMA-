@@ -3,17 +3,17 @@ PAMASMMA v4 — Systems Registry
 Central registry mapping system IDs to singleton instances.
 Import from here rather than individual modules.
 """
-from app.systems.s1_executive   import s1_executive_system
-from app.systems.s2_marketing   import s2_marketing_system
-from app.systems.s3_relationship import s3_relationship_system
-from app.systems.s4_creator     import s4_creator_system
-from app.systems.s5_narrative   import s5_narrative_system
-from app.systems.s6_audience    import s6_audience_system
-from app.systems.s7_behavioral  import s7_behavioral_system
-from app.systems.s8_persuasion  import s8_persuasion_system
-from app.systems.s9_voice       import s9_voice_system
-from app.systems.s10_strategic  import s10_strategic_system
 from app.systems.base import CognitiveSystem
+from app.systems.s1_executive import s1_executive_system
+from app.systems.s2_marketing import s2_marketing_system
+from app.systems.s3_relationship import s3_relationship_system
+from app.systems.s4_creator import s4_creator_system
+from app.systems.s5_narrative import s5_narrative_system
+from app.systems.s6_audience import s6_audience_system
+from app.systems.s7_behavioral import s7_behavioral_system
+from app.systems.s8_persuasion import s8_persuasion_system
+from app.systems.s9_voice import s9_voice_system
+from app.systems.s10_strategic import s10_strategic_system
 
 SYSTEMS: dict[str, CognitiveSystem] = {
     "S1": s1_executive_system,

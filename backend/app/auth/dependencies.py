@@ -3,10 +3,10 @@ PAMASMMA v4 — Auth Dependencies
 FastAPI dependency injection for protected routes.
 """
 import logging
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 import jwt as pyjwt
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.auth.core import decode_token
 from app.redis_client import get_session
@@ -37,14 +37,14 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token expired.",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from None
     except Exception:
-        raise credentials_exception
+        raise credentials_exception from None
 
     user_id: str = payload.get("sub")
     session_id: str = payload.get("sid")
     if not user_id or not session_id:
-        raise credentials_exception
+        raise credentials_exception from None
 
     session = await get_session(session_id)
     if not session or session.get("user_id") != user_id:

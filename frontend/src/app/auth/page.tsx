@@ -1,18 +1,19 @@
 "use client";
+import Image from "next/image";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import QRCode from "qrcode";
 import toast from "react-hot-toast";
-import { auth, setTokens } from "@/lib/api";
+import { auth } from "@/lib/api";
 import { useAuthStore } from "@/lib/store";
 
 type Step = "setup" | "qr" | "verify";
 
-const FOUNDER_ID = "kelson-mwangi-cirvanna";
-const FOUNDER_USERNAME = "kelson@cirvanna.co";
+const FOUNDER_ID = process.env.NEXT_PUBLIC_FOUNDER_USER_ID ?? "kelson-mwangi-cirvanna";
+const FOUNDER_USERNAME = process.env.NEXT_PUBLIC_FOUNDER_USERNAME ?? "kelson@cirvanna.co";
 
 const BOOT_LINES = [
-  "PAMASMMA v4 — GOVERNED SYNTHETIC EXECUTIVE INTELLIGENCE",
+  "PAMASMMA v4.0.1 — GOVERNED SYNTHETIC EXECUTIVE INTELLIGENCE",
   "Auth layer: TOTP + WebAuthn/FIDO2",
   "Identity principal: Kelson Mwangi @ Cirvanna",
   "Awaiting authentication…",
@@ -24,6 +25,7 @@ export default function AuthPage() {
 
   const [step, setStep] = useState<Step>("setup");
   const [totpSecret, setTotpSecret] = useState("");
+  const [bootstrapToken, setBootstrapToken] = useState("");
   const [totpUri, setTotpUri] = useState("");
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [code, setCode] = useState("");
@@ -34,7 +36,7 @@ export default function AuthPage() {
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) router.replace("/dashboard");
-  }, [isAuthenticated]);
+  }, [isAuthenticated, router]);
 
   // Boot animation
   useEffect(() => {
@@ -47,9 +49,14 @@ export default function AuthPage() {
   }, [bootStep]);
 
   const handleSetupTOTP = async () => {
+    if (!bootstrapToken.trim()) {
+      toast.error("Enter the bootstrap enrollment token.");
+      return;
+    }
+
     setLoading(true);
     try {
-      const res = await auth.totpSetup(FOUNDER_ID, FOUNDER_USERNAME);
+      const res = await auth.totpSetup(FOUNDER_ID, FOUNDER_USERNAME, bootstrapToken.trim());
       setTotpSecret(res.secret);
       setTotpUri(res.uri);
       const dataUrl = await QRCode.toDataURL(res.uri, {
@@ -70,9 +77,8 @@ export default function AuthPage() {
     if (code.length < 6) return;
     setLoading(true);
     try {
-      const tokens = await auth.totpVerify(FOUNDER_ID, totpSecret, code);
+      const tokens = await auth.totpVerify(FOUNDER_ID, code);
       setAuth(FOUNDER_ID, tokens);
-      setTokens(tokens);
       toast.success("Authentication successful");
       router.replace("/dashboard");
     } catch (e: any) {
@@ -149,6 +155,17 @@ export default function AuthPage() {
                 <div style={{ fontSize: 9, color: "#3A3A6A", letterSpacing: 1.5, marginBottom: 6, fontFamily: "monospace" }}>IDENTITY PRINCIPAL</div>
                 <div style={{ fontSize: 12, color: "#A0A0C0" }}>{FOUNDER_USERNAME}</div>
               </div>
+              <input
+                type="password"
+                value={bootstrapToken}
+                onChange={e => setBootstrapToken(e.target.value)}
+                placeholder="Bootstrap enrollment token"
+                autoComplete="off"
+                style={{ ...inputBoxStyle(bootstrapToken.length > 0), marginBottom: 12 }}
+              />
+              <div style={{ fontSize: 9, color: "#2A2A5A", marginBottom: 16, lineHeight: 1.5 }}>
+                This token is used only for first-time enrollment and is never stored by the browser.
+              </div>
               <button
                 onClick={handleSetupTOTP}
                 disabled={loading}
@@ -169,7 +186,7 @@ export default function AuthPage() {
               {qrDataUrl && (
                 <div style={{ display: "flex", justifyContent: "center", marginBottom: 20 }}>
                   <div style={{ padding: 12, background: "#07071A", border: "1px solid #6B3FFB30", borderRadius: 12 }}>
-                    <img src={qrDataUrl} alt="TOTP QR Code" width={180} height={180} />
+                    <Image src={qrDataUrl} alt="TOTP QR Code" width={180} height={180} unoptimized />
                   </div>
                 </div>
               )}
@@ -180,7 +197,7 @@ export default function AuthPage() {
                 onClick={() => setStep("verify")}
                 style={{ width: "100%", padding: "13px 0", borderRadius: 12, border: "none", background: "#6B3FFB", color: "#E8E8FA", fontSize: 13, fontWeight: 700, cursor: "pointer", letterSpacing: 1 }}
               >
-                I've scanned it — Enter Code →
+                I’ve scanned it — Enter Code →
               </button>
             </div>
           )}
@@ -225,7 +242,7 @@ export default function AuthPage() {
         </div>
 
         <div style={{ textAlign: "center", marginTop: 20, fontSize: 9, color: "#1A1A3A", letterSpacing: 2, fontFamily: "monospace" }}>
-          PAMASMMA v4 · MALI v7 · CIRVANNA
+          PAMASMMA v4.0.1 · MALI v7 · CIRVANNA
         </div>
       </div>
     </div>

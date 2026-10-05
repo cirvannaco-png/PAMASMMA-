@@ -32,13 +32,13 @@ export function WebAuthnRegister({ userId, username, onComplete }: WebAuthnRegis
     setLoading(true);
     try {
       // 1. Get challenge from server
-      const options = await auth.webauthnRegisterBegin(userId, username);
+      const options = await auth.webauthnRegisterBegin();
 
       // 2. Browser prompts for hardware key / biometric
       const credential = await startRegistration(options as any);
 
       // 3. Verify with server
-      await auth.webauthnRegisterComplete(userId, credential as any);
+      await auth.webauthnRegisterComplete(credential as any);
 
       toast.success("Hardware key registered ✓");
       onComplete();

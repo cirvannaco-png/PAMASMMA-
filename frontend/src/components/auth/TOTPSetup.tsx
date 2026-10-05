@@ -4,6 +4,7 @@
  * Used on /auth page and in settings.
  */
 "use client";
+import Image from "next/image";
 import { useState } from "react";
 import QRCode from "qrcode";
 import toast from "react-hot-toast";
@@ -13,12 +14,13 @@ import { Button } from "@/components/ui";
 interface TOTPSetupProps {
   userId: string;
   username: string;
+  bootstrapToken: string;
   onComplete: (secret: string) => void;
 }
 
 type Step = "generate" | "scan" | "verify";
 
-export function TOTPSetup({ userId, username, onComplete }: TOTPSetupProps) {
+export function TOTPSetup({ userId, username, bootstrapToken, onComplete }: TOTPSetupProps) {
   const [step, setStep]           = useState<Step>("generate");
   const [secret, setSecret]       = useState("");
   const [uri, setUri]             = useState("");
@@ -29,7 +31,7 @@ export function TOTPSetup({ userId, username, onComplete }: TOTPSetupProps) {
   const handleGenerate = async () => {
     setLoading(true);
     try {
-      const res = await auth.totpSetup(userId, username);
+      const res = await auth.totpSetup(userId, username, bootstrapToken);
       setSecret(res.secret);
       setUri(res.uri);
       const dataUrl = await QRCode.toDataURL(res.uri, {
@@ -50,7 +52,7 @@ export function TOTPSetup({ userId, username, onComplete }: TOTPSetupProps) {
     if (code.length < 6) return;
     setLoading(true);
     try {
-      await auth.totpVerify(userId, secret, code);
+      await auth.totpVerify(userId, code);
       toast.success("TOTP verified — authenticator configured");
       onComplete(secret);
     } catch (e: any) {
@@ -78,7 +80,7 @@ export function TOTPSetup({ userId, username, onComplete }: TOTPSetupProps) {
       {step === "generate" && (
         <div>
           <p style={{ fontSize: 11, color: "#6060A0", lineHeight: 1.6, marginBottom: 16 }}>
-            PAMASMMA uses TOTP as its primary auth layer. You'll need Google
+            PAMASMMA uses TOTP as its primary auth layer. You’ll need Google
             Authenticator, Authy, or 1Password to scan the QR code.
           </p>
           <Button onClick={handleGenerate} loading={loading} style={{ width: "100%" }}>
@@ -95,7 +97,7 @@ export function TOTPSetup({ userId, username, onComplete }: TOTPSetupProps) {
           {qrDataUrl && (
             <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
               <div style={{ padding: 12, background: "#07071A", border: "1px solid #6B3FFB30", borderRadius: 12 }}>
-                <img src={qrDataUrl} alt="TOTP QR Code" width={180} height={180} />
+                <Image src={qrDataUrl} alt="TOTP QR Code" width={180} height={180} unoptimized />
               </div>
             </div>
           )}
@@ -103,7 +105,7 @@ export function TOTPSetup({ userId, username, onComplete }: TOTPSetupProps) {
             {secret}
           </div>
           <Button onClick={() => setStep("verify")} style={{ width: "100%" }}>
-            I've scanned it →
+            I’ve scanned it →
           </Button>
         </div>
       )}

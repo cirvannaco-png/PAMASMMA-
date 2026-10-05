@@ -1,12 +1,15 @@
 /**
- * PAMASMMA v4 — useAuth hook
- * Restores session from stored refresh token on mount.
+ * PAMASMMA v4.0.1 — Auth session hook
+ * Restores a persisted refresh session before protected UI redirects fire.
  */
 "use client";
+
 import { useEffect, useRef } from "react";
+import { decodeJwt } from "jose";
 import { useRouter } from "next/navigation";
+
+import { auth, restoreSession } from "@/lib/api";
 import { useAuthStore } from "@/lib/store";
-import { loadStoredRefreshToken, auth, setTokens } from "@/lib/api";
 
 export function useAuth() {
   const { isAuthenticated, userId, setAuth, clearAuth } = useAuthStore();
@@ -17,14 +20,32 @@ export function useAuth() {
     if (isAuthenticated || attempted.current) return;
     attempted.current = true;
 
-    // Attempt silent refresh from stored refresh token
-    loadStoredRefreshToken();
-    // The api client will handle the refresh on the next authenticated call.
-    // If it fails, it redirects to /auth automatically.
-  }, [isAuthenticated]);
+    void (async () => {
+      const tokens = await restoreSession();
+      if (!tokens) return;
+
+      try {
+        const payload = decodeJwt(tokens.access_token);
+        const subject = typeof payload.sub === "string" ? payload.sub : null;
+
+        if (!subject) {
+          clearAuth();
+          return;
+        }
+
+        setAuth(subject, tokens);
+      } catch {
+        clearAuth();
+      }
+    })();
+  }, [clearAuth, isAuthenticated, setAuth]);
 
   const logout = async () => {
-    try { await auth.logout(); } catch {}
+    try {
+      await auth.logout();
+    } catch {
+      // Logout is best-effort; local credentials are still cleared.
+    }
     clearAuth();
     router.replace("/auth");
   };

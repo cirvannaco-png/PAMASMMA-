@@ -1,0 +1,87 @@
+# PAMASMMA production Render Blueprint
+# Durable infrastructure is isolated to PAMASMMA. Render billing is required.
+databases:
+  - name: pamasmma-production-db
+    databaseName: pamasmma
+    plan: basic-256mb
+    region: frankfurt
+    postgresMajorVersion: 18
+    diskSizeGB: 1
+
+services:
+  - type: keyvalue
+    name: pamasmma-cache-prod
+    plan: 256mb
+    region: frankfurt
+    maxmemoryPolicy: noeviction
+    persistenceMode: journal_snapshot
+    ipAllowList: []
+
+  - type: web
+    name: pamasmma-api
+    runtime: python
+    plan: starter
+    region: frankfurt
+    branch: main
+    autoDeployTrigger: checksPass
+    numInstances: 1
+    buildCommand: pip install -r backend/requirements.txt
+    preDeployCommand: cd backend && alembic upgrade head
+    startCommand: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health/ready
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: APP_ENV
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: PAMASMMA_BOOTSTRAP_TOKEN
+        generateValue: true
+      - key: PERSISTENCE_MODE
+        value: postgres
+      - key: DATABASE_URL
+        fromDatabase:
+          name: pamasmma-production-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: pamasmma-cache-prod
+          type: keyvalue
+          property: connectionString
+      - key: SCHEDULER_ENABLED
+        value: "true"
+      - key: MODEL_PROVIDER
+        value: kernel
+      - key: EMBEDDING_PROVIDER
+        value: local
+      - key: WEBAUTHN_RP_ID
+        value: pamasmma-web.onrender.com
+      - key: WEBAUTHN_RP_NAME
+        value: PAMASMMA
+      - key: WEBAUTHN_ORIGIN
+        value: https://pamasmma-web.onrender.com
+      - key: ALLOWED_ORIGINS
+        value: '["https://pamasmma-web.onrender.com"]'
+
+  - type: web
+    name: pamasmma-web
+    runtime: node
+    plan: starter
+    region: frankfurt
+    branch: main
+    autoDeployTrigger: checksPass
+    buildCommand: cd frontend && npm install && npm run build && mkdir -p .next/standalone/.next && cp -R .next/static .next/standalone/.next/static && if [ -d public ]; then cp -R public .next/standalone/public; fi
+    startCommand: cd frontend && HOSTNAME=0.0.0.0 node .next/standalone/server.js
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        value: https://pamasmma-api.onrender.com/api/v1
+      - key: NEXT_PUBLIC_FOUNDER_USER_ID
+        value: kelson-mwangi-cirvanna
+      - key: NEXT_PUBLIC_FOUNDER_USERNAME
+        value: kelson@cirvanna.co
+
+previews:
+  generation: off

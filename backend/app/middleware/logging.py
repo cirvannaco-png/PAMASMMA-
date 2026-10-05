@@ -6,8 +6,8 @@ Skips health check path to avoid log noise.
 """
 import time
 import uuid
-import logging
 from collections.abc import Callable
+from typing import cast
 
 import structlog
 from fastapi import Request, Response
@@ -27,7 +27,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
 
         # Skip health endpoint — too noisy in production
         if path == "/health":
-            return await call_next(request)
+            return cast(Response, await call_next(request))
 
         request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())[:8]
         start = time.perf_counter()
@@ -44,7 +44,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         log.info("request_start")
 
         try:
-            response = await call_next(request)
+            response = cast(Response, await call_next(request))
         except Exception as exc:
             elapsed = (time.perf_counter() - start) * 1000
             log.error(
