@@ -1,5 +1,5 @@
 """
-PAMASMMA v4.0.1 — Test Suite
+PAMASMMA v4.1.0 — Test Suite
 Tests exercise real module boundaries rather than patching imported aliases.
 """
 from unittest.mock import AsyncMock, patch
@@ -23,7 +23,7 @@ async def test_health_endpoint(client):
 
     assert response.status_code == 200
     assert response.json()["status"] == "healthy"
-    assert response.json()["version"] == "4.0.1"
+    assert response.json()["version"] == "4.1.0"
 
 
 @pytest.mark.asyncio
