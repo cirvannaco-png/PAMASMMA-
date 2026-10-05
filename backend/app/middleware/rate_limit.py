@@ -5,6 +5,7 @@ Uses Redis in durable mode and the in-memory limiter in kernel/demo mode.
 import logging
 import time
 from collections.abc import Callable
+from typing import cast
 
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
@@ -31,7 +32,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         path = request.url.path
         if path in {"/health", "/", "/docs", "/openapi.json"}:
-            return await call_next(request)
+            return cast(Response, await call_next(request))
 
         client_ip = self._get_client_ip(request)
 
@@ -58,7 +59,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                     )
                 break
 
-        response = await call_next(request)
+        response = cast(Response, await call_next(request))
         response.headers["X-RateLimit-Remaining"] = str(route_remaining)
         response.headers["X-RateLimit-Reset"] = str(int(time.time()) + 60)
         return response
