@@ -56,6 +56,40 @@ class ProviderRouter:
             KernelProvider(),
         )
 
+    async def generate(
+        self,
+        selection: ProviderSelection,
+        system_prompt: str,
+        messages: list[dict],
+        max_tokens: int,
+    ) -> tuple[ProviderSelection, str]:
+        """Generate with runtime failover.
+
+        Provider construction and provider availability are different failure
+        classes. A configured remote provider can still fail at request time,
+        so generation falls back to the deterministic kernel.
+        """
+        try:
+            response = await selection.provider.generate(
+                system_prompt,
+                messages,
+                max_tokens,
+            )
+            return selection, response
+        except Exception:
+            if selection.name == "kernel":
+                raise
+            fallback = ProviderSelection(
+                "kernel",
+                KernelProvider(),
+            )
+            response = await fallback.provider.generate(
+                system_prompt,
+                messages,
+                max_tokens,
+            )
+            return fallback, response
+
     @staticmethod
     def _instantiate(name: str):
         if name in {"kernel", "local"}:
