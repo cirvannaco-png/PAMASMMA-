@@ -66,7 +66,7 @@ async def verify_totp_for_user(user_id: str, code: str) -> bool:
     """Verify the server-stored TOTP secret and activate the factor."""
     if not settings.is_persistent:
         memory_user = memory_store.users.get(user_id)
-        if not memory_user or not user.get("is_active") or not user.get("totp_secret_enc"):
+        if not memory_user or not memory_user.get("is_active") or not memory_user.get("totp_secret_enc"):
             return False
         try:
             secret = decrypt_secret(memory_user["totp_secret_enc"])
@@ -75,8 +75,8 @@ async def verify_totp_for_user(user_id: str, code: str) -> bool:
             return False
         if not await verify_totp(user_id, secret, code):
             return False
-        user["totp_enabled"] = True
-        user["last_login_at"] = datetime.now(UTC).isoformat()
+        memory_user["totp_enabled"] = True
+        memory_user["last_login_at"] = datetime.now(UTC).isoformat()
         return True
 
     assert AsyncSessionLocal is not None
@@ -112,8 +112,8 @@ async def verify_totp_for_user(user_id: str, code: str) -> bool:
 async def mark_webauthn_registered(user_id: str) -> None:
     """Synchronize the persisted WebAuthn enrollment flag."""
     if not settings.is_persistent:
-        user = memory_store.users.get(user_id)
-        if user is not None:
+        memory_user = memory_store.users.get(user_id)
+        if memory_user is not None:
             memory_user["webauthn_registered"] = True
         return
 
