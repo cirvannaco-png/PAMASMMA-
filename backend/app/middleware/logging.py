@@ -19,7 +19,7 @@ log = structlog.get_logger(__name__)
 class LoggingMiddleware(BaseHTTPMiddleware):
     """
     Structured request logging. Attaches X-Request-ID to every response.
-    Uses structlog for JSON-compatible output — pairs with Railway log drain.
+    Uses structlog for JSON-compatible output — compatible with structured log sinks.
     """
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
