@@ -104,7 +104,7 @@ async def verify_totp_for_user(user_id: str, code: str) -> bool:
             return False
 
         user.totp_enabled = True
-        user.last_login_at = datetime.now(timezone.utc)
+        user.last_login_at = datetime.now(UTC)
         await session.commit()
         return True
 
