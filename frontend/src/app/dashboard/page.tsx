@@ -34,7 +34,9 @@ export default function DashboardPage() {
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState<ConsoleTab>("chat");
-  const [cognition, setCognition] = useState<CognitiveMetadataEvent | null>(null);
+  const [cognitionBySystem, setCognitionBySystem] = useState<
+    Partial<Record<SystemId, CognitiveMetadataEvent>>
+  >({});
 
   const activeSystem = SYSTEMS.find((system) => system.id === activeSystemId)!;
   const thread: Message[] = threads[activeSystemId] ?? [];
@@ -44,10 +46,6 @@ export default function DashboardPage() {
       router.replace("/auth");
     }
   }, [isAuthenticated, isRestoring, router]);
-
-  useEffect(() => {
-    setCognition(null);
-  }, [activeSystemId]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -118,7 +116,10 @@ export default function DashboardPage() {
           chunk !== null &&
           (chunk as { type?: unknown }).type === "cognition"
         ) {
-          setCognition(chunk as CognitiveMetadataEvent);
+          setCognitionBySystem((previous) => ({
+            ...previous,
+            [activeSystemId]: chunk as CognitiveMetadataEvent,
+          }));
           return;
         }
 
@@ -210,7 +211,7 @@ export default function DashboardPage() {
             systemId={activeSystemId as SystemId}
             messages={thread}
             loading={loading}
-            cognition={cognition}
+            cognition={cognitionBySystem[activeSystemId] ?? null}
             onSend={(content) => {
               void handleSend(content);
             }}
