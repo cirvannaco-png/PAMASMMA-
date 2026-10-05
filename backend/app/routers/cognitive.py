@@ -98,17 +98,54 @@ async def invoke_system(
 
     if body.stream:
         async def event_stream():
-            generator = await system.invoke(
+            from app.intelligence.engine import CognitiveEngine
+
+            start = time.perf_counter()
+            result = await CognitiveEngine().run(
+                system,
                 messages,
                 user_id,
-                stream=True,
             )
-            async for chunk in generator:
-                yield (
-                    "data: "
-                    + json.dumps(chunk)
-                    + "\n\n"
+            await system._post_invoke(
+                user_id=user_id,
+                query=next(
+                    (
+                        message["content"]
+                        for message in reversed(messages)
+                        if message["role"] == "user"
+                    ),
+                    "",
+                ),
+                response=result.response,
+                latency_ms=(
+                    time.perf_counter() - start
+                ) * 1000,
+                trace=result.trace.model_dump(
+                    mode="json"
+                ),
+            )
+            yield (
+                "data: "
+                + json.dumps(result.response)
+                + "\n\n"
+            )
+            # Backwards-compatible metadata frame. Existing clients that only
+            # expect string payloads safely ignore this object.
+            yield (
+                "data: "
+                + json.dumps(
+                    {
+                        "type": "cognition",
+                        "cognition": result.trace.model_dump(
+                            mode="json"
+                        ),
+                        "decision": result.decision.model_dump(
+                            mode="json"
+                        ),
+                    }
                 )
+                + "\n\n"
+            )
             yield "data: [DONE]\n\n"
 
         return StreamingResponse(
