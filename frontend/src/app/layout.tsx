@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import { Toaster } from "react-hot-toast";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], display: "swap" });
+const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], display: "swap" });
 
 export const metadata: Metadata = {
   title: "PAMASMMA — Governed Synthetic Executive Intelligence",
@@ -18,12 +19,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={inter.className}>
+    <html lang="en" className={`${inter.className} ${jetbrainsMono.className}`}>
       <head>
-        <link
-          href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap"
-          rel="stylesheet"
-        />
       </head>
       <body className="h-screen overflow-hidden bg-[#04040D]">
         {children}
