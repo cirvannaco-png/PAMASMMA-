@@ -90,6 +90,13 @@ def _utc_now() -> datetime:
     return datetime.now(UTC)
 
 
+def _jwt_secret() -> str:
+    secret = settings.secret_key
+    if not secret:
+        raise RuntimeError("JWT signing secret is not configured.")
+    return secret
+
+
 def issue_access_token(user_id: str, session_id: str) -> str:
     now = _utc_now()
     payload = {
@@ -100,7 +107,7 @@ def issue_access_token(user_id: str, session_id: str) -> str:
         "type": "access",
         "jti": secrets.token_hex(16),
     }
-    return pyjwt.encode(payload, settings.secret_key, algorithm=settings.jwt_algorithm)
+    return pyjwt.encode(payload, _jwt_secret(), algorithm=settings.jwt_algorithm)
 
 
 def issue_refresh_token(user_id: str, session_id: str) -> str:
@@ -113,7 +120,7 @@ def issue_refresh_token(user_id: str, session_id: str) -> str:
         "type": "refresh",
         "jti": secrets.token_hex(16),
     }
-    return pyjwt.encode(payload, settings.secret_key, algorithm=settings.jwt_algorithm)
+    return pyjwt.encode(payload, _jwt_secret(), algorithm=settings.jwt_algorithm)
 
 
 def decode_token(token: str) -> dict:
@@ -121,7 +128,7 @@ def decode_token(token: str) -> dict:
         dict[str, Any],
         pyjwt.decode(
             token,
-            settings.secret_key,
+            _jwt_secret(),
             algorithms=[settings.jwt_algorithm],
         ),
     )
