@@ -31,7 +31,7 @@ export function TopBar({ activeSystemId, activeTab, onTabChange, onToggleSidebar
         gap: 12,
       }}
     >
-      <div className="pamasmma-header" style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
         <button
           type="button"
           aria-label="Toggle navigation"
@@ -47,7 +47,7 @@ export function TopBar({ activeSystemId, activeTab, onTabChange, onToggleSidebar
         </div>
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 14, flexShrink: 0 }}>
+      <div className="pamasmma-header-actions" style={{ display: "flex", alignItems: "center", gap: 14, flexShrink: 0 }}>
         <div className="pamasmma-header-tabs" style={{ display: "flex", alignItems: "center", gap: 18 }}>
           {(["chat", "log", "override"] as const).map((tab) => (
             <button
