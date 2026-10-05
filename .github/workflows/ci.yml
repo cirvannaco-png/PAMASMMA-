@@ -1,6 +1,8 @@
 name: PAMASMMA CI
 
 on:
+  push:
+    branches: [main, develop, fix/production-hardening]
   pull_request:
     branches: [main]
 
