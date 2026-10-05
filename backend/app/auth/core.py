@@ -5,7 +5,7 @@ TOTP + WebAuthn/FIDO2 + JWT session issuance.
 import base64
 import logging
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import jwt as pyjwt
 import pyotp
@@ -24,6 +24,7 @@ from webauthn.helpers.structs import (
     UserVerificationRequirement,
 )
 
+from app.config import get_settings
 from app.redis_client import (
     delete_session,
     get_webauthn_credential,
@@ -33,7 +34,6 @@ from app.redis_client import (
     store_webauthn_challenge,
     store_webauthn_credential,
 )
-from app.config import get_settings
 
 log = logging.getLogger(__name__)
 settings = get_settings()
@@ -85,7 +85,7 @@ async def verify_totp(user_id: str, secret: str, code: str) -> bool:
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def issue_access_token(user_id: str, session_id: str) -> str:
