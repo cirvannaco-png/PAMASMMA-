@@ -276,7 +276,7 @@ export default function AuthPage() {
               </div>
             )}
 
-            {!status.totp_enabled && !status.webauthn_registered && (
+            {!status.totp_enabled && !status.webauthn_registered && !secret && (
               <div className="mt-5 rounded-2xl border border-[#D4AF3730] bg-[#D4AF3708] p-4 text-xs leading-6 text-[#8F835B]">
                 Enrollment is incomplete. Refresh this page after finishing authenticator setup.
               </div>
