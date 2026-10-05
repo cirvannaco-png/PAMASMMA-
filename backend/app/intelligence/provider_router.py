@@ -21,20 +21,20 @@ class ProviderRouter:
         settings = get_settings()
         configured = settings.model_provider.lower()
 
-        # Sensitive data never leaves the process unless an explicit local provider
-        # is selected. Kernel is always the safe final fallback.
-        if sensitivity == Sensitivity.SENSITIVE and configured == "hybrid":
+        # Sensitive requests stay in-process unless an explicitly local provider is chosen.
+        if sensitivity == Sensitivity.SENSITIVE and configured not in {"kernel", "local", "ollama"}:
             return ProviderSelection("kernel", KernelProvider())
 
-        candidates: list[str]
         if configured == "hybrid":
             candidates = (
                 ["anthropic", "openai-compatible", "kernel"]
                 if complexity in {TaskComplexity.COMPLEX, TaskComplexity.STRATEGIC}
                 else ["openai-compatible", "kernel"]
             )
+        elif configured in {"local", "kernel"}:
+            candidates = ["kernel"]
         else:
-            candidates = [configured, "kernel"] if configured != "kernel" else ["kernel"]
+            candidates = [configured, "kernel"]
 
         for candidate in candidates:
             try:
