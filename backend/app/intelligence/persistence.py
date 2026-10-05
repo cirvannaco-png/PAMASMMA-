@@ -236,7 +236,7 @@ async def upsert_belief(user_id: str, belief: dict[str, Any]) -> str:
         }
         memory_store.beliefs.append(record)
         del memory_store.beliefs[:-1000]
-        return record["id"]
+        return str(record["id"])
 
     assert AsyncSessionLocal is not None
     async with AsyncSessionLocal() as session:
