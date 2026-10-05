@@ -105,24 +105,24 @@ cd backend
 pytest tests/ -v --cov=app
 ```
 
-## Deployment (Railway)
+## Deployment (Render)
 
-```bash
-# Install Railway CLI
-npm install -g @railway/cli
-railway login
+The repository contains `render.yaml` for the no-key intelligence deployment.
 
-# Link to your project
-railway link
+Render services:
+- `pamasmma-api` — FastAPI backend
+- `pamasmma-web` — Next.js frontend
 
-# Run migrations
-railway run alembic -c backend/alembic.ini upgrade head
+The default deployment uses:
+- `MODEL_PROVIDER=kernel`
+- `EMBEDDING_PROVIDER=local`
+- `PERSISTENCE_MODE=memory`
 
-# Deploy
-railway up
-```
+This mode removes the Anthropic/OpenAI key requirement and is suitable for
+demonstrations and functional validation. It is intentionally ephemeral.
 
-Or push to `main` — GitHub Actions handles the rest automatically.
+For durable production, provision PostgreSQL + persistent Redis-compatible
+storage and switch to `PERSISTENCE_MODE=postgres`.
 
 ## Environment Variables
 
@@ -130,11 +130,15 @@ See `.env.example` for all required variables.
 
 | Variable | Required | Description |
 |---|---|---|
-| `SECRET_KEY` | ✅ | 64-char hex — generate with `python -c "import secrets; print(secrets.token_hex(64))"` |
-| `DATABASE_URL` | ✅ | `postgresql+asyncpg://...` — Supabase connection string |
-| `REDIS_URL` | ✅ | `rediss://...` — Upstash Redis URL |
-| `ANTHROPIC_API_KEY` | ✅ | Anthropic API key for all 10 cognitive systems |
-| `OPENAI_API_KEY` | ✅ | OpenAI API key for `text-embedding-3-small` pgvector embeddings |
+| `SECRET_KEY` | ✅ | Application signing key; minimum 32 characters |
+| `PAMASMMA_BOOTSTRAP_TOKEN` | ✅ | First-time founder enrollment token |
+| `PERSISTENCE_MODE` | ✅ | `postgres` for durable mode or `memory` for ephemeral mode |
+| `DATABASE_URL` | durable only | PostgreSQL/pgvector connection string |
+| `REDIS_URL` | durable only | Redis-compatible connection string |
+| `MODEL_PROVIDER` | ✅ | `kernel`, `anthropic`, `openai-compatible`, or `hybrid` |
+| `EMBEDDING_PROVIDER` | ✅ | `local` by default; `openai` is optional |
+| `ANTHROPIC_API_KEY` | optional | Required only when `MODEL_PROVIDER=anthropic` |
+| `OPENAI_API_KEY` | optional | Required only when `EMBEDDING_PROVIDER=openai` |
 | `WEBAUTHN_RP_ID` | ✅ | Relying party domain (e.g. `pamasmma.app`) |
 | `WEBAUTHN_ORIGIN` | ✅ | Full origin URL (e.g. `https://pamasmma.app`) |
 | `ALLOWED_ORIGINS` | ✅ | JSON list of allowed CORS origins |
@@ -148,7 +152,7 @@ See `.env.example` for all required variables.
 
 ## Changelog
 
-### v4.0.0 (current)
+### v4.1.0 (current)
 - Initial release: 10 cognitive systems (S1–S10)
 - TOTP + WebAuthn/FIDO2 dual-factor auth
 - pgvector semantic memory with 90-day freshness policy
@@ -170,16 +174,7 @@ See `.env.example` for all required variables.
 Cirvanna · Nakuru, Kenya · 2025
 
 
-## v4.0.1 production hardening
+## v4.1 production hardening
 
-Authentication is now server-bound: TOTP verification uses an encrypted
-server-stored secret, refresh tokens are checked against live Redis sessions,
-and WebAuthn registration requires an authenticated session. A
-`PAMASMMA_BOOTSTRAP_TOKEN` is required for first-time founder enrollment.
-
-Database schema changes are owned by Alembic; application startup no longer
-runs `create_all` or mutates production schema. Run
-`cd backend && alembic upgrade head` during deployment.
-
-See [docs/MIGRATION_V4.0.1.md](docs/MIGRATION_V4.0.1.md) for the complete
-migration and rollback considerations.
+See [docs/MIGRATION_V4.1.md](docs/MIGRATION_V4.1.md) for migration, persistence,
+intelligence-provider and Render deployment guidance.
