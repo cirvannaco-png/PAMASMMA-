@@ -22,6 +22,7 @@ from app.auth.core import (
 from app.auth.dependencies import get_current_user
 from app.auth.service import (
     TotpAlreadyConfiguredError,
+    get_auth_status,
     mark_webauthn_registered,
     setup_totp,
     verify_totp_for_user,
@@ -93,6 +94,17 @@ def _enforce_founder_identity(user_id: str, username: str | None = None) -> None
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Identity not found.")
     if username is not None and username != settings.founder_username:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Identity not found.")
+
+
+@router.get("/status")
+async def authentication_status(
+    user_id: str,
+    request: Request,
+) -> dict:
+    """Expose non-sensitive authentication capabilities for the founder login UI."""
+    await _enforce_rate_limit(request, "auth_status", settings.rate_limit_auth_per_minute)
+    _enforce_founder_identity(user_id)
+    return await get_auth_status(user_id)
 
 
 @router.post("/totp/setup")

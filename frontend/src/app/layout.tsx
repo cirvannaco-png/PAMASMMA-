@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   title: "PAMASMMA — Governed Synthetic Executive Intelligence",
   description:
     "Principal cognitive infrastructure for Kelson Mwangi · Cirvanna · Nakuru, Kenya",
-  robots: "noindex, nofollow", // private system
+  robots: { index: true, follow: true },
 };
 
 export default function RootLayout({
