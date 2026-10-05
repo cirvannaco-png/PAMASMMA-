@@ -1,5 +1,6 @@
 """Optional OpenAI-compatible adapter for Ollama/local or hosted endpoints."""
 from collections.abc import AsyncGenerator
+from typing import Any, AsyncIterator, cast
 
 from openai import AsyncOpenAI
 
@@ -37,7 +38,7 @@ class OpenAICompatibleProvider:
             messages=[{"role": "system", "content": system_prompt}, *messages],
             stream=True,
         )
-        async for event in stream:
+        async for event in cast(AsyncIterator[Any], stream):
             chunk = event.choices[0].delta.content if event.choices else None
             if chunk:
                 yield chunk
