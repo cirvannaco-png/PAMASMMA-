@@ -1,4 +1,4 @@
-# PAMASMMA v4.1
+# PAMASMMA v4.2
 
 **Governed Synthetic Executive Intelligence**  
 Provider-neutral cognitive infrastructure for the PAMASMMA assistant platform.
@@ -14,26 +14,26 @@ Nakima is a separate repository and must not be embedded into PAMASMMA.
 ```
 USER
   ↓
-PAMASMMA ORCHESTRATOR
+PAMASMMA COGNITIVE ENGINE
   ↓
-INTENT + CONTEXT
+OBSERVE → INTERPRET → CONTEXTUALIZE
   ↓
-MEMORY
+MEMORY + BELIEFS + WORLD MODEL
   ↓
-REASONING / PLANNING
+HYPOTHESES → PLAN → SPECIALIST ROUTING
   ↓
 PROVIDER ROUTER
   ├── Intelligence Kernel (no model key)
   ├── Local / OpenAI-compatible model
   └── Optional Anthropic model
   ↓
-TOOLS / KNOWLEDGE
+CRITIC → EVIDENCE GATE → METACOGNITIVE GOVERNOR
   ↓
-RESPONSE VALIDATION
+CONFIDENCE → DECISION RECORD
   ↓
-RESPONSE
+RESPONSE + ACTION HANDOFF
   ↓
-ACTION LOG + MEMORY
+OUTCOME → LEARNING → PROCEDURAL MEMORY
 ```
 
 ### Provider boundary
@@ -221,10 +221,16 @@ Core settings include:
 
 ## Release status
 
-v4.1 hardening includes:
-- provider-neutral intelligence architecture
+v4.2 cognitive architecture includes:
+- provider-neutral cognitive engine
 - deterministic no-key intelligence kernel
-- local semantic embeddings
+- six-class memory fabric with weighted retrieval
+- belief/contradiction governance
+- hypothesis, planning and specialist-routing stages
+- evidence gate, verification and metacognitive governance
+- explicit confidence and structured decision records
+- outcome learning with procedural lessons
+- durable world model and relationship graph
 - explicit durable and ephemeral runtime modes
 - TOTP/WebAuthn/JWT authentication hardening
 - user-isolated SSE events
