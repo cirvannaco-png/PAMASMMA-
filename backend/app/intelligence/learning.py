@@ -58,6 +58,9 @@ class OutcomeLearningEngine:
             "failure_domain": outcome.failure_domain.value,
             "success_score": outcome.success_score,
             "decision_id": outcome.decision_id,
+            "calibration_delta": outcome.metadata.get(
+                "calibration_delta"
+            ),
         }
 
         await store_memory(
