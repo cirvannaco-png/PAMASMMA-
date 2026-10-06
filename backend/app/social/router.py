@@ -11,7 +11,7 @@ from app.config import get_settings
 from app.redis_client import cache_pop, cache_set
 from app.social.contracts import Capability, CampaignPlan, Platform, PublishCommand, ReplyCommand, SocialProviderError
 from app.social.providers.adapters import get_provider, PROVIDERS
-from app.social.store import approve_campaign, create_account, delete_account, get_analytics, list_accounts, list_engagement, plan_campaign, process_due_posts, publish_now, queue_post, reply_to_engagement, sync_engagement
+from app.social.store import approve_campaign, create_account, delete_account, get_analytics, list_accounts, list_engagement, plan_campaign, process_due_posts, publish_batch, publish_now, queue_post, reply_to_engagement, sync_engagement
 
 router=APIRouter(prefix="/social",tags=["Social Growth"])
 CurrentUser=Annotated[dict,Depends(get_current_user)]
@@ -80,7 +80,7 @@ async def publish(body: ScheduledPublishRequest,current_user: CurrentUser)->dict
     except (SocialProviderError,ValueError) as exc:
         raise HTTPException(getattr(exc,"status_code",422),str(exc)) from exc
 
-@router.get("/analytics/{account_id}")\nasync def analytics(account_id: str, current_user: CurrentUser, start: str|None=None, end: str|None=None) -> dict:\n    try: return await get_analytics(current_user["user_id"], account_id, start, end)\n    except (SocialProviderError, ValueError) as exc: raise HTTPException(getattr(exc,"status_code",422), str(exc)) from exc\n\n@router.post("/engagement/sync/{account_id}")
+@router.get("/analytics/{account_id}")\nasync def analytics(account_id: str, current_user: CurrentUser, start: str|None=None, end: str|None=None) -> dict:\n    try: return await get_analytics(current_user["user_id"], account_id, start, end)\n    except (SocialProviderError, ValueError) as exc: raise HTTPException(getattr(exc,"status_code",422), str(exc)) from exc\n\n@router.post("/publish/batch")\nasync def publish_multiple(body: BatchPublishRequest, current_user: CurrentUser) -> dict:\n    return await publish_batch(current_user["user_id"], body.commands)\n\n@router.post("/engagement/sync/{account_id}")
 async def engagement_sync(account_id: str,current_user: CurrentUser)->dict:
     try:return await sync_engagement(current_user["user_id"],account_id)
     except (SocialProviderError,ValueError) as exc:raise HTTPException(getattr(exc,"status_code",422),str(exc)) from exc
