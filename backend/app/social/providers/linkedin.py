@@ -4,6 +4,8 @@ from typing import Any
 from app.social.contracts import Capability, Platform, PublishCommand, ReplyCommand
 from app.social.providers.common import _env, provider_error
 from app.social.providers.oauth import OAuthRestProvider
+
+
 class LinkedInProvider(OAuthRestProvider):
     """LinkedIn posts and comment actions adapter."""
 
