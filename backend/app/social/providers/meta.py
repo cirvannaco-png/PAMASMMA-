@@ -1,4 +1,5 @@
 """Meta and Instagram platform adapters."""
+import asyncio
 from typing import Any
 
 from app.social.contracts import Capability, Platform, PublishCommand, ReplyCommand
@@ -250,10 +251,49 @@ class InstagramProvider(MetaProvider):
             data=container,
             headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
+        creation_id = created.get("id")
+        if not creation_id:
+            raise _provider_error(
+                self.platform,
+                "container_creation_failed",
+                "Instagram did not return a media container id.",
+                502,
+            )
+
+        # Video/Reel containers are processed asynchronously by Meta.
+        if (command.media_type or "").startswith("video"):
+            status = ""
+            for _ in range(20):
+                state = await self.request(
+                    "GET",
+                    f"{self._base()}/{creation_id}",
+                    token=token,
+                    params={"fields": "status_code,status"},
+                )
+                status = str(state.get("status_code") or "").upper()
+                if status == "FINISHED":
+                    break
+                if status in {"ERROR", "EXPIRED"}:
+                    raise _provider_error(
+                        self.platform,
+                        "container_processing_failed",
+                        state.get("status")
+                        or f"Instagram container entered terminal state {status}.",
+                        422,
+                    )
+                await asyncio.sleep(15)
+            else:
+                raise _provider_error(
+                    self.platform,
+                    "container_processing_timeout",
+                    "Instagram video processing did not finish within 5 minutes.",
+                    504,
+                )
+
         return await self.request(
             "POST",
             f"{self._base()}/{external_account_id}/media_publish",
             token=token,
-            data={"creation_id": created.get("id", "")},
+            data={"creation_id": creation_id},
             headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
