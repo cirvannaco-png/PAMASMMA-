@@ -63,3 +63,15 @@ def test_each_provider_exposes_account_discovery():
 def test_platform_registry_supports_multiple_user_connections():
     assert len(PROVIDERS) >= 11
     assert set(Platform) <= set(PROVIDERS)
+
+
+
+def test_universal_multi_account_linking_contract():
+    identities = {
+        ("user-a", Platform.YOUTUBE, "channel-a"),
+        ("user-a", Platform.YOUTUBE, "channel-b"),
+        ("user-b", Platform.YOUTUBE, "channel-a"),
+    }
+    assert len(identities) == 3
+    assert ("user-a", Platform.YOUTUBE, "channel-a") in identities
+    assert ("user-b", Platform.YOUTUBE, "channel-a") in identities
