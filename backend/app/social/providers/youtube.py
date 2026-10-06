@@ -27,6 +27,11 @@ class YouTubeProvider(OAuthRestProvider):
     redirect_env = "SOCIAL_YOUTUBE_REDIRECT_URI"
     scope_env = "SOCIAL_YOUTUBE_SCOPES"
 
+    def authorization_url(self, state: str) -> str:
+        """Request a refreshable Google grant for long-lived account linking."""
+        url = super().authorization_url(state)
+        return f"{url}&access_type=offline&prompt=consent"
+
     async def discover_accounts(self, token: str) -> list[dict[str, Any]]:
         """Discover all YouTube channels available to the authorized user."""
         response = await self.request(
