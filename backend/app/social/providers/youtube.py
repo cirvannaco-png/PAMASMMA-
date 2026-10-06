@@ -1,5 +1,5 @@
 """YouTube platform adapter."""
-from typing import Any
+from typing import Any, cast
 
 import httpx
 
@@ -109,7 +109,7 @@ class YouTubeProvider(OAuthRestProvider):
                     upload.text[:1000],
                     upload.status_code,
                 )
-            return upload.json()
+            return cast(dict[str, Any], upload.json())
 
     async def reply(
         self,
