@@ -12,6 +12,8 @@ class LinkedInProvider(OAuthRestProvider):
             Capability.PUBLISH,
             Capability.COMMENTS_READ,
             Capability.COMMENTS_WRITE,
+            Capability.ADS_READ,
+            Capability.ADS_WRITE,
         }
     )
     auth_url = "https://www.linkedin.com/oauth/v2/authorization"
@@ -23,7 +25,7 @@ class LinkedInProvider(OAuthRestProvider):
 
     def _headers(self) -> dict[str, str]:
         return {
-            "Linkedin-Version": _env("SOCIAL_LINKEDIN_VERSION") or "202603",
+            "Linkedin-Version": _env("SOCIAL_LINKEDIN_VERSION"),
             "X-Restli-Protocol-Version": "2.0.0",
         }
 
@@ -62,6 +64,52 @@ class LinkedInProvider(OAuthRestProvider):
         return await self.request(
             "POST",
             f"https://api.linkedin.com/rest/socialActions/{command.item_id}/comments",
+            token=token,
+            json_body=body,
+            headers=self._headers(),
+        )
+
+    async def create_campaign(
+        self,
+        token: str,
+        account_id: str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        version = _env("SOCIAL_LINKEDIN_VERSION")
+        if not version:
+            raise provider_error(
+                self.platform,
+                "api_version_not_configured",
+                "SOCIAL_LINKEDIN_VERSION must be configured.",
+                503,
+            )
+        provider_options = dict(payload.get("provider_options") or {})
+        campaign_group = provider_options.pop("campaign_group", None)
+        if not campaign_group:
+            raise provider_error(
+                self.platform,
+                "campaign_group_required",
+                "LinkedIn campaigns require provider_options.campaign_group.",
+                422,
+            )
+        budget = payload.get("daily_budget") or payload.get("lifetime_budget")
+        body = {
+            "account": f"urn:li:sponsoredAccount:{account_id}",
+            "name": payload["name"],
+            "campaignGroup": campaign_group,
+            "type": provider_options.pop("type", "SPONSORED_UPDATES"),
+            "costType": provider_options.pop("costType", "CPC"),
+            "status": "PAUSED",
+        }
+        if budget is not None:
+            body["dailyBudget"] = {
+                "amount": str(budget),
+                "currencyCode": payload.get("currency", "USD"),
+            }
+        body.update(provider_options)
+        return await self.request(
+            "POST",
+            f"https://api.linkedin.com/rest/adAccounts/{account_id}/adCampaigns",
             token=token,
             json_body=body,
             headers=self._headers(),
