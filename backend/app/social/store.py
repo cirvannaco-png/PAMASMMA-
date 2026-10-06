@@ -2,6 +2,7 @@
 import uuid
 from datetime import UTC, datetime
 from typing import Any
+
 from sqlalchemy import text
 
 from app.config import get_settings
