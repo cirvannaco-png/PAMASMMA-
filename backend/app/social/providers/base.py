@@ -25,8 +25,23 @@ class SocialProvider:
     def authorization_url(self, state: str) -> str:
         raise NotImplementedError
 
-    async def exchange_code(self, code: str) -> dict[str, Any]:
+    async def exchange_code(
+        self,
+        code: str,
+        state: str | None = None,
+    ) -> dict[str, Any]:
+        del state
         raise NotImplementedError
+
+    async def discover_accounts(self, token: str) -> list[dict[str, Any]]:
+        """Return accounts the authorized user can connect on this platform."""
+        del token
+        raise SocialProviderError(
+            self.platform,
+            "account_discovery_not_supported",
+            "This provider cannot discover connectable accounts automatically.",
+            422,
+        )
 
     async def refresh_token(self, refresh_token: str) -> dict[str, Any]:
         raise SocialProviderError(
