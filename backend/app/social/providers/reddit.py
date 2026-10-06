@@ -54,6 +54,19 @@ class RedditProvider(OAuthRestProvider):
             },
         )
 
+    async def discover_accounts(self, token: str) -> list[dict[str, Any]]:
+        """Discover the Reddit identity that authorized PAMASMMA."""
+        response = await self.request(
+            "GET",
+            "https://oauth.reddit.com/api/v1/me",
+            token=token,
+            headers={"User-Agent": "PAMASMMA/1.0"},
+        )
+        external_id = response.get("id")
+        if not external_id:
+            return []
+        return [{"external_account_id": str(external_id), "display_name": response.get("name")}]
+
     async def publish(
         self,
         token: str,
