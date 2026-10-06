@@ -590,6 +590,33 @@ async def sync_engagement(
             }
         )
 
+    if created:
+        from app.embeddings.service import store_memory
+
+        summary_parts = []
+        for item in created[:25]:
+            summary_parts.append(
+                f"- {item['intent']}/{item['sentiment']}/{item['priority']}: "
+                f"{item['text'] or ''}"
+            )
+
+        await store_memory(
+            user_id=user_id,
+            system_id="S2",
+            content=(
+                f"Social engagement sync for {account['platform']} "
+                f"({account['external_account_id']})\n"
+                + "\n".join(summary_parts)[:8000]
+            ),
+            metadata={
+                "memory_type": "social_outcome",
+                "importance": 0.7,
+                "reliability": 0.8,
+                "platform": account["platform"],
+                "engagement_count": len(created),
+            },
+        )
+
     return {"count": len(created), "items": created}
 
 
