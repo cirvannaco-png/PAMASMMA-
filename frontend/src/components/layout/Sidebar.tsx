@@ -3,6 +3,7 @@
  */
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useCognitiveStore } from "@/lib/store";
 import { SYSTEMS, PERSONALITY } from "@/lib/constants";
 import { SectionLabel, StatusDot } from "@/components/ui";
@@ -15,6 +16,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ onLogout, onSystemSelect }: SidebarProps) {
+  const router = useRouter();
   const { activeSystemId, threads, setActiveSystem } = useCognitiveStore();
 
   return (
@@ -55,7 +57,7 @@ export function Sidebar({ onLogout, onSystemSelect }: SidebarProps) {
       <div style={{ padding: "8px 14px", borderBottom: "1px solid #111128" }}>
         <button
           type="button"
-          onClick={() => { window.location.href = "/social"; }}
+          onClick={() => router.push("/social")}
           style={{
             width: "100%",
             padding: "9px 10px",
