@@ -71,7 +71,7 @@ class LinkedInProvider(OAuthRestProvider):
         body={"author":external_account_id,"commentary":command.text,"visibility":"PUBLIC","distribution":{"feedDistribution":"MAIN_FEED"},"lifecycleState":"PUBLISHED","isReshareDisabledByAuthor":False}
         return await self.request("POST","https://api.linkedin.com/rest/posts",token=token,json_body=body,headers=self._headers())
     async def reply(self, token, command):
-        body={"actor":"","object":command.item_id,"message":{"text":command.text}}
+        body={"actor":command.external_account_id or "", "object":command.item_id, "message":{"text":command.text}}
         return await self.request("POST",f"https://api.linkedin.com/rest/socialActions/{command.item_id}/comments",token=token,json_body=body,headers=self._headers())
     async def list_engagement(self, token, external_account_id, cursor=None):
         return await self.request("GET",f"https://api.linkedin.com/rest/socialActions/{external_account_id}/comments",token=token,headers=self._headers())
