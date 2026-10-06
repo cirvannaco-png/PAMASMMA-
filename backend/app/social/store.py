@@ -1,8 +1,7 @@
 """Application services for the PAMASMMA social growth subsystem."""
+import uuid
 from datetime import UTC, datetime
 from typing import Any
-import uuid
-
 from sqlalchemy import text
 
 from app.config import get_settings
