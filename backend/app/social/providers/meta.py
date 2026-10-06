@@ -55,6 +55,33 @@ class MetaProvider(OAuthRestProvider):
         self.token_url = f"{self._base()}/oauth/access_token"
         return await super().exchange_code(code, state)
 
+    async def discover_accounts(self, token: str) -> list[dict[str, Any]]:
+        """Discover Facebook Pages the authorized user can manage."""
+        response = await self.request(
+            "GET",
+            f"{self._base()}/me/accounts",
+            token=token,
+            params={"fields": "id,name,access_token", "limit": 100},
+        )
+        accounts = []
+        for item in response.get("data", []):
+            page_token = item.get("access_token")
+            page_id = item.get("id")
+            if page_id and page_token:
+                accounts.append(
+                    {
+                        "external_account_id": str(page_id),
+                        "display_name": item.get("name"),
+                        "token_data": {
+                            "access_token": page_token,
+                            "name": item.get("name"),
+                            "scope": _env(self.scope_env),
+                            "metadata": {"page_id": str(page_id)},
+                        },
+                    }
+                )
+        return accounts
+
     async def publish(
         self,
         token: str,
