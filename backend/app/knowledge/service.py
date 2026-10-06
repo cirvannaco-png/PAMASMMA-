@@ -81,7 +81,14 @@ async def _find_duplicate(
                 and item.get("training_mode") == mode
                 and item.get("status") in {"processing", "ready"}
             ):
-                return item
+                return {
+                    "id": str(item["id"]),
+                    "status": str(item["status"]),
+                    "filename": str(item["filename"]),
+                    "chunk_count": int(item.get("chunk_count") or 0),
+                    "content_hash": str(item.get("content_hash") or ""),
+                    "training_mode": str(item["training_mode"]),
+                }
         return None
 
     assert AsyncSessionLocal is not None
