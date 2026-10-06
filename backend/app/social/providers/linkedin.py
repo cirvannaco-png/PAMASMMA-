@@ -32,6 +32,22 @@ class LinkedInProvider(OAuthRestProvider):
             "X-Restli-Protocol-Version": "2.0.0",
         }
 
+    async def discover_accounts(self, token: str) -> list[dict[str, Any]]:
+        """Discover the LinkedIn member who authorized PAMASMMA."""
+        response = await self.request(
+            "GET",
+            "https://api.linkedin.com/v2/userinfo",
+            token=token,
+            headers=self._headers(),
+        )
+        subject = response.get("sub")
+        if not subject:
+            return []
+        return [{
+            "external_account_id": f"urn:li:person:{subject}",
+            "display_name": response.get("name") or response.get("localizedFirstName"),
+        }]
+
     async def publish(
         self,
         token: str,
