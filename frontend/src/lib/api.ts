@@ -348,3 +348,16 @@ export const health = {
       res.json(),
     ),
 };
+
+export const social = {
+  platforms: () => apiFetch<{platforms: {platform:string; capabilities:string[]}[]}>("/social/platforms"),
+  oauthStart: (platform:string, externalAccountId?:string) => apiFetch<{platform:string;authorization_url:string;state:string}>("/social/oauth/" + encodeURIComponent(platform) + "/start" + (externalAccountId ? "?external_account_id=" + encodeURIComponent(externalAccountId) : "")),
+  accounts: () => apiFetch<{accounts:any[];count:number}>("/social/accounts"),
+  disconnect: (accountId:string) => apiFetch<{status:string;account_id:string}>("/social/accounts/" + encodeURIComponent(accountId), {method:"DELETE"}),
+  publish: (body:{command:any;scheduled_at?:string}) => apiFetch<{status:string;post_id:string;platform_post_id?:string|null}>("/social/publish", {method:"POST",body:JSON.stringify(body)}),
+  engagement: () => apiFetch<{items:any[];count:number}>("/social/engagement"),
+  sync: (accountId:string) => apiFetch<{count:number;items:any[]}>("/social/engagement/sync/" + encodeURIComponent(accountId), {method:"POST"}),
+  reply: (body:{account_id:string;item_id:string;text:string}) => apiFetch<{status:string}>("/social/engagement/reply", {method:"POST",body:JSON.stringify(body)}),
+  planCampaign: (body:any) => apiFetch<{campaign_id:string;status:string;approval_required:boolean}>("/social/campaigns", {method:"POST",body:JSON.stringify(body)}),
+  approveCampaign: (campaignId:string) => apiFetch<{status:string;campaign_id:string;external_campaign_id?:string|null}>("/social/campaigns/" + encodeURIComponent(campaignId) + "/approve", {method:"POST"}),
+};
