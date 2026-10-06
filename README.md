@@ -240,9 +240,13 @@ The current migration chain is linear:
 003_cognitive_state
   ↓
 004_cognitive_audit
+  ↓
+005_knowledge_training
+  ↓
+006_knowledge_training_integrity
 ```
 
-The cognitive migrations add durable decision records, beliefs, outcomes, world-model entities/relationships, and cognitive audit state.
+The cognitive migrations add durable decision records, beliefs, outcomes, world-model entities/relationships, and cognitive audit state. The knowledge migrations add provenance-aware training sources/chunks and active-source deduplication/chunk-order integrity.
 
 ## Environment variables
 
