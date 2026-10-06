@@ -18,7 +18,7 @@ class HttpProvider:
         if headers:
             request_headers.update(headers)
         try:
-            async with httpx.AsyncClient(timeout=self.timeout, follow_redirects=True) as client:
+            async with httpx.AsyncClient(timeout=self.timeout, follow_redirects=False) as client:
                 response = await client.request(method, url, headers=request_headers, json=json_body, data=data, params=params)
         except httpx.HTTPError as exc:
             raise SocialProviderError(self.platform, "network_error", str(exc), 502) from exc
