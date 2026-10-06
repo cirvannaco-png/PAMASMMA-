@@ -372,7 +372,7 @@ async def publish_now(
         "status": "published",
         "post_id": str(post["id"]),
         "platform_post_id": post["platform_post_id"],
-        "provider_response": provider_result,
+        "provider_response": result,
     }
 
 
@@ -449,7 +449,7 @@ async def process_due_posts() -> int:
                         ),
                         {"post_id": post["id"]},
                     )
-                    row = db_result.mappings().first()
+                    row = result.mappings().first()
                 account = dict(row) if row else None
             else:
                 account = next(
