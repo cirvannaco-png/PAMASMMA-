@@ -3,6 +3,7 @@ Ephemeral runtime store used only when PERSISTENCE_MODE=memory.
 """
 from collections import defaultdict
 from typing import Any
+
 users: dict[str, dict[str, Any]] = {}
 sessions: dict[str, dict[str, Any]] = {}
 webauthn_challenges: dict[str, str] = {}
