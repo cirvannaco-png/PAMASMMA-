@@ -309,8 +309,7 @@ export const knowledge = {
         "/knowledge/" + encodeURIComponent(source_id),
         { method: "DELETE" },
       ),
-  },
-
+  }
 export const health = {
   check: () =>
     fetch(API_BASE.replace("/api/v1", "") + "/health").then((res) =>
