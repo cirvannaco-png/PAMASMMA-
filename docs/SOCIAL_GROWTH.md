@@ -58,7 +58,7 @@ OAuth state is single-use and stored in the existing Redis cache. Access and ref
 ## Operator workflow
 
 1. Configure only the platforms you intend to connect.
-2. Run alembic upgrade head to apply migration 007_social_growth.
+2. Run `alembic upgrade head` to apply the current social schema, including migrations 007 and 008.
 3. Open /social, connect an account, and verify capabilities.
 4. Test publishing on a sandbox/private target before public distribution.
 5. Synchronize engagement and verify classification/escalation behavior.
@@ -66,4 +66,4 @@ OAuth state is single-use and stored in the existing Redis cache. Access and ref
 
 ## External API notes
 
-Capabilities differ materially by platform. TikTok Direct Post has review/audit requirements for normal public visibility; YouTube comments can be read and replied to through the Data API; LinkedIn's current Posts API and social-actions API support publishing and comments; Pinterest exposes organic content, analytics and ads APIs with access-tier controls. PAMASMMA models capabilities explicitly rather than pretending every platform exposes the same operations.
+Capabilities differ materially by platform. TikTok Direct Post supports video and photo publishing but public visibility depends on client review/audit requirements; media URLs must be reachable from a verified domain or URL prefix. YouTube uploads from unverified API projects remain private until the project passes the required audit. LinkedIn Marketing APIs require the `rw_ads` scope for campaign management, plus any additional product-specific scopes and ad-account access. Pinterest OAuth token exchange uses HTTP Basic authentication, and ads access requires the corresponding ad scopes and access tier. PAMASMMA models capabilities explicitly rather than pretending every platform exposes the same operations.
