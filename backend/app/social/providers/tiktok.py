@@ -18,6 +18,20 @@ class TikTokProvider(OAuthRestProvider):
     redirect_env = "SOCIAL_TIKTOK_REDIRECT_URI"
     scope_env = "SOCIAL_TIKTOK_SCOPES"
 
+    async def discover_accounts(self, token: str) -> list[dict[str, Any]]:
+        """Discover the TikTok user who authorized PAMASMMA."""
+        response = await self.request(
+            "GET",
+            "https://open.tiktokapis.com/v2/user/info/",
+            token=token,
+            params={"fields": "open_id,union_id,display_name,avatar_url"},
+        )
+        user = (response.get("data") or {}).get("user") or response.get("data") or {}
+        external_id = user.get("open_id") or user.get("union_id")
+        if not external_id:
+            return []
+        return [{"external_account_id": str(external_id), "display_name": user.get("display_name")}]
+
     async def publish(
         self,
         token: str,
