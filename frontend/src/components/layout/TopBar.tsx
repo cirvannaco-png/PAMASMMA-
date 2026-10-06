@@ -10,7 +10,7 @@ import type { SystemId } from "@/types";
 interface TopBarProps {
   activeSystemId: SystemId;
   activeTab: "chat" | "knowledge" | "log" | "override";
-  onTabChange: (tab: "chat" | "log" | "override") => void;
+  onTabChange: (tab: "chat" | "knowledge" | "log" | "override") => void;
   onToggleSidebar: () => void;
 }
 

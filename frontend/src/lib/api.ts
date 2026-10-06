@@ -278,7 +278,7 @@ export const cognitive = {
     }),
 };
 
-  knowledge: {
+export const knowledge = {
     list: () =>
       apiFetch<{ sources: KnowledgeSource[]; count: number }>("/knowledge"),
 
