@@ -12,12 +12,13 @@ class TelegramProvider(SocialProvider, HttpProvider):
 
     def __init__(self) -> None:
         HttpProvider.__init__(self, self.platform)
+
     platform = Platform.TELEGRAM
     capabilities = frozenset({Capability.PUBLISH, Capability.COMMENTS_READ, Capability.COMMENTS_WRITE})
 
     def authorization_url(self, state: str) -> str:
         del state
-        raise provider_error(
+        raise _provider_error(
             self.platform,
             "oauth_not_applicable",
             "Telegram uses a bot token rather than user OAuth.",
@@ -57,6 +58,7 @@ class WhatsAppProvider(SocialProvider, HttpProvider):
 
     def __init__(self) -> None:
         HttpProvider.__init__(self, self.platform)
+
     platform = Platform.WHATSAPP
     capabilities = frozenset({Capability.PUBLISH, Capability.COMMENTS_WRITE})
 
