@@ -546,7 +546,6 @@ def classify_engagement(
             "cost",
             "buy",
             "order",
-            "available",
             "how much",
         )
     ):
