@@ -19,6 +19,11 @@ type PlatformInfo = {
   capabilities: string[];
 };
 
+type PendingAccount = {
+  external_account_id: string;
+  display_name?: string | null;
+};
+
 type Engagement = {
   id: string;
   account_id: string;
@@ -98,6 +103,12 @@ export function SocialCommandCenter() {
     adAccountId: "",
   });
   const [plannedCampaignId, setPlannedCampaignId] = useState("");
+  const [pendingConnection, setPendingConnection] = useState<{
+    id: string;
+    platform: string;
+    accounts: PendingAccount[];
+  } | null>(null);
+  const [pendingLoading, setPendingLoading] = useState(false);
 
   const refresh = async () => {
     const [platformData, accountData, engagementData] = await Promise.all([
@@ -122,6 +133,49 @@ export function SocialCommandCenter() {
       })),
     );
   };
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const connectedPlatform =
+      params.get("social_connected") === "1"
+        ? params.get("platform")
+        : null;
+    const errorMessage = params.get("social_error");
+    const pendingId = params.get("social_connect");
+
+    if (connectedPlatform) {
+      toast.success(
+        \`${PLATFORM_LABELS[connectedPlatform] ?? connectedPlatform} account connected\`,
+      );
+    }
+    if (errorMessage) {
+      toast.error(errorMessage);
+    }
+    if (pendingId) {
+      setPendingLoading(true);
+      void social
+        .oauthPending(pendingId)
+        .then((result) => {
+          setPendingConnection({
+            id: result.pending_id,
+            platform: result.platform,
+            accounts: result.accounts,
+          });
+        })
+        .catch((error) => {
+          toast.error(
+            error instanceof Error
+              ? error.message
+              : "Unable to load available accounts",
+          );
+        })
+        .finally(() => setPendingLoading(false));
+    }
+
+    if (connectedPlatform || errorMessage || pendingId) {
+      window.history.replaceState({}, document.title, "/social");
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -228,6 +282,31 @@ export function SocialCommandCenter() {
       );
     } finally {
       setLoading(false);
+    }
+  };
+
+  const completePendingConnection = async (externalAccountId: string) => {
+    if (!pendingConnection) return;
+
+    setPendingLoading(true);
+    try {
+      await social.oauthComplete(
+        pendingConnection.id,
+        externalAccountId,
+      );
+      toast.success(
+        \`${PLATFORM_LABELS[pendingConnection.platform] ?? pendingConnection.platform} account connected\`,
+      );
+      setPendingConnection(null);
+      await refresh();
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Account connection failed",
+      );
+    } finally {
+      setPendingLoading(false);
     }
   };
 
@@ -440,6 +519,106 @@ export function SocialCommandCenter() {
           </button>
         ))}
       </nav>
+
+      {pendingLoading && !pendingConnection && (
+        <div
+          style={{
+            maxWidth: 1180,
+            margin: "0 auto 12px",
+            padding: 12,
+            borderRadius: 10,
+            background: "#111020",
+            border: "1px solid #2B2750",
+            color: "#AFA7D8",
+            fontSize: 11,
+          }}
+        >
+          Loading the accounts available to this OAuth authorization…
+        </div>
+      )}
+
+      {pendingConnection && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 1000,
+            display: "grid",
+            placeItems: "center",
+            padding: 20,
+            background: "rgba(2,2,8,0.82)",
+          }}
+        >
+          <div
+            style={{
+              ...card,
+              width: "min(620px, 100%)",
+              maxHeight: "80vh",
+              overflowY: "auto",
+            }}
+          >
+            <div style={{ fontSize: 10, color: "#6B3FFB", letterSpacing: 2 }}>
+              SELECT ACCOUNT TO CONNECT
+            </div>
+            <h2 style={{ margin: "8px 0", fontSize: 20 }}>
+              {PLATFORM_LABELS[pendingConnection.platform] ??
+                pendingConnection.platform}
+            </h2>
+            <div style={{ color: "#727293", fontSize: 11, lineHeight: 1.6 }}>
+              This authorization exposes multiple accounts you are allowed to
+              manage. Choose exactly which account PAMASMMA should store as a
+              separate connection.
+            </div>
+
+            <div style={{ display: "grid", gap: 8, marginTop: 16 }}>
+              {pendingConnection.accounts.map((account) => (
+                <button
+                  key={account.external_account_id}
+                  type="button"
+                  disabled={pendingLoading}
+                  onClick={() =>
+                    void completePendingConnection(account.external_account_id)
+                  }
+                  style={{
+                    textAlign: "left",
+                    background: "#101022",
+                    color: "#E4E4F5",
+                    border: "1px solid #29264B",
+                    borderRadius: 10,
+                    padding: 12,
+                    cursor: pendingLoading ? "wait" : "pointer",
+                  }}
+                >
+                  <div style={{ fontWeight: 700 }}>
+                    {account.display_name ?? "Account"}
+                  </div>
+                  <div style={{ color: "#676786", fontSize: 10, marginTop: 4 }}>
+                    {account.external_account_id}
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              disabled={pendingLoading}
+              onClick={() => setPendingConnection(null)}
+              style={{
+                marginTop: 12,
+                background: "#12121F",
+                color: "#8D8DAA",
+                border: "1px solid #2B2B48",
+                borderRadius: 9,
+                padding: "10px 15px",
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       <section style={{ maxWidth: 1180, margin: "0 auto" }}>
         {tab === "accounts" && (
