@@ -109,7 +109,7 @@ class Settings(BaseSettings):
     social_meta_client_secret: str | None = None
     social_meta_redirect_uri: str | None = None
     social_meta_graph_version: str = "v23.0"
-    social_meta_scopes: str = "pages_manage_posts,pages_read_engagement,instagram_basic,instagram_content_publish,instagram_manage_comments"
+    social_meta_scopes: str = "pages_show_list,pages_manage_posts,pages_read_engagement,instagram_basic,instagram_content_publish,instagram_manage_comments"
     social_tiktok_client_key: str | None = None
     social_tiktok_client_secret: str | None = None
     social_tiktok_redirect_uri: str | None = None
@@ -134,7 +134,7 @@ class Settings(BaseSettings):
     social_pinterest_app_id: str | None = None
     social_pinterest_app_secret: str | None = None
     social_pinterest_redirect_uri: str | None = None
-    social_pinterest_scopes: str = "boards:read,boards:write,pins:read,pins:write"
+    social_pinterest_scopes: str = "user_accounts:read,boards:read,boards:write,pins:read,pins:write"
     social_reddit_client_id: str | None = None
     social_reddit_client_secret: str | None = None
     social_reddit_redirect_uri: str | None = None
