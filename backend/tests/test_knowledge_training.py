@@ -1,7 +1,11 @@
 from app.intelligence.contracts import MemoryType
-from app.knowledge.extractors import _subtitle_segments, _subtitle_text, supported_suffix
+from app.knowledge.extractors import (
+    ExtractedSegment,
+    _subtitle_segments,
+    _subtitle_text,
+    supported_suffix,
+)
 from app.knowledge.service import _chunk_segments, _memory_type_for_mode
-from app.knowledge.extractors import ExtractedSegment
 
 
 def test_supported_knowledge_formats():
