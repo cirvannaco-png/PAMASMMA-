@@ -1,10 +1,11 @@
 """Telegram and WhatsApp messaging adapters."""
-from typing import Any
-from app.social.contracts import Capability, Platform, PublishCommand, ReplyCommand
+from app.social.contracts import Capability, Platform, PublishCommand
 from app.social.providers.base import SocialProvider
 from app.social.providers.common import _env, provider_error
 from app.social.providers.http import HttpProvider
-class TelegramProvider(SocialProvider):
+class TelegramProvider(SocialProvider, HttpProvider):
+    def __init__(self) -> None:
+        HttpProvider.__init__(self, self.platform)
     """Telegram Bot API messaging adapter."""
 
     platform = Platform.TELEGRAM
@@ -47,7 +48,9 @@ class TelegramProvider(SocialProvider):
             },
         )
 
-class WhatsAppProvider(SocialProvider):
+class WhatsAppProvider(SocialProvider, HttpProvider):
+    def __init__(self) -> None:
+        HttpProvider.__init__(self, self.platform)
     """WhatsApp Cloud API text messaging adapter."""
 
     platform = Platform.WHATSAPP
