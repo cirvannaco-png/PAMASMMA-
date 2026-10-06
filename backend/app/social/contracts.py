@@ -46,6 +46,7 @@ class PublishCommand(BaseModel):
 class ReplyCommand(BaseModel):
     account_id: str
     item_id: str
+    external_account_id: str | None = None
     text: str = Field(..., min_length=1, max_length=5000)
 
 class CampaignPlan(BaseModel):
