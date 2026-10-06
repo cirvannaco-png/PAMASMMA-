@@ -489,7 +489,7 @@ class PinterestProvider(OAuthRestProvider):
     """Pinterest organic content adapter."""
 
     platform = Platform.PINTEREST
-    capabilities = frozenset({Capability.PUBLISH, Capability.ANALYTICS})
+    capabilities = frozenset({Capability.PUBLISH})
     auth_url = "https://www.pinterest.com/oauth/"
     token_url = "https://api.pinterest.com/v5/oauth/token"
     client_id_env = "SOCIAL_PINTEREST_APP_ID"
