@@ -183,6 +183,40 @@ class InstagramProvider(MetaProvider):
         }
     )
 
+    async def discover_accounts(self, token: str) -> list[dict[str, Any]]:
+        """Discover Instagram professional accounts linked to managed Pages."""
+        response = await self.request(
+            "GET",
+            f"{self._base()}/me/accounts",
+            token=token,
+            params={
+                "fields": "id,name,access_token,instagram_business_account",
+                "limit": 100,
+            },
+        )
+        accounts = []
+        for page in response.get("data", []):
+            instagram = page.get("instagram_business_account") or {}
+            instagram_id = instagram.get("id")
+            page_token = page.get("access_token")
+            if instagram_id and page_token:
+                accounts.append(
+                    {
+                        "external_account_id": str(instagram_id),
+                        "display_name": page.get("name"),
+                        "token_data": {
+                            "access_token": page_token,
+                            "name": page.get("name"),
+                            "scope": _env(self.scope_env),
+                            "metadata": {
+                                "page_id": str(page.get("id")),
+                                "instagram_account_id": str(instagram_id),
+                            },
+                        },
+                    }
+                )
+        return accounts
+
     async def publish(
         self,
         token: str,
