@@ -1,5 +1,5 @@
 """Small async HTTP primitive shared by all provider adapters."""
-from typing import Any
+from typing import Any, cast
 
 import httpx
 
@@ -31,6 +31,6 @@ class HttpProvider:
         if not response.content:
             return {}
         try:
-            return response.json()
+            return cast(dict[str, Any], response.json())
         except ValueError as exc:
             raise SocialProviderError(self.platform, "invalid_provider_response", "Provider returned a non-JSON response.", 502) from exc
