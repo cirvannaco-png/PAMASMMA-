@@ -2,10 +2,10 @@
 from typing import Any
 from urllib.parse import urlencode
 
-from app.social.contracts import SocialProviderError
 from app.social.providers.base import SocialProvider
-from app.social.providers.http import HttpProvider
 from app.social.providers.common import _env, provider_error
+from app.social.providers.http import HttpProvider
+
 
 class OAuthRestProvider(SocialProvider, HttpProvider):
     """Shared OAuth 2.0 transport for providers using conventional flows."""
@@ -24,7 +24,7 @@ class OAuthRestProvider(SocialProvider, HttpProvider):
         client_id = _env(self.client_id_env)
         redirect_uri = _env(self.redirect_env)
         if not client_id or not redirect_uri:
-            raise _provider_error(
+            raise provider_error(
                 self.platform,
                 "oauth_not_configured",
                 f"{self.platform.value} OAuth is not configured.",
@@ -41,7 +41,8 @@ class OAuthRestProvider(SocialProvider, HttpProvider):
         if scopes:
             params["scope"] = scopes
         query = urlencode(params)
-        return f"{self.auth_url}{'&' if '?' in self.auth_url else '?'}{query}"
+        separator = "&" if "?" in self.auth_url else "?"
+        return f"{self.auth_url}{separator}{query}"
 
     async def exchange_code(
         self,
@@ -53,7 +54,7 @@ class OAuthRestProvider(SocialProvider, HttpProvider):
         secret = _env(self.client_secret_env)
         redirect_uri = _env(self.redirect_env)
         if not all((client_id, secret, redirect_uri)):
-            raise _provider_error(
+            raise provider_error(
                 self.platform,
                 "oauth_not_configured",
                 f"{self.platform.value} OAuth is not configured.",
