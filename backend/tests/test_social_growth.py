@@ -51,3 +51,15 @@ def test_ad_capability_is_never_assumed():
     assert Capability.ADS_WRITE not in PROVIDERS[Platform.TIKTOK].capabilities
     assert Capability.ADS_WRITE not in PROVIDERS[Platform.YOUTUBE].capabilities
     assert Capability.ADS_WRITE not in PROVIDERS[Platform.X].capabilities
+
+
+
+def test_each_provider_exposes_account_discovery():
+    for platform, provider in PROVIDERS.items():
+        assert platform in Platform
+        assert callable(provider.discover_accounts)
+
+
+def test_platform_registry_supports_multiple_user_connections():
+    assert len(PROVIDERS) >= 11
+    assert set(Platform) <= set(PROVIDERS)
