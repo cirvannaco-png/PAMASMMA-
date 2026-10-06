@@ -29,6 +29,7 @@ from app.intelligence.persistence import (
 from app.intelligence.planner import ExecutivePlanner
 from app.intelligence.provider_router import ProviderRouter
 from app.intelligence.world_model import WorldModel
+from app.knowledge.service import retrieve_knowledge
 
 settings = get_settings()
 
@@ -281,8 +282,6 @@ class CognitiveEngine:
             system.system_id,
             settings.intelligence_memory_limit,
         )
-        from app.knowledge.service import retrieve_knowledge
-
         context.knowledge = await retrieve_knowledge(
             user_id=user_id,
             query=context.query,

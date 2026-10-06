@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import re
 import tempfile
 import uuid
@@ -11,9 +12,22 @@ from fastapi import UploadFile
 
 from app.config import get_settings
 from app.embeddings.service import embed_text
-from app.knowledge.contracts import KnowledgeItem, KnowledgeSource, KnowledgeSourceStatus, KnowledgeTrainingMode
+from app.knowledge.contracts import (
+    KnowledgeItem,
+    KnowledgeSource,
+    KnowledgeSourceStatus,
+    KnowledgeTrainingMode,
+)
 from app.knowledge.extractor import extract_content
-from app.knowledge.repository import create_source, delete_source, find_source_by_hash, insert_chunks, list_sources, search_knowledge, update_source
+from app.knowledge.repository import (
+    create_source,
+    delete_source,
+    find_source_by_hash,
+    insert_chunks,
+    list_sources,
+    search_knowledge,
+    update_source,
+)
 
 settings = get_settings()
 
@@ -87,7 +101,6 @@ async def ingest_upload(
 
     fd, temporary_name = tempfile.mkstemp(prefix="pamasmma-knowledge-", suffix=extension)
     temporary = Path(temporary_name)
-    import os
     os.close(fd)
     try:
         size_bytes, content_hash = await _write_upload(file, temporary)

@@ -18,6 +18,7 @@ from app.events.handlers import (
     handle_override_queue,
     handle_scheduler_event,
 )
+from app.knowledge.router import router as knowledge_router
 from app.middleware.logging import LoggingMiddleware
 from app.middleware.rate_limit import RateLimitMiddleware
 from app.redis_client import close_redis
@@ -25,7 +26,6 @@ from app.routers.cognitive import router as cognitive_router
 from app.routers.events import broadcast
 from app.routers.events import router as events_router
 from app.routers.health import router as health_router
-from app.knowledge.router import router as knowledge_router
 from app.scheduler.jobs import configure_scheduler, scheduler
 
 settings = get_settings()
