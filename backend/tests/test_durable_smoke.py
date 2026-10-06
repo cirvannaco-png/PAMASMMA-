@@ -57,16 +57,22 @@ async def test_durable_postgres_valkey_auth_and_kernel() -> None:
 
     async with engine.connect() as connection:
         assert await connection.scalar(text("SELECT 1")) == 1
-        assert await connection.scalar(text(
-            "SELECT version_num FROM alembic_version"
-        )) == "005"
-        assert await connection.scalar(text(
-            "SELECT extversion FROM pg_extension WHERE extname = 'vector'"
-        )) is not None
+        assert await connection.scalar(
+            text("SELECT version_num FROM alembic_version")
+        ) == "006"
+        assert await connection.scalar(
+            text("SELECT extversion FROM pg_extension WHERE extname = 'vector'")
+        ) is not None
         tables = {
-            row[0] for row in (await connection.execute(text(
-                "SELECT tablename FROM pg_tables WHERE schemaname = 'public'"
-            ))).all()
+            row[0]
+            for row in (
+                await connection.execute(
+                    text(
+                        "SELECT tablename FROM pg_tables "
+                        "WHERE schemaname = 'public'"
+                    )
+                )
+            ).all()
         }
 
     assert {
@@ -79,4 +85,6 @@ async def test_durable_postgres_valkey_auth_and_kernel() -> None:
         "pamasmma_outcomes",
         "pamasmma_world_entities",
         "pamasmma_world_relationships",
+        "pamasmma_knowledge_sources",
+        "pamasmma_knowledge_chunks",
     }.issubset(tables)
