@@ -3,7 +3,7 @@
  * In-memory access token + persisted refresh token with safe refresh rotation.
  */
 
-import { AuthTokens, ActionLogEntry, CognitiveSystem, Message } from "@/types";
+import { AuthTokens, ActionLogEntry, CognitiveSystem, Message, KnowledgeSource, KnowledgeTrainingMode } from "@/types";
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
@@ -81,6 +81,33 @@ async function apiFetch<T>(
       new Error(err.detail ?? "Request failed"),
       { status: res.status },
     );
+  }
+
+  return res.json() as Promise<T>;
+}
+
+async function multipartFetch<T>(path: string, form: FormData, retry = true): Promise<T> {
+  const headers: Record<string, string> = {};
+  if (_accessToken) headers.Authorization = "Bearer " + _accessToken;
+
+  const res = await fetch(API_BASE + path, {
+    method: "POST",
+    headers,
+    body: form,
+  });
+
+  if (res.status === 401 && retry && _refreshToken) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) return multipartFetch<T>(path, form, false);
+    clearTokens();
+    throw new Error("Session expired");
+  }
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Request failed" }));
+    throw Object.assign(new Error(err.detail ?? "Request failed"), {
+      status: res.status,
+    });
   }
 
   return res.json() as Promise<T>;
@@ -250,6 +277,39 @@ export const cognitive = {
       body: JSON.stringify({ system_id, directive, reason }),
     }),
 };
+
+  knowledge: {
+    list: () =>
+      apiFetch<{ sources: KnowledgeSource[]; count: number }>("/knowledge"),
+
+    upload: (input: {
+      file: File;
+      title?: string;
+      training_mode: KnowledgeTrainingMode;
+      scope_system_id?: string;
+      transcript?: string;
+    }) => {
+      const form = new FormData();
+      form.append("file", input.file);
+      if (input.title) form.append("title", input.title);
+      form.append("training_mode", input.training_mode);
+      if (input.scope_system_id) {
+        form.append("scope_system_id", input.scope_system_id);
+      }
+      if (input.transcript) form.append("transcript", input.transcript);
+
+      return multipartFetch<{ status: string; source: KnowledgeSource }>(
+        "/knowledge/upload",
+        form,
+      );
+    },
+
+    remove: (source_id: string) =>
+      apiFetch<{ status: string; source_id: string }>(
+        "/knowledge/" + encodeURIComponent(source_id),
+        { method: "DELETE" },
+      ),
+  },
 
 export const health = {
   check: () =>

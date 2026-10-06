@@ -6,6 +6,8 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
+from app.knowledge.contracts import KnowledgeItem
+
 
 class MemoryType(StrEnum):
     WORKING = "working"

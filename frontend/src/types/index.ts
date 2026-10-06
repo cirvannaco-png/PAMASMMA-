@@ -24,6 +24,35 @@ export interface Message {
   timestamp?: string;
 }
 
+export type KnowledgeTrainingMode =
+  | "reference"
+  | "behavioral"
+  | "domain_playbook";
+
+export type KnowledgeSourceStatus =
+  | "processing"
+  | "ready"
+  | "awaiting_transcription"
+  | "failed";
+
+export interface KnowledgeSource {
+  id: string;
+  title: string;
+  filename: string;
+  media_type: string;
+  training_mode: KnowledgeTrainingMode;
+  status: KnowledgeSourceStatus;
+  extraction_method: string;
+  size_bytes: number;
+  content_hash: string;
+  scope_system_id: SystemId | null;
+  language: string | null;
+  chunk_count: number;
+  error: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
 export interface PersonalityBaseline {
   assertiveness: number;
   verbosity: number;
@@ -50,6 +79,7 @@ export interface CognitiveTrace {
   complexity: string;
   sensitivity: string;
   memory_count: number;
+  knowledge_count: number;
   contradiction_count: number;
   routed_systems: SystemId[];
   provider: string;
