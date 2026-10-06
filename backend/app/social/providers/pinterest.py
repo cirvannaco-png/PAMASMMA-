@@ -18,6 +18,17 @@ class PinterestProvider(OAuthRestProvider):
     redirect_env = "SOCIAL_PINTEREST_REDIRECT_URI"
     scope_env = "SOCIAL_PINTEREST_SCOPES"
 
+    async def discover_accounts(self, token: str) -> list[dict[str, Any]]:
+        """Discover the Pinterest account represented by the OAuth token."""
+        response = await self.request(
+            "GET",
+            "https://api.pinterest.com/v5/user_account",
+            token=token,
+        )
+        if not response.get("id"):
+            return []
+        return [{"external_account_id": str(response["id"]), "display_name": response.get("business_name") or response.get("username")}]
+
     async def publish(
         self,
         token: str,
