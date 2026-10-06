@@ -2,9 +2,10 @@
 import base64
 import hashlib
 from typing import Any
+
 from app.social.contracts import Capability, Platform, PublishCommand, ReplyCommand
 from app.social.providers.oauth import OAuthRestProvider
-from app.social.providers.common import _env, provider_error
+from app.social.providers.common import _env
 class XProvider(OAuthRestProvider):
     """X API adapter using OAuth 2.0 with PKCE."""
 
