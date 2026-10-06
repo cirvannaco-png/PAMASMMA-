@@ -134,7 +134,7 @@ class Settings(BaseSettings):
     social_pinterest_app_id: str | None = None
     social_pinterest_app_secret: str | None = None
     social_pinterest_redirect_uri: str | None = None
-    social_pinterest_scopes: str = "user_accounts:read,boards:read,boards:write,pins:read,pins:write"
+    social_pinterest_scopes: str = "user_accounts:read,boards:read,boards:write,pins:read,pins:write,ads:read,ads:write"
     social_reddit_client_id: str | None = None
     social_reddit_client_secret: str | None = None
     social_reddit_redirect_uri: str | None = None
