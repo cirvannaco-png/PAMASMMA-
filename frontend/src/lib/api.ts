@@ -357,7 +357,15 @@ export const social = {
   disconnect: (accountId:string) => apiFetch<{status:string;account_id:string}>("/social/accounts/" + encodeURIComponent(accountId), {method:"DELETE"}),
   publish: (body:{command:any;scheduled_at?:string}) => apiFetch<{status:string;post_id:string;platform_post_id?:string|null}>("/social/publish", {method:"POST",body:JSON.stringify(body)}),
   engagement: () => apiFetch<{items:Array<Record<string,unknown>>;count:number}>("/social/engagement"),
-  analytics: (accountId:string,start?:string,end?:string) => apiFetch<Record<string,unknown>>("/social/analytics/" + encodeURIComponent(accountId) + new URLSearchParams({...(start?{start}:{}),...(end?{end}:{})}).toString().replace(/^\?/, "?")),
+  analytics: (accountId: string, start?: string, end?: string) => {
+    const params = new URLSearchParams();
+    if (start) params.set("start", start);
+    if (end) params.set("end", end);
+    const query = params.toString();
+    return apiFetch<Record<string, unknown>>(
+      `/social/analytics/${encodeURIComponent(accountId)}${query ? `?${query}` : ""}`,
+    );
+  },
   sync: (accountId:string) => apiFetch<{count:number;items:any[]}>("/social/engagement/sync/" + encodeURIComponent(accountId), {method:"POST"}),
   reply: (body:{account_id:string;item_id:string;text:string}) => apiFetch<{status:string}>("/social/engagement/reply", {method:"POST",body:JSON.stringify(body)}),
   planCampaign: (body:any) => apiFetch<{campaign_id:string;status:string;approval_required:boolean}>("/social/campaigns", {method:"POST",body:JSON.stringify(body)}),
