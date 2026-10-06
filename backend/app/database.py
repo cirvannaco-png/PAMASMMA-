@@ -1,5 +1,5 @@
 """
-PAMASMMA v4.1 — Database infrastructure.
+PAMASMMA v4.2 — Database infrastructure.
 Postgres is the durable production path. Memory mode is an explicit deployment
 fallback used only when no durable database is available.
 """
@@ -28,6 +28,7 @@ def _sqlalchemy_database_url(url: str) -> str:
     if url.startswith("postgresql://"):
         return "postgresql+asyncpg://" + url[len("postgresql://") :]
     return url
+
 
 engine = None
 AsyncSessionLocal = None
