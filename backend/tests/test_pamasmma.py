@@ -367,3 +367,26 @@ async def test_sse_events_are_user_isolated():
     finally:
         unregister_subscriber("cognitive_invocation", user_a)
         unregister_subscriber("cognitive_invocation", user_b)
+
+
+def test_postgres_url_normalization():
+    from app.database import _sqlalchemy_database_url
+
+    assert (
+        _sqlalchemy_database_url(
+            "postgresql://user:pass@host.example/db"
+        )
+        == "postgresql+asyncpg://user:pass@host.example/db"
+    )
+    assert (
+        _sqlalchemy_database_url(
+            "postgres://user:pass@host.example/db"
+        )
+        == "postgresql+asyncpg://user:pass@host.example/db"
+    )
+    assert (
+        _sqlalchemy_database_url(
+            "postgresql+asyncpg://user:pass@host.example/db"
+        )
+        == "postgresql+asyncpg://user:pass@host.example/db"
+    )
