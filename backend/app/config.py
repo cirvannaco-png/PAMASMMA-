@@ -69,6 +69,10 @@ class Settings(BaseSettings):
     knowledge_transcription_model: str = "gpt-4o-mini-transcribe"
     knowledge_media_timeout_seconds: int = 900
 
+    @property
+    def knowledge_max_upload_bytes(self) -> int:
+        return self.knowledge_max_upload_mb * 1024 * 1024
+
     # Cognitive operating system controls
     intelligence_memory_limit: int = 5
     intelligence_max_specialists: int = 4
