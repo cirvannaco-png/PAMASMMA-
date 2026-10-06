@@ -1,11 +1,14 @@
 """Persistent social accounts, content, engagement and campaign records."""
 import uuid
 from datetime import datetime
+
 from sqlalchemy import DateTime, Float, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
+
 from app.database import Base
+
 
 class SocialAccount(Base):
     __tablename__="pamasmma_social_accounts"
