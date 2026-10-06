@@ -50,6 +50,8 @@ export function KnowledgeTraining({ activeSystemId }: Props) {
   }, []);
 
   useEffect(() => {
+    // This effect synchronizes local UI state with the authenticated knowledge API.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadSources();
   }, [loadSources]);
 
