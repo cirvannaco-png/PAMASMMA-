@@ -1,9 +1,13 @@
 """YouTube platform adapter."""
 from typing import Any
+
 import httpx
+
 from app.social.contracts import Capability, Platform, PublishCommand, ReplyCommand
-from app.social.providers.oauth import OAuthRestProvider
 from app.social.providers.common import provider_error
+from app.social.providers.oauth import OAuthRestProvider
+
+
 class YouTubeProvider(OAuthRestProvider):
     """YouTube Data API and Analytics API adapter."""
 
