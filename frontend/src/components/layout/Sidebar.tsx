@@ -7,6 +7,8 @@ import { useCognitiveStore } from "@/lib/store";
 import { SYSTEMS, PERSONALITY } from "@/lib/constants";
 import { SectionLabel, StatusDot } from "@/components/ui";
 import type { SystemId } from "@/types";
+import { useRef, useState } from "react";
+import { knowledge } from "@/lib/api";
 
 interface SidebarProps {
   onLogout: () => void;
@@ -14,6 +16,8 @@ interface SidebarProps {
 }
 
 export function Sidebar({ onLogout, onSystemSelect }: SidebarProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [training, setTraining] = useState(false);
   const { activeSystemId, threads, setActiveSystem } = useCognitiveStore();
 
   return (
@@ -52,6 +56,28 @@ export function Sidebar({ onLogout, onSystemSelect }: SidebarProps) {
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", padding: "12px 14px" }}>
+        <SectionLabel>Knowledge Training</SectionLabel>
+        <input
+          ref={inputRef}
+          hidden
+          type="file"
+          accept=".pdf,.epub,.docx,.txt,.md,.csv,.json,.srt,.vtt,.mp3,.wav,.m4a,.aac,.ogg,.flac,.mp4,.mov,.mkv,.avi,.m4v,.webm"
+          onChange={async (event) => {
+            const file = event.target.files?.[0];
+            if (!file) return;
+            setTraining(true);
+            try { await knowledge.upload(file); }
+            finally { setTraining(false); event.target.value = ""; }
+          }}
+        />
+        <button
+          type="button"
+          disabled={training}
+          onClick={() => inputRef.current?.click()}
+          style={{ width: "100%", padding: "9px 10px", marginBottom: 12, border: "1px solid #2A2455", borderRadius: 8, background: "#10102A", color: "#B9A8FF", cursor: training ? "wait" : "pointer", fontSize: 10, fontWeight: 700 }}
+        >
+          {training ? "INGESTING…" : "＋ TRAIN FROM BOOK / NOTE / VIDEO"}
+        </button>
         <SectionLabel>Cognitive Systems</SectionLabel>
         {SYSTEMS.map((sys) => {
           const msgCount = threads[sys.id as SystemId]?.length ?? 0;
