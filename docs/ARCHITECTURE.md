@@ -4,7 +4,7 @@
 
 PAMASMMA is a provider-neutral assistant platform whose intelligence is implemented as a governed cognitive pipeline rather than a single model call.
 
-The architecture separates model capability from cognitive control, memory from truth, and response generation from verification.
+The architecture separates model capability from cognitive control, memory from truth, response generation from verification, and application code from deployment infrastructure.
 
 Nakima remains a separate repository and is not embedded into PAMASMMA.
 

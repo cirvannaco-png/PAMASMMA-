@@ -1,12 +1,12 @@
-# PAMASMMA v4.1 — Deployment Guide
+# PAMASMMA v4.2 — Deployment Guide
 
 PAMASMMA is deployed as two independently deployable services:
 
 - **API:** FastAPI
 - **Web:** Next.js
 
-The canonical deployment target is Render. PAMASMMA does not depend on Railway,
-Supabase, Upstash, Anthropic, or OpenAI for its baseline no-key deployment.
+The canonical deployment target is Render. Baseline PAMASMMA operation is provider-neutral and
+can run without vendor model credentials by using the Intelligence Kernel and local embeddings.
 
 ## 1. Deployment modes
 

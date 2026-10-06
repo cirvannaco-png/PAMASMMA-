@@ -1,5 +1,5 @@
 # PAMASMMA v4 — Backend Dockerfile
-# Multi-stage build. Non-root user. Railway-ready.
+# Multi-stage build. Non-root user.
 
 FROM python:3.11-slim AS base
 WORKDIR /app
@@ -23,5 +23,5 @@ USER pamasmma
 
 EXPOSE 8000
 
-# Railway sets PORT env variable
+# Render and compatible platforms provide PORT; default to 8000 for local execution
 CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 2 --loop uvloop"]
