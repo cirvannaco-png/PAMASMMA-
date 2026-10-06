@@ -257,3 +257,14 @@ async def get_analytics(user_id: str, account_id: str, start: str | None = None,
             end,
         ),
     }
+
+
+async def publish_batch(user_id: str, commands: list[PublishCommand]) -> dict[str, Any]:
+    """Publish independently to multiple authorized accounts; one provider failure never erases successes."""
+    results=[]
+    for command in commands:
+        try:
+            results.append({"account_id":command.account_id, **(await publish_now(user_id, command)), "ok":True})
+        except Exception as exc:
+            results.append({"account_id":command.account_id, "ok":False, "error":str(exc)[:2000]})
+    return {"results":results,"succeeded":sum(1 for item in results if item["ok"]),"failed":sum(1 for item in results if not item["ok"])}
