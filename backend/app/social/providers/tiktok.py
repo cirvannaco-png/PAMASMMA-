@@ -64,7 +64,8 @@ class TikTokProvider(OAuthRestProvider):
         if is_photo:
             body = {
                 "post_info": {
-                    "title": command.text,
+                    "title": command.title or command.text[:150],
+                    "description": command.text,
                     "privacy_level": privacy,
                 },
                 "source_info": {
@@ -72,6 +73,8 @@ class TikTokProvider(OAuthRestProvider):
                     "photo_cover_index": 0,
                     "photo_images": [str(command.media_url)],
                 },
+                "post_mode": "DIRECT_POST",
+                "media_type": "PHOTO",
             }
             endpoint = (
                 "https://open.tiktokapis.com/v2/"
