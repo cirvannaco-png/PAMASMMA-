@@ -1,9 +1,12 @@
 """Reddit platform adapter."""
 import base64
 from typing import Any
+
 from app.social.contracts import Capability, Platform, PublishCommand, ReplyCommand
-from app.social.providers.oauth import OAuthRestProvider
 from app.social.providers.common import provider_error
+from app.social.providers.oauth import OAuthRestProvider
+
+
 class RedditProvider(OAuthRestProvider):
     """Reddit submissions and comment adapter."""
 
