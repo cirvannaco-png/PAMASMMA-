@@ -277,7 +277,7 @@ async def oauth_pending_complete(
     body: OAuthAccountSelection,
     current_user: CurrentUser,
 ) -> dict:
-    payload = await cache_pop(f"social:pending:{pending_id}")
+    payload = await cache_get(f"social:pending:{pending_id}")
     if not payload or payload.get("user_id") != current_user["user_id"]:
         raise HTTPException(
             status_code=404,
@@ -297,6 +297,13 @@ async def oauth_pending_complete(
         raise HTTPException(
             status_code=422,
             detail="Selected account is not part of this connection request.",
+        )
+
+    payload = await cache_pop(f"social:pending:{pending_id}")
+    if not payload or payload.get("user_id") != current_user["user_id"]:
+        raise HTTPException(
+            status_code=404,
+            detail="Social connection request expired during completion.",
         )
 
     token_data = json.loads(decrypt_secret(payload["token_data_enc"]))
