@@ -1,7 +1,10 @@
 """Threads platform adapter."""
 from typing import Any
+
 from app.social.contracts import Capability, Platform, PublishCommand, ReplyCommand
 from app.social.providers.oauth import OAuthRestProvider
+
+
 class ThreadsProvider(OAuthRestProvider):
     """Threads publishing and reply adapter."""
 
