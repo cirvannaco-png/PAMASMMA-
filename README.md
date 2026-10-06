@@ -40,6 +40,24 @@ OUTCOME → LEARNING → PROCEDURAL MEMORY
 
 All cognitive systems depend on the provider-neutral `ModelProvider` interface. Vendor SDKs are isolated inside adapter modules, so changing model providers does not require rewriting the cognitive systems.
 
+### Intelligence governance
+
+The engine explicitly separates:
+- **FACT** — directly supported information
+- **INFERENCE** — reasoned conclusion from available evidence
+- **ASSUMPTION** — premise that has not been established
+- **PREDICTION** — forward-looking expectation
+- **OPINION** — value judgment or preference
+- **UNKNOWN** — information that is currently unavailable
+
+Memory is treated as evidence, not unquestionable truth. Conflicting beliefs are surfaced for resolution, hypotheses can be tested, and decision records preserve assumptions, risks, confidence, alternatives, expected outcomes, and later observed outcomes.
+
+The verification pipeline is:
+
+`GENERATION → CRITIC → EVIDENCE GATE → METACOGNITIVE GOVERNOR → CONFIDENCE → DECISION`
+
+The confidence engine provides a certainty band rather than pretending heuristic confidence is a calibrated probability.
+
 ### No-key intelligence
 
 The deterministic **PAMASMMA Intelligence Kernel** can operate without Anthropic or OpenAI credentials. Local hashing embeddings provide semantic-memory behavior without an embedding API key.
@@ -48,7 +66,22 @@ This is an orchestration and reasoning layer, not a claim that a deterministic k
 
 ## Cognitive systems
 
-PAMASMMA currently exposes ten governed cognitive systems, S1–S10. All cognitive endpoints require an authenticated session.
+PAMASMMA exposes ten governed cognitive systems. They are domain identities inside the cognitive engine—not ten independent agents.
+
+| System | Responsibility |
+|---|---|
+| **S1 — Executive Operations** | Orchestration, prioritization, decision synthesis, consequence analysis |
+| **S2 — Marketing Intelligence** | Market signals, positioning, campaigns, growth intelligence |
+| **S3 — Relationship Management** | Stakeholders, trust, relationship health, influence networks |
+| **S4 — Creator Economy** | Content strategy, creator leverage, distribution and network effects |
+| **S5 — Narrative Governance** | Brand narrative, identity coherence, messaging and symbolic architecture |
+| **S6 — Audience Psychology** | Segmentation, behavioral patterns, sentiment and resonance |
+| **S7 — Behavioral Consistency** | Metacognition, behavioral drift detection, governance and recalibration |
+| **S8 — Persuasion Governance** | Ethical persuasion, conversion psychology and influence-risk auditing |
+| **S9 — Voice & Presence** | Tone, communication style, cadence, scripts and presence |
+| **S10 — Strategic Narrative** | Long-horizon strategy across 30-day, 90-day, 1-year, 3-year and 10-year horizons |
+
+All cognitive endpoints require an authenticated session. S1 acts as the executive orchestrator while the other systems contribute specialist perspectives when the task requires them.
 
 ## Runtime modes
 
@@ -197,7 +230,19 @@ cd backend
 alembic upgrade head
 ```
 
-Migration `002_auth_hardening` introduces the stable `user_key` identity key and its unique index.
+The current migration chain is linear:
+
+```text
+001_base
+  ↓
+002_auth_hardening
+  ↓
+003_cognitive_state
+  ↓
+004_cognitive_audit
+```
+
+The cognitive migrations add durable decision records, beliefs, outcomes, world-model entities/relationships, and cognitive audit state.
 
 ## Environment variables
 
@@ -213,6 +258,14 @@ Core settings include:
 | `DATABASE_URL` | Durable PostgreSQL connection |
 | `REDIS_URL` | Durable Redis-compatible connection |
 | `MODEL_PROVIDER` | `kernel`, `anthropic`, `openai-compatible`, or `hybrid` |
+| `MODEL_NAME` | Local/OpenAI-compatible model identifier |
+| `MODEL_MAX_TOKENS` | Maximum generation budget |
+| `MODEL_API_BASE_URL` | OpenAI-compatible provider endpoint |
+| `MODEL_API_KEY` | OpenAI-compatible provider credential |
+| `INTELLIGENCE_MEMORY_LIMIT` | Maximum memories considered per cognitive invocation |
+| `INTELLIGENCE_MAX_SPECIALISTS` | Maximum specialist systems routed per invocation |
+| `INTELLIGENCE_REVISION_ENABLED` | Enables critic-driven revision |
+| `INTELLIGENCE_CLOUD_FOR_SENSITIVE` | Whether sensitive requests may use cloud providers |
 | `EMBEDDING_PROVIDER` | `local` or `openai` |
 | `WEBAUTHN_RP_ID` | WebAuthn relying-party domain |
 | `WEBAUTHN_ORIGIN` | WebAuthn browser origin |
@@ -220,6 +273,8 @@ Core settings include:
 | `NEXT_PUBLIC_API_URL` | Frontend API base URL |
 
 ## Release status
+
+**v4.2 is integrated on `main`.** The cognitive operating system expansion has passed backend lint/type/tests, frontend type-check/lint/build, durable Postgres + Valkey integration, and Docker build validation.
 
 v4.2 cognitive architecture includes:
 - provider-neutral cognitive engine
@@ -238,5 +293,8 @@ v4.2 cognitive architecture includes:
 - Render deployment configuration
 - backend/frontend CI gates
 - production-oriented logging and rate limiting
+- structured cognitive traces and decision telemetry
+- runtime provider failover
+- explicit evidence and uncertainty governance
 
-The remaining production gate is infrastructure: PAMASMMA needs isolated durable PostgreSQL and Redis-compatible storage before the deployment can truthfully be classified as durable production.
+The remaining production gate is infrastructure: PAMASMMA needs isolated durable PostgreSQL and Redis-compatible storage before the deployment can truthfully be classified as durable production. Render billing/resource provisioning remains the external deployment constraint.
