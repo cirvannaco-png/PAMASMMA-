@@ -20,13 +20,22 @@ log = logging.getLogger(__name__)
 settings = get_settings()
 _CHANNEL_RE = re.compile(r"^[a-z_][a-z0-9_]*$")
 
+
+def _sqlalchemy_database_url(url: str) -> str:
+    """Normalize provider-neutral PostgreSQL URLs for SQLAlchemy asyncio."""
+    if url.startswith("postgres://"):
+        url = "postgresql://" + url[len("postgres://") :]
+    if url.startswith("postgresql://"):
+        return "postgresql+asyncpg://" + url[len("postgresql://") :]
+    return url
+
 engine = None
 AsyncSessionLocal = None
 
 if settings.is_persistent:
     assert settings.database_url is not None
     engine = create_async_engine(
-        settings.database_url,
+        _sqlalchemy_database_url(settings.database_url),
         pool_size=settings.database_pool_size,
         max_overflow=settings.database_max_overflow,
         pool_timeout=settings.database_pool_timeout,
