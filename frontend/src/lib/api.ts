@@ -288,7 +288,15 @@ export const knowledge = {
     file: File,
     trainingMode: "knowledge" | "procedure" = "knowledge",
     retry = true,
-  ) => {
+  ): Promise<{
+    source_id: string;
+    status: string;
+    filename: string;
+    chunks: number;
+    mode: "knowledge" | "procedure";
+    content_hash: string;
+    deduplicated: boolean;
+  }> => {
     const form = new FormData();
     form.append("file", file);
 
