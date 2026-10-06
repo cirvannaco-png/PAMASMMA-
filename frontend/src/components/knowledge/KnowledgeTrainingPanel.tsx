@@ -3,7 +3,7 @@
  */
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { knowledge, type KnowledgeSource } from "@/lib/api";
 
 const ACCEPT =
@@ -17,7 +17,7 @@ export function KnowledgeTrainingPanel() {
   const [progress, setProgress] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     try {
       const result = await knowledge.listSources(20);
       setSources(result.sources);
