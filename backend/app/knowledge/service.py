@@ -246,7 +246,7 @@ async def delete_source(user_id: str, source_id: str) -> bool:
             {"id": source_id, "user_id": user_id},
         )
         await session.commit()
-        return bool(result.rowcount)
+        return bool(getattr(result, "rowcount", 0))
 
 
 async def retrieve_knowledge_items(
