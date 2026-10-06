@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { social } from "@/lib/api";
 
-type Account={id:string;platform:string;display_name?:string|null;status:string;capabilities:string[]};
+type Account={id:string;platform:string;external_account_id:string;display_name?:string|null;status:string;capabilities:string[]};
 type PlatformInfo={platform:string;capabilities:string[]};
 type Engagement={id:string;account_id:string;platform:string;item_id:string;text?:string|null;intent?:string|null;sentiment?:string|null;priority:string;author_name?:string|null};
 
