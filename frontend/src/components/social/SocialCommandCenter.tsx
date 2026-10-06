@@ -152,7 +152,6 @@ export function SocialCommandCenter() {
       toast.error(errorMessage);
     }
     if (pendingId) {
-      setPendingLoading(true);
       void social
         .oauthPending(pendingId)
         .then((result) => {
@@ -519,23 +518,6 @@ export function SocialCommandCenter() {
           </button>
         ))}
       </nav>
-
-      {pendingLoading && !pendingConnection && (
-        <div
-          style={{
-            maxWidth: 1180,
-            margin: "0 auto 12px",
-            padding: 12,
-            borderRadius: 10,
-            background: "#111020",
-            border: "1px solid #2B2750",
-            color: "#AFA7D8",
-            fontSize: 11,
-          }}
-        >
-          Loading the accounts available to this OAuth authorization…
-        </div>
-      )}
 
       {pendingConnection && (
         <div
