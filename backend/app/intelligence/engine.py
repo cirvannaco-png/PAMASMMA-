@@ -280,6 +280,11 @@ class CognitiveEngine:
             system.system_id,
             settings.intelligence_memory_limit,
         )
+        from app.knowledge.service import retrieve_knowledge_items
+        knowledge = await retrieve_knowledge_items(
+            context.query, user_id, settings.intelligence_memory_limit
+        )
+        context.memories = (context.memories + knowledge)[:settings.intelligence_memory_limit * 2]
         await self.world_model.observe(context)
         return context
 

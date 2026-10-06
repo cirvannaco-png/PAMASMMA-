@@ -298,3 +298,7 @@ v4.2 cognitive architecture includes:
 - explicit evidence and uncertainty governance
 
 The remaining production gate is infrastructure: PAMASMMA needs isolated durable PostgreSQL and Redis-compatible storage before the deployment can truthfully be classified as durable production. Render billing/resource provisioning remains the external deployment constraint.
+
+
+## Knowledge Training
+PAMASMMA includes a governed Knowledge Training subsystem for importing books, notes, documents, subtitles, audio and video. Sources are parsed, chunked, embedded and retrieved as provenance-aware cognitive context; uploads do not silently modify model weights. See `docs/KNOWLEDGE_TRAINING.md` for supported formats, API endpoints and governance.
