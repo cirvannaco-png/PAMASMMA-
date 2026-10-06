@@ -61,6 +61,9 @@ class Settings(BaseSettings):
     knowledge_max_upload_mb: int = 100
     knowledge_max_archive_extract_mb: int = 250
     knowledge_max_archive_files: int = 2000
+    knowledge_max_chunks_per_source: int = 10000
+    knowledge_memory_source_limit: int = 25
+    knowledge_memory_chunk_limit: int = 1000
     knowledge_chunk_size: int = 420
     knowledge_chunk_overlap: int = 60
     knowledge_similarity_threshold: float = 0.68
@@ -132,6 +135,12 @@ class Settings(BaseSettings):
             raise ValueError("KNOWLEDGE_MAX_ARCHIVE_EXTRACT_MB must be at least 1.")
         if self.knowledge_max_archive_files < 1:
             raise ValueError("KNOWLEDGE_MAX_ARCHIVE_FILES must be at least 1.")
+        if self.knowledge_max_chunks_per_source < 1:
+            raise ValueError("KNOWLEDGE_MAX_CHUNKS_PER_SOURCE must be at least 1.")
+        if self.knowledge_memory_source_limit < 1:
+            raise ValueError("KNOWLEDGE_MEMORY_SOURCE_LIMIT must be at least 1.")
+        if self.knowledge_memory_chunk_limit < 1:
+            raise ValueError("KNOWLEDGE_MEMORY_CHUNK_LIMIT must be at least 1.")
         if self.embedding_provider == "openai" and not self.openai_api_key:
             raise ValueError("OPENAI_API_KEY is required when EMBEDDING_PROVIDER=openai.")
         if self.model_provider == "anthropic" and not self.anthropic_api_key:
