@@ -23,6 +23,18 @@ class ThreadsProvider(OAuthRestProvider):
     redirect_env = "SOCIAL_THREADS_REDIRECT_URI"
     scope_env = "SOCIAL_THREADS_SCOPES"
 
+    async def discover_accounts(self, token: str) -> list[dict[str, Any]]:
+        """Discover the Threads profile that authorized PAMASMMA."""
+        response = await self.request(
+            "GET",
+            "https://graph.threads.net/v1.0/me",
+            token=token,
+            params={"fields": "id,username,name"},
+        )
+        if not response.get("id"):
+            return []
+        return [{"external_account_id": str(response["id"]), "display_name": response.get("name") or response.get("username")}]
+
     async def publish(
         self,
         token: str,
