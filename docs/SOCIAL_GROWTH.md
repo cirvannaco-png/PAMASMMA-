@@ -30,11 +30,17 @@ There is no autonomous ad spending by default. The API exposes approval as the e
 
 A platform being listed does not mean PAMASMMA can bypass platform approval, review, account-role restrictions, API quotas or policy requirements. Those are external controls and remain visible to the operator.
 
+## Multi-account linking
+
+Every social connection belongs to the authenticated PAMASMMA user. A single user may connect multiple accounts on the same platform, and account records are isolated by user ID plus platform plus provider account ID. OAuth connections discover the identities available to the authorization grant; when several are available, the user selects the account to store. Account credentials are encrypted server-side and are never returned to the browser after the OAuth exchange.
+
 ## API
 
 - GET /api/v1/social/platforms
 - GET /api/v1/social/oauth/{platform}/start
 - GET /api/v1/social/oauth/{platform}/callback
+- GET /api/v1/social/oauth/pending/{pending_id}
+- POST /api/v1/social/oauth/pending/{pending_id}/complete
 - POST /api/v1/social/accounts/manual
 - GET /api/v1/social/accounts
 - DELETE /api/v1/social/accounts/{account_id}
