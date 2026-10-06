@@ -287,6 +287,7 @@ export const knowledge = {
   upload: async (
     file: File,
     trainingMode: "knowledge" | "procedure" = "knowledge",
+    retry = true,
   ) => {
     const form = new FormData();
     form.append("file", file);
@@ -304,10 +305,10 @@ export const knowledge = {
       },
     );
 
-    if (response.status === 401 && _refreshToken) {
+    if (response.status === 401 && retry && _refreshToken) {
       const refreshed = await refreshAccessToken();
       if (refreshed) {
-        return knowledge.upload(file, trainingMode);
+        return knowledge.upload(file, trainingMode, false);
       }
       clearTokens();
       throw new Error("Session expired");
