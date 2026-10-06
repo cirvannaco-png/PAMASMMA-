@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field, HttpUrl
 
 from app.auth.dependencies import get_current_user
 from app.config import get_settings
-from app.redis_client import cache_get, cache_set
+from app.redis_client import cache_pop, cache_set
 from app.social.contracts import Capability, CampaignPlan, Platform, PublishCommand, ReplyCommand, SocialProviderError
 from app.social.providers.adapters import get_provider, PROVIDERS
 from app.social.store import approve_campaign, create_account, delete_account, list_accounts, list_engagement, plan_campaign, process_due_posts, publish_now, queue_post, reply_to_engagement, sync_engagement
@@ -42,7 +42,7 @@ async def oauth_start(platform: Platform,current_user: CurrentUser,external_acco
 
 @router.get("/oauth/{platform}/callback")
 async def oauth_callback(platform: Platform,code: str=Query(...,min_length=1),state: str=Query(...,min_length=10),external_account_id: str|None=Query(default=None,max_length=255))->dict:
-    payload=await cache_get(f"social:oauth:{state}")
+    payload=await cache_pop(f"social:oauth:{state}")
     if not payload or payload.get("platform")!=platform.value: raise HTTPException(400,"Invalid or expired social OAuth state.")
     await cache_set(f"social:oauth:{state}",{"consumed":True},ttl=1)
     try:
