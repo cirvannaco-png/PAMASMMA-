@@ -123,3 +123,72 @@ async def test_publish_now_awaits_access_token(monkeypatch):
     assert result["platform_post_id"] == "post-1"
     assert seen["token"] == "resolved-token"
     assert seen["external_account_id"] == "x-user-1"
+
+
+@pytest.mark.asyncio
+async def test_pinterest_oauth_uses_basic_auth(monkeypatch):
+    from app.social.providers import pinterest
+
+    monkeypatch.setattr(
+        pinterest,
+        "_env",
+        lambda name: {
+            "SOCIAL_PINTEREST_APP_ID": "client-id",
+            "SOCIAL_PINTEREST_APP_SECRET": "client-secret",
+            "SOCIAL_PINTEREST_REDIRECT_URI": "https://example.test/callback",
+        }.get(name, ""),
+    )
+    provider = pinterest.PinterestProvider()
+    seen = {}
+
+    async def fake_request(method, url, **kwargs):
+        seen.update({"method": method, "url": url, **kwargs})
+        return {"access_token": "token", "refresh_token": "refresh"}
+
+    monkeypatch.setattr(provider, "request", fake_request)
+    await provider.exchange_code("code-1")
+    assert seen["method"] == "POST"
+    assert seen["url"] == provider.token_url
+    assert seen["data"]["grant_type"] == "authorization_code"
+    assert seen["headers"]["Authorization"].startswith("Basic ")
+    assert "client_secret" not in seen["data"]
+
+    seen.clear()
+    await provider.refresh_token("refresh-1")
+    assert seen["data"]["grant_type"] == "refresh_token"
+    assert seen["headers"]["Authorization"].startswith("Basic ")
+    assert "client_id" not in seen["data"]
+
+
+@pytest.mark.asyncio
+async def test_tiktok_photo_direct_post_payload(monkeypatch):
+    from app.social.providers import tiktok
+
+    provider = tiktok.TikTokProvider()
+    calls = []
+
+    async def fake_request(method, url, **kwargs):
+        calls.append((method, url, kwargs))
+        if "creator_info" in url:
+            return {"data": {"privacy_level_options": ["PUBLIC_TO_EVERYONE"]}}
+        return {"data": {"publish_id": "publish-1"}}
+
+    monkeypatch.setattr(provider, "request", fake_request)
+    result = await provider.publish(
+        "token",
+        PublishCommand(
+            account_id="account-1",
+            text="caption",
+            title="Title",
+            media_url="https://cdn.example.test/photo.jpg",
+            media_type="image/jpeg",
+            platform_options={"privacy_level": "PUBLIC_TO_EVERYONE"},
+        ),
+        "tiktok-user-1",
+    )
+
+    assert result["data"]["publish_id"] == "publish-1"
+    payload = calls[-1][2]["json_body"]
+    assert payload["post_mode"] == "DIRECT_POST"
+    assert payload["media_type"] == "PHOTO"
+    assert payload["source_info"]["source"] == "PULL_FROM_URL"
