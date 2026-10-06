@@ -359,7 +359,36 @@ export const health = {
 
 export const social = {
   platforms: () => apiFetch<{platforms: {platform:string; capabilities:string[]}[]}>("/social/platforms"),
-  oauthStart: (platform:string, externalAccountId?:string) => apiFetch<{platform:string;authorization_url:string;state:string}>("/social/oauth/" + encodeURIComponent(platform) + "/start" + (externalAccountId ? "?external_account_id=" + encodeURIComponent(externalAccountId) : "")),
+  oauthStart: (platform: string, externalAccountId?: string) =>
+    apiFetch<{ platform: string; authorization_url: string; state: string }>(
+      "/social/oauth/" +
+        encodeURIComponent(platform) +
+        "/start" +
+        (externalAccountId
+          ? "?external_account_id=" + encodeURIComponent(externalAccountId)
+          : ""),
+    ),
+  oauthPending: (pendingId: string) =>
+    apiFetch<{
+      pending_id: string;
+      platform: string;
+      accounts: Array<{
+        external_account_id: string;
+        display_name?: string | null;
+      }>;
+    }>(
+      "/social/oauth/pending/" + encodeURIComponent(pendingId),
+    ),
+  oauthComplete: (pendingId: string, externalAccountId: string) =>
+    apiFetch<{ status: string; account: Record<string, unknown> }>(
+      "/social/oauth/pending/" +
+        encodeURIComponent(pendingId) +
+        "/complete",
+      {
+        method: "POST",
+        body: JSON.stringify({ external_account_id: externalAccountId }),
+      },
+    ),
   accounts: () => apiFetch<{accounts: Array<{id:string;platform:string;external_account_id:string;display_name?:string|null;status:string;capabilities:string[]}>;count:number}>("/social/accounts"),
   manualAccount: (body:{platform:string;access_token:string;refresh_token?:string;external_account_id:string;display_name?:string;scopes?:string[];metadata?:Record<string,unknown>}) => apiFetch<{account:Record<string,unknown>}>("/social/accounts/manual", {method:"POST",body:JSON.stringify(body)}),
   disconnect: (accountId:string) => apiFetch<{status:string;account_id:string}>("/social/accounts/" + encodeURIComponent(accountId), {method:"DELETE"}),
