@@ -372,7 +372,7 @@ async def publish_now(
         "status": "published",
         "post_id": str(post["id"]),
         "platform_post_id": post["platform_post_id"],
-        "provider_response": result,
+        "provider_response": provider_result,
     }
 
 
@@ -449,7 +449,7 @@ async def process_due_posts() -> int:
                         ),
                         {"post_id": post["id"]},
                     )
-                    row = result.mappings().first()
+                    row = db_result.mappings().first()
                 account = dict(row) if row else None
             else:
                 account = next(
@@ -466,7 +466,7 @@ async def process_due_posts() -> int:
 
             command = PublishCommand.model_validate(post["content"])
             result = await get_provider(Platform(account["platform"])).publish(
-                decrypt_secret(account["access_token_enc"]),
+                await _access_token_for(account),
                 command,
                 account["external_account_id"],
             )
@@ -603,7 +603,7 @@ async def sync_engagement(
 
     provider = get_provider(Platform(account["platform"]))
     data = await provider.list_engagement(
-        decrypt_secret(account["access_token_enc"]),
+        await _access_token_for(account),
         account["external_account_id"],
     )
     raw_items = data.get("items") or data.get("data") or []
@@ -725,7 +725,7 @@ async def reply_to_engagement(
         }
     )
     result = await get_provider(Platform(account["platform"])).reply(
-        decrypt_secret(account["access_token_enc"]),
+        await _access_token_for(account),
         command,
     )
     return {"status": "replied", "provider_response": result}
@@ -741,7 +741,7 @@ async def list_engagement(
             for account in memory_store.social_accounts
             if account["user_id"] == user_id
         }
-        rows = [
+        memory_rows = [
             entry
             for entry in reversed(memory_store.social_engagement)
             if entry["account_id"] in account_ids
@@ -759,7 +759,7 @@ async def list_engagement(
                 )
                 for key, value in entry.items()
             }
-            for entry in rows
+            for entry in memory_rows
         ]
 
     assert AsyncSessionLocal is not None
@@ -778,7 +778,7 @@ async def list_engagement(
             ),
             {"user_id": user_id, "limit": limit},
         )
-        rows = result.mappings().all()
+        db_rows = result.mappings().all()
 
     return [
         {
@@ -793,7 +793,7 @@ async def list_engagement(
             )
             for key, value in dict(row).items()
         }
-        for row in rows
+        for row in db_rows
     ]
 
 
@@ -860,7 +860,7 @@ async def approve_campaign(
     if settings.is_persistent:
         assert AsyncSessionLocal is not None
         async with AsyncSessionLocal() as session:
-            result = await session.execute(
+            db_result = await session.execute(
                 text(
                     """
                     SELECT c.*, a.user_id, a.platform, a.access_token_enc
@@ -912,12 +912,16 @@ async def approve_campaign(
     config.setdefault("objective", campaign["objective"])
     config.setdefault("status", "PAUSED")
 
-    result = await provider.create_campaign(
-        decrypt_secret(campaign["access_token_enc"]),
+    account = await get_account(user_id, str(campaign["account_id"]))
+    if not account:
+        raise ValueError("Social account not found.")
+
+    provider_result = await provider.create_campaign(
+        await _access_token_for(account),
         campaign.get("ad_account_id") or "",
         config,
     )
-    external_id = _token_value(result, "id", "campaign_id")
+    external_id = _token_value(provider_result, "id", "campaign_id")
 
     if settings.is_persistent:
         assert AsyncSessionLocal is not None
@@ -967,7 +971,7 @@ async def get_analytics(
 
     provider = get_provider(Platform(account["platform"]))
     result = await provider.analytics(
-        decrypt_secret(account["access_token_enc"]),
+        await _access_token_for(account),
         account["external_account_id"],
         start,
         end,
@@ -1029,7 +1033,8 @@ async def sync_all_accounts() -> dict[str, Any]:
                 ),
                 {"limit": settings.social_sync_batch_size},
             )
-            accounts = result.mappings().all()
+            account_rows = result.mappings().all()
+            accounts = [dict(row) for row in account_rows]
     else:
         accounts = [
             {
