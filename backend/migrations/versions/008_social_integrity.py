@@ -9,6 +9,38 @@ depends_on = None
 
 
 def upgrade() -> None:
+    # Clean legacy orphan rows before enforcing referential integrity.
+    op.execute(
+        """
+        DELETE FROM pamasmma_social_posts AS p
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM pamasmma_social_accounts AS a
+            WHERE a.id = p.account_id
+        )
+        """
+    )
+    op.execute(
+        """
+        DELETE FROM pamasmma_social_engagement AS e
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM pamasmma_social_accounts AS a
+            WHERE a.id = e.account_id
+        )
+        """
+    )
+    op.execute(
+        """
+        DELETE FROM pamasmma_social_campaigns AS c
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM pamasmma_social_accounts AS a
+            WHERE a.id = c.account_id
+        )
+        """
+    )
+
     op.create_foreign_key(
         "fk_social_posts_account",
         "pamasmma_social_posts",
