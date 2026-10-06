@@ -1,8 +1,8 @@
 """Provider registry and compatibility boundary."""
 from app.social.contracts import Platform
 from app.social.providers.linkedin import LinkedInProvider
-from app.social.providers.meta import InstagramProvider, MetaProvider
 from app.social.providers.messaging import TelegramProvider, WhatsAppProvider
+from app.social.providers.meta import InstagramProvider, MetaProvider
 from app.social.providers.pinterest import PinterestProvider
 from app.social.providers.reddit import RedditProvider
 from app.social.providers.threads import ThreadsProvider
