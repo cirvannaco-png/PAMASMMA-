@@ -24,7 +24,7 @@ export function KnowledgeTrainingPanel() {
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to load knowledge sources.");
     }
-  });
+  }, []);
 
   useEffect(() => {
     void refresh();
