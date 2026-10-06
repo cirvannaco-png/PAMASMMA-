@@ -145,7 +145,7 @@ export function SocialCommandCenter() {
 
     if (connectedPlatform) {
       toast.success(
-        \`${PLATFORM_LABELS[connectedPlatform] ?? connectedPlatform} account connected\`,
+        `${PLATFORM_LABELS[connectedPlatform] ?? connectedPlatform} account connected`,
       );
     }
     if (errorMessage) {
@@ -295,7 +295,7 @@ export function SocialCommandCenter() {
         externalAccountId,
       );
       toast.success(
-        \`${PLATFORM_LABELS[pendingConnection.platform] ?? pendingConnection.platform} account connected\`,
+        `${PLATFORM_LABELS[pendingConnection.platform] ?? pendingConnection.platform} account connected`,
       );
       setPendingConnection(null);
       await refresh();
