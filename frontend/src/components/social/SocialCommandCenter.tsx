@@ -17,8 +17,33 @@ export function SocialCommandCenter(){
   const [campaign,setCampaign]=useState({name:"",objective:"OUTCOME_TRAFFIC",daily_budget:"",currency:"USD",ad_account_id:""});
 
   const refresh=async()=>{const [p,a,e]=await Promise.all([social.platforms(),social.accounts(),social.engagement()]);setPlatforms(p.platforms);setAccounts(a.accounts);setEngagement(e.items);if(!selectedAccount&&a.accounts[0])setSelectedAccount(a.accounts[0].id);};
-  useEffect(()=>{void refresh().catch(()=>toast.error("Unable to load social control plane"));},[]);
-  const selected=useMemo(()=>accounts.find(a=>a.id===selectedAccount),[accounts,selectedAccount]);
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const [p, a, e] = await Promise.all([
+          social.platforms(),
+          social.accounts(),
+          social.engagement(),
+        ]);
+        if (cancelled) return;
+        setPlatforms(p.platforms);
+        setAccounts(a.accounts);
+        setEngagement(e.items);
+        if (!selectedAccount && a.accounts[0]) {
+          setSelectedAccount(a.accounts[0].id);
+        }
+      } catch {
+        if (!cancelled) {
+          toast.error("Unable to load social control plane");
+        }
+      }
+    };
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const connect=async(platform:string)=>{try{const r=await social.oauthStart(platform);window.location.assign(r.authorization_url);}catch(e){toast.error(e instanceof Error?e.message:"OAuth is not configured");}};
   const publish=async()=>{if(!selectedAccount||!text.trim()){toast.error("Select an account and enter content");return;}setLoading(true);try{await social.publish({command:{account_id:selectedAccount,text:text.trim(),...(mediaUrl?{media_url:mediaUrl}:{}),...(title?{title}: {})},...(scheduledAt?{scheduled_at:new Date(scheduledAt).toISOString()}: {})});toast.success(scheduledAt?"Post queued":"Published");setText("");setMediaUrl("");setTitle("");setScheduledAt("");}catch(e){toast.error(e instanceof Error?e.message:"Publishing failed");}finally{setLoading(false);}};
