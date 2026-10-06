@@ -116,14 +116,16 @@ class YouTubeProvider(OAuthRestProvider):
                     "YouTube did not return an upload URL.",
                 )
 
-            upload = await client.put(
-                upload_url,
-                headers={
-                    "Authorization": f"Bearer {token}",
-                    "Content-Type": upload_type,
-                },
-                content=path.read_bytes(),
-            )
+            with path.open("rb") as video_file:
+                upload = await client.put(
+                    upload_url,
+                    headers={
+                        "Authorization": f"Bearer {token}",
+                        "Content-Type": upload_type,
+                        "Content-Length": str(path.stat().st_size),
+                    },
+                    content=video_file,
+                )
             if upload.status_code >= 400:
                 raise _provider_error(
                     self.platform,
