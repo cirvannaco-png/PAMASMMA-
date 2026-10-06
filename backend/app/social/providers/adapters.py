@@ -1,6 +1,9 @@
 """Concrete REST adapters. No provider SDK is required; OAuth and API boundaries stay isolated here."""
 import base64
 import os
+import hashlib
+
+from app.config import get_settings
 from urllib.parse import urlencode
 from typing import Any
 
@@ -10,7 +13,13 @@ from app.social.providers.http import HttpProvider
 
 
 def _env(name: str) -> str:
-    return os.getenv(name, "").strip()
+    field = name.lower()
+    value = getattr(get_settings(), field, None)
+    if value is None:
+        return os.getenv(name, "").strip()
+    if hasattr(value, "get_secret_value"):
+        value = value.get_secret_value()
+    return str(value).strip()
 
 
 class OAuthRestProvider(SocialProvider, HttpProvider):
@@ -50,13 +59,27 @@ class XProvider(OAuthRestProvider):
     platform=Platform.X; capabilities=frozenset({Capability.PUBLISH,Capability.COMMENTS_WRITE,Capability.COMMENTS_READ,Capability.MENTIONS_READ,Capability.ANALYTICS})
     auth_url="https://x.com/i/oauth2/authorize"; token_url="https://api.x.com/2/oauth2/token"
     client_id_env="SOCIAL_X_CLIENT_ID"; client_secret_env="SOCIAL_X_CLIENT_SECRET"; redirect_env="SOCIAL_X_REDIRECT_URI"; scope_env="SOCIAL_X_SCOPES"
+
+    def authorization_url(self, state):
+        verifier = base64.urlsafe_b64encode(hashlib.sha256(state.encode()).digest()).decode().rstrip("=")
+        url = super().authorization_url(state)
+        challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).decode().rstrip("=")
+        return url + "&code_challenge=" + challenge + "&code_challenge_method=S256"
+
+    async def exchange_code(self, code, state=None):
+        client_id, secret, redirect_uri = _env(self.client_id_env), _env(self.client_secret_env), _env(self.redirect_env)
+        verifier = base64.urlsafe_b64encode(hashlib.sha256((state or "").encode()).digest()).decode().rstrip("=")
+        return await self.request("POST", self.token_url, data={"code":code,"client_id":client_id,"client_secret":secret,"redirect_uri":redirect_uri,"grant_type":"authorization_code","code_verifier":verifier}, headers={"Content-Type":"application/x-www-form-urlencoded"})
+
     async def publish(self, token, command, external_account_id):
         self.require(Capability.PUBLISH)
         body={"text":command.text}
         if command.reply_to_id: body["reply"]={"in_reply_to_tweet_id":command.reply_to_id}
         return await self.request("POST","https://api.x.com/2/tweets",token=token,json_body=body)
+
     async def reply(self, token, command):
         return await self.publish(token, PublishCommand(account_id="", text=command.text, reply_to_id=command.item_id), "")
+
     async def list_engagement(self, token, external_account_id, cursor=None):
         query=f"to:{external_account_id} OR @{external_account_id}"
         return await self.request("GET","https://api.x.com/2/tweets/search/recent",token=token,params={"query":query,"tweet.fields":"created_at,author_id,public_metrics","max_results":100,**({"next_token":cursor} if cursor else {})})
