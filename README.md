@@ -233,7 +233,7 @@ alembic upgrade head
 The current migration chain is linear:
 
 ```text
-001_base
+001_initial
   ↓
 002_auth_hardening
   ↓
@@ -244,6 +244,10 @@ The current migration chain is linear:
 005_knowledge_training
   ↓
 006_knowledge_training_integrity
+  ↓
+007_social_growth
+  ↓
+008_social_integrity
 ```
 
 The cognitive migrations add durable decision records, beliefs, outcomes, world-model entities/relationships, and cognitive audit state. The knowledge migrations add provenance-aware training sources/chunks and active-source deduplication/chunk-order integrity.
@@ -301,7 +305,7 @@ v4.2 cognitive architecture includes:
 - runtime provider failover
 - explicit evidence and uncertainty governance
 
-The remaining production gate is infrastructure: PAMASMMA needs isolated durable PostgreSQL and Redis-compatible storage before the deployment can truthfully be classified as durable production. Render billing/resource provisioning remains the external deployment constraint.
+The application code and CI gates are production-hardened. Final launch still depends on external infrastructure provisioning and platform-side credentials/approvals: isolated durable PostgreSQL + Redis-compatible storage, real OAuth app credentials, redirect URIs, verified domains where required, platform scopes/app review, and ad-account permissions. Those controls cannot be bypassed by application code.
 
 
 ## Knowledge Training
