@@ -127,11 +127,16 @@ def _extract_subtitles(path: Path) -> str:
 
 
 def _run_ffmpeg(args: list[str]) -> subprocess.CompletedProcess[str] | None:
-    if shutil.which("ffmpeg") is None:
-        return None
+    executable = shutil.which("ffmpeg")
+    if executable is None:
+        try:
+            import imageio_ffmpeg
+            executable = imageio_ffmpeg.get_ffmpeg_exe()
+        except Exception:
+            return None
     try:
         return subprocess.run(
-            ["ffmpeg", *args],
+            [executable, *args],
             capture_output=True,
             text=True,
             timeout=settings.knowledge_media_command_timeout_seconds,

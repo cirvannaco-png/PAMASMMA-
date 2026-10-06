@@ -67,7 +67,7 @@ class Settings(BaseSettings):
     knowledge_max_extracted_bytes: int = 50_000_000
     knowledge_chunk_chars: int = 1800
     knowledge_chunk_overlap_chars: int = 250
-    knowledge_similarity_threshold: float = 0.72
+    knowledge_similarity_threshold: float = 0.55
     knowledge_media_command_timeout_seconds: int = 120
     knowledge_transcription_max_bytes: int = 24 * 1024 * 1024
     transcription_model: str = "gpt-4o-mini-transcribe"
