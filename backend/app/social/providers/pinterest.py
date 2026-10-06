@@ -1,8 +1,11 @@
 """Pinterest platform adapter."""
 from typing import Any
+
 from app.social.contracts import Capability, Platform, PublishCommand
-from app.social.providers.oauth import OAuthRestProvider
 from app.social.providers.common import provider_error
+from app.social.providers.oauth import OAuthRestProvider
+
+
 class PinterestProvider(OAuthRestProvider):
     """Pinterest organic content adapter."""
 
