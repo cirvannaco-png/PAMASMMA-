@@ -50,7 +50,6 @@ Every social connection belongs to the authenticated PAMASMMA user. A single use
 - POST /api/v1/social/engagement/reply
 - POST /api/v1/social/campaigns
 - POST /api/v1/social/campaigns/{campaign_id}/approve
-- POST /api/v1/social/scheduled/process
 
 ## Security
 
