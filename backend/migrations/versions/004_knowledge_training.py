@@ -1,7 +1,7 @@
 """004 — governed knowledge training storage."""
 from alembic import op
 import sqlalchemy as sa
-revision="004"; down_revision="003"; branch_labels=None; depends_on=None
+revision="005"; down_revision="004"; branch_labels=None; depends_on=None
 def upgrade()->None:
     op.create_table("pamasmma_knowledge_sources",
       sa.Column("id",sa.UUID(),primary_key=True),sa.Column("user_id",sa.String(255),nullable=False,index=True),
