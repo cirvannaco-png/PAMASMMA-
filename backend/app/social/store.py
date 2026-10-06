@@ -873,7 +873,7 @@ async def approve_campaign(
                 ),
                 {"campaign_id": campaign_id, "user_id": user_id},
             )
-            row = result.mappings().first()
+            row = db_result.mappings().first()
         campaign = dict(row) if row else None
     else:
         campaign = next(
@@ -955,7 +955,7 @@ async def approve_campaign(
         "status": "created",
         "campaign_id": campaign_id,
         "external_campaign_id": external_id,
-        "provider_response": result,
+        "provider_response": provider_result,
     }
 
 
