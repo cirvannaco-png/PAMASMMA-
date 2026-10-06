@@ -21,6 +21,12 @@ PyJWT==2.10.0
 webauthn==2.8.0
 cryptography==50.0.2
 
+# ── Upload / Knowledge Ingestion ─────────────────────────────────────────────
+python-multipart==0.0.20
+pypdf==5.9.0
+python-docx==1.1.2
+imageio-ffmpeg==0.6.0
+
 # ── AI / Embeddings ───────────────────────────────────────────────────────────
 anthropic==0.39.0
 openai==1.57.0

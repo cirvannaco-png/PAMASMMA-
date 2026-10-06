@@ -17,8 +17,9 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { TopBar } from "@/components/layout/TopBar";
 import { CognitiveChatPanel } from "@/components/cognitive/CognitiveChatPanel";
 import { ActionLog, OverrideQueue } from "@/components/dashboard";
+import { KnowledgeTraining } from "@/components/knowledge/KnowledgeTraining";
 
-type ConsoleTab = "chat" | "log" | "override";
+type ConsoleTab = "chat" | "knowledge" | "log" | "override";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -217,6 +218,8 @@ export default function DashboardPage() {
             }}
           />
         )}
+
+        {activeTab === "knowledge" && <KnowledgeTraining activeSystemId={activeSystemId as SystemId} />}
 
         {activeTab === "log" && <ActionLog systemId={activeSystemId as SystemId} />}
 

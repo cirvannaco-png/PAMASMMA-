@@ -18,6 +18,7 @@ from app.events.handlers import (
     handle_override_queue,
     handle_scheduler_event,
 )
+from app.knowledge.router import router as knowledge_router
 from app.middleware.logging import LoggingMiddleware
 from app.middleware.rate_limit import RateLimitMiddleware
 from app.redis_client import close_redis
@@ -120,6 +121,7 @@ def create_app() -> FastAPI:
     app.include_router(auth_router, prefix="/api/v1")
     app.include_router(cognitive_router, prefix="/api/v1")
     app.include_router(events_router, prefix="/api/v1")
+    app.include_router(knowledge_router, prefix="/api/v1")
     return app
 
 

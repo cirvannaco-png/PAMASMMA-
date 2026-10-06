@@ -61,6 +61,17 @@ class Settings(BaseSettings):
     embedding_dimensions: int = 1536
     vector_similarity_threshold: float = 0.78
 
+    # Governed knowledge training controls.
+    knowledge_max_upload_mb: int = 200
+    knowledge_max_extracted_chars: int = 5_000_000
+    knowledge_max_extracted_bytes: int = 50_000_000
+    knowledge_chunk_chars: int = 1800
+    knowledge_chunk_overlap_chars: int = 250
+    knowledge_similarity_threshold: float = 0.55
+    knowledge_media_command_timeout_seconds: int = 120
+    knowledge_transcription_max_bytes: int = 24 * 1024 * 1024
+    transcription_model: str = "gpt-4o-mini-transcribe"
+
     # Cognitive operating system controls
     intelligence_memory_limit: int = 5
     intelligence_max_specialists: int = 4

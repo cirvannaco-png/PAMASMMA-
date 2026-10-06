@@ -9,8 +9,8 @@ import type { SystemId } from "@/types";
 
 interface TopBarProps {
   activeSystemId: SystemId;
-  activeTab: "chat" | "log" | "override";
-  onTabChange: (tab: "chat" | "log" | "override") => void;
+  activeTab: "chat" | "knowledge" | "log" | "override";
+  onTabChange: (tab: "chat" | "knowledge" | "log" | "override") => void;
   onToggleSidebar: () => void;
 }
 
@@ -49,10 +49,10 @@ export function TopBar({ activeSystemId, activeTab, onTabChange, onToggleSidebar
 
       <div style={{ display: "flex", alignItems: "center", gap: 14, flexShrink: 0 }}>
         <div className="pamasmma-header-tabs" style={{ display: "flex", alignItems: "center", gap: 18 }}>
-          {(["chat", "log", "override"] as const).map((tab) => (
+          {(["chat", "knowledge", "log", "override"] as const).map((tab) => (
             <button
               type="button"
-              key={tab}
+              key={tab === "knowledge" ? "learn" : tab}
               aria-pressed={activeTab === tab}
               onClick={() => onTabChange(tab)}
               style={{

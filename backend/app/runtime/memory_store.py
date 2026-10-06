@@ -18,5 +18,7 @@ outcomes: list[dict[str, Any]] = []
 beliefs: list[dict[str, Any]] = []
 world_entities: list[dict[str, Any]] = []
 relationships: list[dict[str, Any]] = []
+knowledge_sources: list[dict[str, Any]] = []
+knowledge_chunks: list[dict[str, Any]] = []
 
 rate_limits: dict[str, tuple[int, float]] = defaultdict(lambda: (0, 0.0))

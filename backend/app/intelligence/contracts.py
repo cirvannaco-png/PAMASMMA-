@@ -6,6 +6,8 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
+from app.knowledge.contracts import KnowledgeItem
+
 
 class MemoryType(StrEnum):
     WORKING = "working"
@@ -120,6 +122,7 @@ class CognitiveContext(BaseModel):
     relationships: list[Relationship] = Field(default_factory=list)
     hypotheses: list[Hypothesis] = Field(default_factory=list)
     memories: list[MemoryItem] = Field(default_factory=list)
+    knowledge: list[KnowledgeItem] = Field(default_factory=list)
     beliefs: list[Belief] = Field(default_factory=list)
     contradictions: list[str] = Field(default_factory=list)
 
@@ -208,6 +211,7 @@ class CognitiveTrace(BaseModel):
     complexity: TaskComplexity
     sensitivity: Sensitivity
     memory_count: int = 0
+    knowledge_count: int = 0
     contradiction_count: int = 0
     routed_systems: list[str] = Field(default_factory=list)
     provider: str = "kernel"

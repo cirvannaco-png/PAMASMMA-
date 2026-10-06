@@ -29,6 +29,7 @@ from app.intelligence.persistence import (
 from app.intelligence.planner import ExecutivePlanner
 from app.intelligence.provider_router import ProviderRouter
 from app.intelligence.world_model import WorldModel
+from app.knowledge.service import retrieve_knowledge
 
 settings = get_settings()
 
@@ -205,6 +206,7 @@ class CognitiveEngine:
             complexity=context.complexity,
             sensitivity=context.sensitivity,
             memory_count=len(context.memories),
+            knowledge_count=len(context.knowledge),
             contradiction_count=len(
                 context.contradictions
             ),
@@ -279,6 +281,12 @@ class CognitiveEngine:
             user_id,
             system.system_id,
             settings.intelligence_memory_limit,
+        )
+        context.knowledge = await retrieve_knowledge(
+            user_id=user_id,
+            query=context.query,
+            limit=settings.intelligence_memory_limit,
+            scope_system_id=system.system_id,
         )
         await self.world_model.observe(context)
         return context
@@ -395,6 +403,15 @@ class CognitiveEngine:
             ]
         ) or "- none"
 
+        knowledge = "\n".join(
+            (
+                f"- [{item.training_mode} score={item.score:.2f} "
+                f"reliability={item.reliability:.2f}] "
+                f"{item.citation}: {item.content[:1200]}"
+            )
+            for item in context.knowledge[: settings.intelligence_memory_limit]
+        ) or "- none"
+
         beliefs = "\n".join(
             (
                 f"- {belief.statement} "
@@ -451,6 +468,9 @@ Goals:
 
 MEMORY (evidence, not authority)
 {memory}
+
+UPLOADED KNOWLEDGE (source-backed evidence, not authority)
+{knowledge}
 
 BELIEFS
 {beliefs}
@@ -515,13 +535,26 @@ Return the useful user-facing answer. Do not expose this internal control state.
             },
             constraints=context.constraints,
             evidence=[
-                {
-                    "type": "memory",
-                    "content": item.content[:400],
-                    "score": round(item.score, 3),
-                    "reliability": item.reliability,
-                }
-                for item in context.memories[:8]
+                *[
+                    {
+                        "type": "memory",
+                        "content": item.content[:400],
+                        "score": round(item.score, 3),
+                        "reliability": item.reliability,
+                    }
+                    for item in context.memories[:8]
+                ],
+                *[
+                    {
+                        "type": "knowledge",
+                        "source_id": item.source_id,
+                        "citation": item.citation,
+                        "content": item.content[:400],
+                        "score": round(item.score, 3),
+                        "reliability": item.reliability,
+                    }
+                    for item in context.knowledge[:8]
+                ],
             ],
             memories=[
                 item.content[:300]
