@@ -192,3 +192,41 @@ async def test_tiktok_photo_direct_post_payload(monkeypatch):
     assert payload["post_mode"] == "DIRECT_POST"
     assert payload["media_type"] == "PHOTO"
     assert payload["source_info"]["source"] == "PULL_FROM_URL"
+
+
+@pytest.mark.asyncio
+async def test_instagram_video_waits_for_container_ready(monkeypatch):
+    from app.social.providers import meta
+
+    provider = meta.InstagramProvider()
+    calls = []
+    statuses = iter(["IN_PROGRESS", "FINISHED"])
+
+    async def fake_request(method, url, **kwargs):
+        calls.append((method, url, kwargs))
+        if method == "POST" and url.endswith("/media"):
+            return {"id": "container-1"}
+        if method == "GET" and url.endswith("/container-1"):
+            return {"status_code": next(statuses), "status": "ok"}
+        return {"id": "media-1"}
+
+    async def fake_sleep(_seconds):
+        return None
+
+    monkeypatch.setattr(provider, "request", fake_request)
+    monkeypatch.setattr(meta.asyncio, "sleep", fake_sleep)
+
+    result = await provider.publish(
+        "token",
+        PublishCommand(
+            account_id="account-1",
+            text="reel",
+            media_url="https://cdn.example.test/reel.mp4",
+            media_type="video/mp4",
+        ),
+        "ig-user-1",
+    )
+
+    assert result["id"] == "media-1"
+    assert [method for method, _, _ in calls] == ["POST", "GET", "GET", "POST"]
+    assert calls[-1][2]["data"]["creation_id"] == "container-1"
