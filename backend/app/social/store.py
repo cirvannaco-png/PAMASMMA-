@@ -1,6 +1,6 @@
 """Application services for the PAMASMMA social growth subsystem."""
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import text
@@ -9,7 +9,13 @@ from app.config import get_settings
 from app.database import AsyncSessionLocal
 from app.runtime import memory_store
 from app.security.crypto import decrypt_secret, encrypt_secret
-from app.social.contracts import Capability, Platform, PublishCommand, ReplyCommand
+from app.social.contracts import (
+    Capability,
+    Platform,
+    PublishCommand,
+    ReplyCommand,
+    SocialProviderError,
+)
 from app.social.providers.adapters import get_provider
 
 settings = get_settings()
@@ -29,6 +35,82 @@ def _token_value(data: dict[str, Any], *keys: str) -> str | None:
 
 def _capabilities(platform: Platform) -> list[str]:
     return [cap.value for cap in get_provider(platform).capabilities]
+
+
+async def _access_token_for(account: dict[str, Any]) -> str:
+    """Return a usable token and refresh it shortly before expiry when possible."""
+    token = decrypt_secret(account["access_token_enc"])
+    expires_at = account.get("token_expires_at")
+    refresh_enc = account.get("refresh_token_enc")
+    if not expires_at or not refresh_enc:
+        return token
+    if expires_at > _now() + timedelta(seconds=120):
+        return token
+
+    provider = get_provider(Platform(account["platform"]))
+    try:
+        refreshed = await provider.refresh_token(decrypt_secret(refresh_enc))
+    except SocialProviderError:
+        if settings.is_persistent and AsyncSessionLocal is not None:
+            async with AsyncSessionLocal() as session:
+                await session.execute(
+                    text(
+                        """
+                        UPDATE pamasmma_social_accounts
+                        SET status = 'reauth_required', updated_at = now()
+                        WHERE id = :id
+                        """
+                    ),
+                    {"id": account["id"]},
+                )
+                await session.commit()
+        else:
+            account["status"] = "reauth_required"
+        raise
+
+    new_token = _token_value(refreshed, "access_token", "token")
+    if not new_token:
+        raise ValueError("Provider refresh response did not contain an access token.")
+
+    new_refresh = _token_value(refreshed, "refresh_token")
+    expires_in = refreshed.get("expires_in")
+    new_expiry = None
+    if expires_in:
+        new_expiry = datetime.fromtimestamp(
+            _now().timestamp() + int(expires_in), UTC
+        )
+
+    account["access_token_enc"] = encrypt_secret(new_token)
+    if new_refresh:
+        account["refresh_token_enc"] = encrypt_secret(new_refresh)
+    if new_expiry:
+        account["token_expires_at"] = new_expiry
+    account["status"] = "active"
+
+    if settings.is_persistent and AsyncSessionLocal is not None:
+        async with AsyncSessionLocal() as session:
+            await session.execute(
+                text(
+                    """
+                    UPDATE pamasmma_social_accounts
+                    SET access_token_enc = :access_token_enc,
+                        refresh_token_enc = :refresh_token_enc,
+                        token_expires_at = :token_expires_at,
+                        status = 'active',
+                        updated_at = now()
+                    WHERE id = :id
+                    """
+                ),
+                {
+                    "id": account["id"],
+                    "access_token_enc": account["access_token_enc"],
+                    "refresh_token_enc": account.get("refresh_token_enc"),
+                    "token_expires_at": account.get("token_expires_at"),
+                },
+            )
+            await session.commit()
+
+    return new_token
 
 
 def _public_account(record: dict[str, Any]) -> dict[str, Any]:
@@ -269,7 +351,7 @@ async def publish_now(
     platform = Platform(account["platform"])
     provider = get_provider(platform)
     result = await provider.publish(
-        decrypt_secret(account["access_token_enc"]),
+        _access_token_for(account),
         command,
         account["external_account_id"],
     )
