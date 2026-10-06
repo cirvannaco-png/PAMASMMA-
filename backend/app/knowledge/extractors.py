@@ -5,6 +5,7 @@ import re
 import subprocess
 import tempfile
 import zipfile
+from dataclasses import dataclass
 from pathlib import Path
 from xml.etree import ElementTree
 
@@ -21,6 +22,12 @@ AUDIO_EXTENSIONS = {".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac", ".webm"}
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".mkv", ".avi", ".webm", ".m4v"}
 
 
+@dataclass(frozen=True)
+class ExtractedSegment:
+    content: str
+    locator: str
+
+
 def _clean(value: str) -> str:
     value = value.replace("\x00", " ")
     value = re.sub(r"[ \t]+", " ", value)
@@ -28,63 +35,116 @@ def _clean(value: str) -> str:
     return value.strip()
 
 
+def _subtitle_segments(value: str) -> list[ExtractedSegment]:
+    segments: list[ExtractedSegment] = []
+    blocks = re.split(r"\n\s*\n", value.replace("\r", "").strip())
+    for block_index, block in enumerate(blocks, 1):
+        lines = [line.strip() for line in block.split("\n") if line.strip()]
+        if not lines or lines[0].upper() == "WEBVTT":
+            continue
+
+        timestamp = next((line for line in lines if "-->" in line), None)
+        if timestamp:
+            text_lines = [
+                line
+                for line in lines
+                if "-->" not in line
+                and not line.isdigit()
+                and not line.upper().startswith(("NOTE", "STYLE", "REGION"))
+            ]
+            locator = "timestamp:" + timestamp.replace(" ", "")
+        else:
+            text_lines = [
+                line
+                for line in lines
+                if not line.isdigit()
+                and not line.upper().startswith(("NOTE", "STYLE", "REGION"))
+            ]
+            locator = f"subtitle:{block_index}"
+
+        content = _clean(" ".join(text_lines))
+        if content:
+            segments.append(ExtractedSegment(content=content, locator=locator))
+    return segments
+
+
 def _subtitle_text(value: str) -> str:
-    lines = []
-    for line in value.replace("\r", "").split("\n"):
-        item = line.strip()
-        if not item or item.upper() == "WEBVTT" or item.isdigit():
-            continue
-        if "-->" in item:
-            continue
-        lines.append(item)
-    return _clean(" ".join(lines))
+    return _clean(" ".join(segment.content for segment in _subtitle_segments(value)))
 
 
-def extract_document(path: Path) -> tuple[str, list[str]]:
+def extract_document(path: Path) -> list[ExtractedSegment]:
     suffix = path.suffix.lower()
     if suffix in TEXT_EXTENSIONS:
-        return _clean(path.read_text(encoding="utf-8", errors="replace")), []
+        content = _clean(path.read_text(encoding="utf-8", errors="replace"))
+        return [ExtractedSegment(content, "document")] if content else []
+
     if suffix in SUBTITLE_EXTENSIONS:
-        return _subtitle_text(path.read_text(encoding="utf-8", errors="replace")), []
+        return _subtitle_segments(path.read_text(encoding="utf-8", errors="replace"))
+
     if suffix in PDF_EXTENSIONS:
         from pypdf import PdfReader
 
-        pages = [
-            _clean(page.extract_text() or "")
-            for page in PdfReader(str(path)).pages
-        ]
-        return _clean("\n\n".join(pages)), [
-            f"page:{index}" for index, value in enumerate(pages, 1) if value
-        ]
+        segments: list[ExtractedSegment] = []
+        for index, page in enumerate(PdfReader(str(path)).pages, 1):
+            content = _clean(page.extract_text() or "")
+            if content:
+                segments.append(ExtractedSegment(content, f"page:{index}"))
+        return segments
+
     if suffix in DOCX_EXTENSIONS:
         from docx import Document
 
         document = Document(str(path))
-        return _clean("\n".join(p.text for p in document.paragraphs)), []
+        content = _clean("\n".join(p.text for p in document.paragraphs))
+        return [ExtractedSegment(content, "document")] if content else []
+
     if suffix in EPUB_EXTENSIONS:
         return _extract_epub(path)
+
     if suffix in AUDIO_EXTENSIONS or suffix in VIDEO_EXTENSIONS:
-        return _transcribe_media(path)
+        content, locator = _transcribe_media(path)
+        return [ExtractedSegment(content, locator)] if content else []
+
     raise ValueError(f"Unsupported knowledge file type: {suffix or 'unknown'}")
 
 
-def _extract_epub(path: Path) -> tuple[str, list[str]]:
-    parts = []
+def _extract_epub(path: Path) -> list[ExtractedSegment]:
+    parts: list[ExtractedSegment] = []
+    max_bytes = settings.knowledge_max_archive_extract_mb * 1024 * 1024
+    total_bytes = 0
+
     with zipfile.ZipFile(path) as archive:
-        for name in archive.namelist():
-            if not name.lower().endswith((".xhtml", ".html", ".htm")):
-                continue
+        members = [
+            item
+            for item in archive.infolist()
+            if item.filename.lower().endswith((".xhtml", ".html", ".htm"))
+            and not item.is_dir()
+        ]
+        if len(members) > settings.knowledge_max_archive_files:
+            raise ValueError("EPUB contains too many archive members.")
+
+        for item in members:
+            total_bytes += item.file_size
+            if total_bytes > max_bytes:
+                raise ValueError("EPUB extracted content exceeds the safety limit.")
+
             try:
-                root = ElementTree.fromstring(archive.read(name))
+                root = ElementTree.fromstring(archive.read(item))
             except (ElementTree.ParseError, UnicodeDecodeError):
                 continue
-            value = " ".join(" ".join(root.itertext()).split())
+
+            value = _clean(" ".join(" ".join(root.itertext()).split()))
             if value:
-                parts.append(value)
-    return _clean("\n\n".join(parts)), []
+                parts.append(
+                    ExtractedSegment(
+                        value,
+                        "section:" + Path(item.filename).as_posix(),
+                    )
+                )
+    return parts
 
 
-def _transcribe_media(path: Path) -> tuple[str, list[str]]:
+def _transcribe_media(path: Path) -> tuple[str, str]:
     if settings.knowledge_transcription_provider.lower() == "disabled":
         raise ValueError("Media transcription is disabled by configuration.")
     if not settings.openai_api_key:
@@ -94,7 +154,7 @@ def _transcribe_media(path: Path) -> tuple[str, list[str]]:
     return _transcribe_with_openai(path)
 
 
-def _transcribe_with_openai(path: Path) -> tuple[str, list[str]]:
+def _transcribe_with_openai(path: Path) -> tuple[str, str]:
     from openai import OpenAI
 
     with tempfile.TemporaryDirectory(prefix="pamasmma-media-") as directory:
@@ -136,7 +196,7 @@ def _transcribe_with_openai(path: Path) -> tuple[str, list[str]]:
                 file=handle,
                 response_format="text",
             )
-        return _clean(str(result)), []
+        return _clean(str(result)), "transcript"
 
 
 def supported_suffix(suffix: str) -> bool:
