@@ -919,3 +919,62 @@ async def publish_batch(
         "succeeded": sum(1 for item in results if item["ok"]),
         "failed": sum(1 for item in results if not item["ok"]),
     }
+
+
+async def sync_all_accounts() -> dict[str, Any]:
+    """Synchronize active social accounts without crossing user boundaries."""
+    if settings.is_persistent:
+        assert AsyncSessionLocal is not None
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(
+                text(
+                    """
+                    SELECT id::text AS id, user_id
+                    FROM pamasmma_social_accounts
+                    WHERE status = 'active'
+                    ORDER BY created_at
+                    LIMIT :limit
+                    """
+                ),
+                {"limit": settings.social_sync_batch_size},
+            )
+            accounts = result.mappings().all()
+    else:
+        accounts = [
+            {
+                "id": str(account["id"]),
+                "user_id": account["user_id"],
+            }
+            for account in memory_store.social_accounts
+            if account.get("status", "active") == "active"
+        ][: settings.social_sync_batch_size]
+
+    results: list[dict[str, Any]] = []
+    for account in accounts:
+        try:
+            result = await sync_engagement(
+                account["user_id"],
+                account["id"],
+            )
+            results.append(
+                {
+                    "account_id": account["id"],
+                    "count": result["count"],
+                    "ok": True,
+                }
+            )
+        except Exception as exc:
+            results.append(
+                {
+                    "account_id": account["id"],
+                    "ok": False,
+                    "error": str(exc)[:1000],
+                }
+            )
+
+    return {
+        "accounts": len(accounts),
+        "succeeded": sum(1 for item in results if item["ok"]),
+        "failed": sum(1 for item in results if not item["ok"]),
+        "results": results,
+    }
