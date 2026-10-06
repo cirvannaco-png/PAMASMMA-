@@ -1,8 +1,8 @@
 """HTTP boundary for PAMASMMA social growth operations."""
+import secrets
 from datetime import UTC, datetime
 from typing import Annotated
 
-import secrets
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
