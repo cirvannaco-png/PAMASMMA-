@@ -149,7 +149,15 @@ async def create_account(
     if not external_id:
         raise ValueError("An external account id is required for this provider.")
 
-    scopes = str(token_data.get("scope", "")).split()
+    raw_scope = token_data.get("scope", "")
+    if isinstance(raw_scope, list):
+        scopes = [str(item).strip() for item in raw_scope if str(item).strip()]
+    else:
+        scopes = [
+            item.strip()
+            for item in str(raw_scope).replace(",", " ").split()
+            if item.strip()
+        ]
     record = {
         "id": uuid.uuid4(),
         "user_id": user_id,
