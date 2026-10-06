@@ -1,19 +1,21 @@
 """Telegram and WhatsApp messaging adapters."""
+from typing import Any
+
 from app.social.contracts import Capability, Platform, PublishCommand
 from app.social.providers.base import SocialProvider
 from app.social.providers.common import _env, provider_error
 from app.social.providers.http import HttpProvider
 class TelegramProvider(SocialProvider, HttpProvider):
-    def __init__(self) -> None:
-        HttpProvider.__init__(self, self.platform)
     """Telegram Bot API messaging adapter."""
 
+    def __init__(self) -> None:
+        HttpProvider.__init__(self, self.platform)
     platform = Platform.TELEGRAM
     capabilities = frozenset({Capability.PUBLISH, Capability.COMMENTS_READ, Capability.COMMENTS_WRITE})
 
     def authorization_url(self, state: str) -> str:
         del state
-        raise _provider_error(
+        raise provider_error(
             self.platform,
             "oauth_not_applicable",
             "Telegram uses a bot token rather than user OAuth.",
@@ -49,10 +51,10 @@ class TelegramProvider(SocialProvider, HttpProvider):
         )
 
 class WhatsAppProvider(SocialProvider, HttpProvider):
-    def __init__(self) -> None:
-        HttpProvider.__init__(self, self.platform)
     """WhatsApp Cloud API text messaging adapter."""
 
+    def __init__(self) -> None:
+        HttpProvider.__init__(self, self.platform)
     platform = Platform.WHATSAPP
     capabilities = frozenset({Capability.PUBLISH, Capability.COMMENTS_WRITE})
 
@@ -111,22 +113,3 @@ class WhatsAppProvider(SocialProvider, HttpProvider):
                 "text": {"body": command.text},
             },
         )
-
-
-PROVIDERS: dict[Platform, SocialProvider] = {
-    Platform.FACEBOOK: MetaProvider(),
-    Platform.INSTAGRAM: InstagramProvider(),
-    Platform.TIKTOK: TikTokProvider(),
-    Platform.YOUTUBE: YouTubeProvider(),
-    Platform.LINKEDIN: LinkedInProvider(),
-    Platform.X: XProvider(),
-    Platform.THREADS: ThreadsProvider(),
-    Platform.PINTEREST: PinterestProvider(),
-    Platform.REDDIT: RedditProvider(),
-    Platform.TELEGRAM: TelegramProvider(),
-    Platform.WHATSAPP: WhatsAppProvider(),
-}
-
-
-def get_provider(platform: Platform) -> SocialProvider:
-    return PROVIDERS[platform]
