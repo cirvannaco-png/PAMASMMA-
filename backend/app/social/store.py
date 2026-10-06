@@ -116,7 +116,16 @@ async def create_account(
                     :access_token_enc, :refresh_token_enc, :token_expires_at,
                     :scopes, :metadata, :status
                 )
-                ON CONFLICT DO NOTHING
+                ON CONFLICT (user_id, platform, external_account_id)
+                DO UPDATE SET
+                    display_name = EXCLUDED.display_name,
+                    access_token_enc = EXCLUDED.access_token_enc,
+                    refresh_token_enc = EXCLUDED.refresh_token_enc,
+                    token_expires_at = EXCLUDED.token_expires_at,
+                    scopes = EXCLUDED.scopes,
+                    metadata = EXCLUDED.metadata,
+                    status = 'active',
+                    updated_at = now()
                 """
             ),
             record,
