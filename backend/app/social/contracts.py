@@ -4,6 +4,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field, HttpUrl
 
+
 class Platform(StrEnum):
     FACEBOOK = "facebook"
     INSTAGRAM = "instagram"
