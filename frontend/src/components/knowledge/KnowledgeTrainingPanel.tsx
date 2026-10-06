@@ -28,7 +28,7 @@ export function KnowledgeTrainingPanel() {
 
   useEffect(() => {
     void refresh();
-  }, []);
+  }, [refresh]);
 
   const uploadFiles = async (files: FileList | null) => {
     if (!files?.length) return;
