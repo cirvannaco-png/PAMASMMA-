@@ -72,6 +72,19 @@ class XProvider(OAuthRestProvider):
             headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
 
+    async def discover_accounts(self, token: str) -> list[dict[str, Any]]:
+        """Discover the X user who authorized PAMASMMA."""
+        response = await self.request(
+            "GET",
+            "https://api.x.com/2/users/me",
+            token=token,
+            params={"user.fields": "name,username,profile_image_url"},
+        )
+        user = response.get("data") or {}
+        if not user.get("id"):
+            return []
+        return [{"external_account_id": str(user["id"]), "display_name": user.get("name") or user.get("username")}]
+
     async def publish(
         self,
         token: str,
