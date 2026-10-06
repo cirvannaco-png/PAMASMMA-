@@ -46,7 +46,7 @@ async def oauth_callback(platform: Platform,code: str=Query(...,min_length=1),st
     if not payload or payload.get("platform")!=platform.value: raise HTTPException(400,"Invalid or expired social OAuth state.")
     await cache_set(f"social:oauth:{state}",{"consumed":True},ttl=1)
     try:
-        token_data=await get_provider(platform).exchange_code(code)
+        token_data=await get_provider(platform).exchange_code(code, state)
         account=await create_account(payload["user_id"],platform,token_data,external_account_id or payload.get("external_account_id"))
         return {"status":"connected","account":account}
     except (SocialProviderError,ValueError) as exc:
