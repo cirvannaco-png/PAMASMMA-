@@ -11,7 +11,7 @@ class HttpProvider:
         self.platform = platform
         self.timeout = timeout
 
-    async def request(self, method: str, url: str, *, token: str | None = None, json_body: dict[str, Any] | None = None, data: dict[str, Any] | None = None, params: dict[str, Any] | None = None, headers: dict[str, str] | None = None) -> dict[str, Any]:
+    async def request(self, method: str, url: str, *, token: str | None = None, json_body: dict[str, Any] | list[dict[str, Any]] | None = None, data: dict[str, Any] | None = None, params: dict[str, Any] | None = None, headers: dict[str, str] | None = None) -> dict[str, Any]:
         request_headers = {"Accept": "application/json"}
         if token:
             request_headers["Authorization"] = f"Bearer {token}"
