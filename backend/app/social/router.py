@@ -511,12 +511,3 @@ async def campaign_approve(
             detail=str(exc),
         ) from exc
 
-
-@router.post("/scheduled/process")
-async def process_scheduled(
-    current_user: CurrentUser,
-) -> dict:
-    return {
-        "processed": await process_due_posts(),
-        "requested_by": current_user["user_id"],
-    }
