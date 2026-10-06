@@ -122,7 +122,7 @@ class Settings(BaseSettings):
     social_linkedin_client_secret: str | None = None
     social_linkedin_redirect_uri: str | None = None
     social_linkedin_scopes: str = "openid profile w_member_social"
-    social_linkedin_version: str = "202603"
+    social_linkedin_version: str = "202609"
     social_x_client_id: str | None = None
     social_x_client_secret: str | None = None
     social_x_redirect_uri: str | None = None
