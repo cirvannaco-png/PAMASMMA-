@@ -7,7 +7,7 @@ class PinterestProvider(OAuthRestProvider):
     """Pinterest organic content adapter."""
 
     platform = Platform.PINTEREST
-    capabilities = frozenset({Capability.PUBLISH})
+    capabilities = frozenset({Capability.PUBLISH, Capability.ADS_READ, Capability.ADS_WRITE})
     auth_url = "https://www.pinterest.com/oauth/"
     token_url = "https://api.pinterest.com/v5/oauth/token"
     client_id_env = "SOCIAL_PINTEREST_APP_ID"
@@ -44,4 +44,28 @@ class PinterestProvider(OAuthRestProvider):
                     "url": str(command.media_url),
                 },
             },
+        )
+
+    async def create_campaign(
+        self,
+        token: str,
+        account_id: str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        campaign = {
+            "name": payload["name"],
+            "objective_type": payload["objective"],
+            "status": "PAUSED",
+        }
+        if payload.get("daily_budget") is not None:
+            campaign["daily_spend_cap"] = int(
+                float(payload["daily_budget"]) * 1_000_000
+            )
+        provider_options = payload.get("provider_options") or {}
+        campaign.update(provider_options)
+        return await self.request(
+            "POST",
+            f"https://api.pinterest.com/v5/ad_accounts/{account_id}/campaigns",
+            token=token,
+            json_body=[campaign],
         )
