@@ -27,6 +27,23 @@ class YouTubeProvider(OAuthRestProvider):
     redirect_env = "SOCIAL_YOUTUBE_REDIRECT_URI"
     scope_env = "SOCIAL_YOUTUBE_SCOPES"
 
+    async def discover_accounts(self, token: str) -> list[dict[str, Any]]:
+        """Discover all YouTube channels available to the authorized user."""
+        response = await self.request(
+            "GET",
+            "https://www.googleapis.com/youtube/v3/channels",
+            token=token,
+            params={"part": "id,snippet", "mine": "true", "maxResults": 50},
+        )
+        return [
+            {
+                "external_account_id": str(item["id"]),
+                "display_name": (item.get("snippet") or {}).get("title"),
+            }
+            for item in response.get("items", [])
+            if item.get("id")
+        ]
+
     async def publish(
         self,
         token: str,
