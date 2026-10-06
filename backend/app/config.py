@@ -1,5 +1,4 @@
-"""
-PAMASMMA v4.2 — Configuration
+"""PAMASMMA v4.2 — Configuration
 Provider-neutral intelligence with explicit durable/ephemeral persistence modes.
 """
 from functools import lru_cache
@@ -53,8 +52,6 @@ class Settings(BaseSettings):
     anthropic_max_tokens: int = 2048
     anthropic_timeout_seconds: int = 60
 
-    # "local"/"hash" = deterministic dependency-free fallback.
-    # "openai" = semantic embeddings through the configured OpenAI API.
     embedding_provider: str = "local"
     openai_api_key: str | None = None
     embedding_model: str = "text-embedding-3-small"
@@ -62,6 +59,11 @@ class Settings(BaseSettings):
     vector_similarity_threshold: float = 0.78
 
     knowledge_max_upload_mb: int = 100
+    knowledge_max_archive_extract_mb: int = 250
+    knowledge_max_archive_files: int = 2000
+    knowledge_max_chunks_per_source: int = 10000
+    knowledge_memory_source_limit: int = 25
+    knowledge_memory_chunk_limit: int = 1000
     knowledge_chunk_size: int = 420
     knowledge_chunk_overlap: int = 60
     knowledge_similarity_threshold: float = 0.68
@@ -73,7 +75,10 @@ class Settings(BaseSettings):
     def knowledge_max_upload_bytes(self) -> int:
         return self.knowledge_max_upload_mb * 1024 * 1024
 
-    # Cognitive operating system controls
+    @property
+    def knowledge_max_archive_extract_bytes(self) -> int:
+        return self.knowledge_max_archive_extract_mb * 1024 * 1024
+
     intelligence_memory_limit: int = 5
     intelligence_max_specialists: int = 4
     intelligence_revision_enabled: bool = True
@@ -119,8 +124,23 @@ class Settings(BaseSettings):
             raise ValueError("PAMASMMA_BOOTSTRAP_TOKEN must be configured in production.")
         if self.is_persistent and (not self.database_url or not self.redis_url):
             raise ValueError("DATABASE_URL and REDIS_URL are required when PERSISTENCE_MODE=postgres.")
-        if self.knowledge_max_upload_mb < 1 or self.knowledge_chunk_overlap >= self.knowledge_chunk_size:
-            raise ValueError("Knowledge upload/chunk settings are invalid.")
+        if self.knowledge_max_upload_mb < 1:
+            raise ValueError("KNOWLEDGE_MAX_UPLOAD_MB must be at least 1.")
+        if (
+            self.knowledge_chunk_overlap < 0
+            or self.knowledge_chunk_overlap >= self.knowledge_chunk_size
+        ):
+            raise ValueError("Knowledge chunk overlap must be non-negative and smaller than chunk size.")
+        if self.knowledge_max_archive_extract_mb < 1:
+            raise ValueError("KNOWLEDGE_MAX_ARCHIVE_EXTRACT_MB must be at least 1.")
+        if self.knowledge_max_archive_files < 1:
+            raise ValueError("KNOWLEDGE_MAX_ARCHIVE_FILES must be at least 1.")
+        if self.knowledge_max_chunks_per_source < 1:
+            raise ValueError("KNOWLEDGE_MAX_CHUNKS_PER_SOURCE must be at least 1.")
+        if self.knowledge_memory_source_limit < 1:
+            raise ValueError("KNOWLEDGE_MEMORY_SOURCE_LIMIT must be at least 1.")
+        if self.knowledge_memory_chunk_limit < 1:
+            raise ValueError("KNOWLEDGE_MEMORY_CHUNK_LIMIT must be at least 1.")
         if self.embedding_provider == "openai" and not self.openai_api_key:
             raise ValueError("OPENAI_API_KEY is required when EMBEDDING_PROVIDER=openai.")
         if self.model_provider == "anthropic" and not self.anthropic_api_key:

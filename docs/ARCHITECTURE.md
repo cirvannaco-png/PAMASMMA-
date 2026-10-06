@@ -256,3 +256,37 @@ Application readiness and infrastructure readiness are separate.
 PAMASMMA must use isolated production PostgreSQL and persistent Redis-compatible storage. Midas Touch2 storage must not be reused, and a free/ephemeral cache must not be classified as durable production storage.
 
 The Render deployment contract already models this isolation; infrastructure billing remains an activation gate.
+
+
+## Knowledge Training Fabric
+
+Knowledge Training is a governed subsystem adjacent to the Memory Fabric:
+
+```text
+UPLOAD
+  ↓
+VALIDATE + HASH
+  ↓
+EXTRACT
+  ├─ PDF pages
+  ├─ EPUB sections
+  ├─ document text
+  ├─ subtitle timestamps
+  └─ audio/video transcript
+  ↓
+PROVENANCE-PRESERVING CHUNKING
+  ↓
+EMBEDD
+  ↓
+POSTGRES/EPHEMERAL KNOWLEDGE STORE
+  ↓
+COGNITIVE RETRIEVAL
+  ↓
+CRITIC → EVIDENCE GATE → METACOGNITIVE GOVERNANCE
+```
+
+Knowledge and Procedure are distinct ingestion modes. Knowledge is retrieved as semantic memory; Procedure is retrieved as procedural memory. Neither mode modifies model weights.
+
+Each chunk retains the source identifier, filename, training mode, memory type, content hash relationship and source locator. Active duplicate sources are suppressed per user and training mode. EPUB extraction is bounded by member-count and expanded-size limits. Ephemeral mode has explicit source/chunk bounds.
+
+Knowledge retrieval is user-scoped and enters the existing cognitive context as evidence, not as unquestionable truth.
