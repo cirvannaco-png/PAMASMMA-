@@ -1021,7 +1021,7 @@ async def sync_all_accounts() -> dict[str, Any]:
     if settings.is_persistent:
         assert AsyncSessionLocal is not None
         async with AsyncSessionLocal() as session:
-            result = await session.execute(
+            db_result = await session.execute(
                 text(
                     """
                     SELECT id::text AS id, user_id
@@ -1033,7 +1033,7 @@ async def sync_all_accounts() -> dict[str, Any]:
                 ),
                 {"limit": settings.social_sync_batch_size},
             )
-            account_rows = result.mappings().all()
+            account_rows = db_result.mappings().all()
             accounts = [dict(row) for row in account_rows]
     else:
         accounts = [
@@ -1048,14 +1048,14 @@ async def sync_all_accounts() -> dict[str, Any]:
     results: list[dict[str, Any]] = []
     for account in accounts:
         try:
-            result = await sync_engagement(
+            sync_result = await sync_engagement(
                 account["user_id"],
                 account["id"],
             )
             results.append(
                 {
                     "account_id": account["id"],
-                    "count": result["count"],
+                    "count": sync_result["count"],
                     "ok": True,
                 }
             )
