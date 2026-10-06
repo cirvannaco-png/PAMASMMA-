@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 from app.auth.dependencies import get_current_user
 from app.config import get_settings
 from app.redis_client import cache_get, cache_pop, cache_set
+from app.security.crypto import decrypt_secret, encrypt_secret
 from app.social.contracts import (
     CampaignPlan,
     Platform,
@@ -19,7 +20,6 @@ from app.social.contracts import (
     ReplyCommand,
     SocialProviderError,
 )
-from app.security.crypto import decrypt_secret, encrypt_secret
 from app.social.providers.adapters import PROVIDERS, get_provider
 from app.social.store import (
     approve_campaign,
@@ -173,7 +173,7 @@ async def oauth_callback(
             selected_data = dict(token_data)
             if selected:
                 selected_data.update(selected.get("token_data") or {})
-            account = await create_account(
+            await create_account(
                 payload["user_id"],
                 platform,
                 selected_data,
