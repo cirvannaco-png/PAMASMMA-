@@ -3,7 +3,8 @@ import base64
 from typing import Any
 
 from app.social.contracts import Capability, Platform, PublishCommand
-from app.social.providers.common import _env, provider_error as _provider_error
+from app.social.providers.common import _env
+from app.social.providers.common import provider_error as _provider_error
 from app.social.providers.oauth import OAuthRestProvider
 
 
@@ -36,7 +37,7 @@ class PinterestProvider(OAuthRestProvider):
                 503,
             )
         encoded = base64.b64encode(
-            f"{client_id}:{secret}".encode("utf-8")
+            f"{client_id}:{secret}".encode()
         ).decode("ascii")
         return f"Basic {encoded}"
 
