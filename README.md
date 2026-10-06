@@ -306,3 +306,6 @@ The remaining production gate is infrastructure: PAMASMMA needs isolated durable
 
 ## Knowledge Training
 PAMASMMA includes a governed Knowledge Training subsystem for importing books, notes, documents, subtitles, audio and video. Sources are parsed, chunked, embedded and retrieved as provenance-aware cognitive context; uploads do not silently modify model weights. See `docs/KNOWLEDGE_TRAINING.md` for supported formats, API endpoints and governance.
+## Social Growth
+
+PAMASMMA now includes a governed social execution layer at `/social`. It provides provider-neutral account connections, publishing and scheduling, engagement synchronization and replies, analytics adapters, campaign planning, and an explicit campaign approval gate. Platform adapters remain isolated from the cognitive engine. See [docs/SOCIAL_GROWTH.md](docs/SOCIAL_GROWTH.md).

@@ -104,6 +104,47 @@ class Settings(BaseSettings):
     personality_formality: float = 0.61
     personality_strategic_depth: float = 0.91
 
+    # Social Growth / Platform OAuth. Secrets are injected at deployment time.
+    social_meta_client_id: str | None = None
+    social_meta_client_secret: str | None = None
+    social_meta_redirect_uri: str | None = None
+    social_meta_graph_version: str = "v23.0"
+    social_meta_scopes: str = "pages_manage_posts,pages_read_engagement,instagram_basic,instagram_content_publish,instagram_manage_comments"
+    social_tiktok_client_key: str | None = None
+    social_tiktok_client_secret: str | None = None
+    social_tiktok_redirect_uri: str | None = None
+    social_tiktok_scopes: str = "user.info.basic,video.publish"
+    social_youtube_client_id: str | None = None
+    social_youtube_client_secret: str | None = None
+    social_youtube_redirect_uri: str | None = None
+    social_youtube_scopes: str = "https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube.force-ssl https://www.googleapis.com/auth/yt-analytics.readonly"
+    social_linkedin_client_id: str | None = None
+    social_linkedin_client_secret: str | None = None
+    social_linkedin_redirect_uri: str | None = None
+    social_linkedin_scopes: str = "openid profile w_member_social"
+    social_linkedin_version: str = "202609"
+    social_x_client_id: str | None = None
+    social_x_client_secret: str | None = None
+    social_x_redirect_uri: str | None = None
+    social_x_scopes: str = "tweet.read tweet.write users.read offline.access"
+    social_threads_client_id: str | None = None
+    social_threads_client_secret: str | None = None
+    social_threads_redirect_uri: str | None = None
+    social_threads_scopes: str = "threads_basic,threads_content_publish,threads_manage_replies"
+    social_pinterest_app_id: str | None = None
+    social_pinterest_app_secret: str | None = None
+    social_pinterest_redirect_uri: str | None = None
+    social_pinterest_scopes: str = "boards:read,boards:write,pins:read,pins:write"
+    social_reddit_client_id: str | None = None
+    social_reddit_client_secret: str | None = None
+    social_reddit_redirect_uri: str | None = None
+    social_reddit_scopes: str = "identity,submit,read,comment"
+    social_telegram_bot_token: str | None = None
+    social_whatsapp_access_token: str | None = None
+    social_autopilot_enabled: bool = False
+    social_ads_autonomous_enabled: bool = False
+    social_sync_batch_size: int = 100
+
     @property
     def is_production(self) -> bool:
         return self.app_env == "production"

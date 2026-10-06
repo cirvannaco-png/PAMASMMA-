@@ -177,6 +177,23 @@ async def cache_get(key: str) -> Any | None:
     return json.loads(raw) if raw else None
 
 
+async def cache_pop(key: str) -> Any | None:
+    """Atomically read and delete a cached value, used for single-use OAuth state."""
+    if not settings.is_persistent:
+        item = memory_store.sessions.pop(f"cache:{key}", None)
+        if not item or item["expires_at"] < time.monotonic():
+            return None
+        return item["value"]
+    assert redis_client is not None
+    redis_key = f"{NS_CACHE}{key}"
+    async with redis_client.pipeline(transaction=True) as pipe:
+        pipe.get(redis_key)
+        pipe.delete(redis_key)
+        results = await pipe.execute()
+    raw = results[0]
+    return json.loads(raw) if raw else None
+
+
 async def cache_invalidate(key: str) -> None:
     if not settings.is_persistent:
         memory_store.sessions.pop(f"cache:{key}", None)

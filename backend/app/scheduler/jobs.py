@@ -78,6 +78,24 @@ async def job_narrative_coherence_check() -> None:
         log.error("[J5] Narrative coherence check failed: %s", exc)
 
 
+async def job_social_due_posts() -> None:
+    try:
+        from app.social.store import process_due_posts
+        count = await process_due_posts()
+        log.info("[J7] Social scheduled posts processed — %s", count)
+    except Exception as exc:
+        log.error("[J7] Social scheduled-post processing failed: %s", exc)
+
+
+async def job_social_engagement_sync() -> None:
+    try:
+        from app.social.store import sync_all_accounts
+        result = await sync_all_accounts()
+        log.info("[J8] Social engagement sync complete — %s", result)
+    except Exception as exc:
+        log.error("[J8] Social engagement sync failed: %s", exc)
+
+
 async def job_health_report() -> None:
     try:
         from app.database import engine
@@ -136,4 +154,12 @@ def configure_scheduler() -> None:
     scheduler.add_job(
         job_health_report, IntervalTrigger(minutes=15),
         id="J6_health_report", replace_existing=True,
+    )
+    scheduler.add_job(
+        job_social_due_posts, IntervalTrigger(minutes=1),
+        id="J7_social_due_posts", replace_existing=True, max_instances=1,
+    )
+    scheduler.add_job(
+        job_social_engagement_sync, IntervalTrigger(minutes=10),
+        id="J8_social_engagement_sync", replace_existing=True, max_instances=1,
     )
