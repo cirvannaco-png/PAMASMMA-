@@ -240,3 +240,20 @@ async def approve_campaign(user_id: str, campaign_id: str) -> dict[str, Any]:
             await session.execute(text("UPDATE pamasmma_social_campaigns SET status='created',external_campaign_id=:e,approved_at=now() WHERE id=:id"),{"e":external,"id":campaign_id}); await session.commit()
     else: campaign.update({"status":"created","external_campaign_id":external,"approved_at":_now()})
     return {"status":"created","campaign_id":campaign_id,"external_campaign_id":external,"provider_response":result}
+
+
+async def get_analytics(user_id: str, account_id: str, start: str | None = None, end: str | None = None) -> dict[str, Any]:
+    account = await get_account(user_id, account_id)
+    if not account:
+        raise ValueError("Social account not found.")
+    provider = get_provider(Platform(account["platform"]))
+    return {
+        "platform": account["platform"],
+        "account_id": account_id,
+        "result": await provider.analytics(
+            decrypt_secret(account["access_token_enc"]),
+            account["external_account_id"],
+            start,
+            end,
+        ),
+    }
