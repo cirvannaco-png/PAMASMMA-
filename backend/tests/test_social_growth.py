@@ -75,3 +75,51 @@ def test_universal_multi_account_linking_contract():
     assert len(identities) == 3
     assert ("user-a", Platform.YOUTUBE, "channel-a") in identities
     assert ("user-b", Platform.YOUTUBE, "channel-a") in identities
+
+
+@pytest.mark.asyncio
+async def test_publish_now_awaits_access_token(monkeypatch):
+    import app.social.store as store
+
+    account = {
+        "id": "account-1",
+        "user_id": "user-a",
+        "platform": Platform.X.value,
+        "external_account_id": "x-user-1",
+        "access_token_enc": "encrypted",
+        "status": "active",
+    }
+    seen = {}
+
+    class FakeProvider:
+        async def publish(self, token, command, external_account_id):
+            seen["token"] = token
+            seen["command"] = command
+            seen["external_account_id"] = external_account_id
+            return {"id": "post-1"}
+
+    async def fake_get_account(user_id, account_id):
+        assert user_id == "user-a"
+        assert account_id == "account-1"
+        return account
+
+    async def fake_access_token_for(record):
+        assert record is account
+        return "resolved-token"
+
+    async def fake_persist_post(post):
+        seen["post"] = post
+
+    monkeypatch.setattr(store, "get_account", fake_get_account)
+    monkeypatch.setattr(store, "get_provider", lambda platform: FakeProvider())
+    monkeypatch.setattr(store, "_access_token_for", fake_access_token_for)
+    monkeypatch.setattr(store, "_persist_post", fake_persist_post)
+
+    result = await store.publish_now(
+        "user-a",
+        PublishCommand(account_id="account-1", text="hello"),
+    )
+
+    assert result["platform_post_id"] == "post-1"
+    assert seen["token"] == "resolved-token"
+    assert seen["external_account_id"] == "x-user-1"
