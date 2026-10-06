@@ -196,7 +196,7 @@ async def sync_engagement(user_id: str, account_id: str) -> dict[str, Any]:
 async def reply_to_engagement(user_id: str, command: ReplyCommand) -> dict[str, Any]:
     account = await get_account(user_id, command.account_id)
     if not account: raise ValueError("Social account not found.")
-    result=await get_provider(Platform(account["platform"])).reply(decrypt_secret(account["access_token_enc"]),command)
+    command=command.model_copy(update={"external_account_id":account["external_account_id"]})\n    result=await get_provider(Platform(account["platform"])).reply(decrypt_secret(account["access_token_enc"]),command)
     return {"status":"replied","provider_response":result}
 
 
