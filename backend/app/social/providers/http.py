@@ -1,7 +1,10 @@
 """Small async HTTP primitive shared by all provider adapters."""
 from typing import Any
+
 import httpx
+
 from app.social.contracts import Platform, SocialProviderError
+
 
 class HttpProvider:
     def __init__(self, platform: Platform, timeout: float = 30.0) -> None:
