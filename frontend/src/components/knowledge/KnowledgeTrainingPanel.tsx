@@ -27,7 +27,10 @@ export function KnowledgeTrainingPanel() {
   }, []);
 
   useEffect(() => {
-    void refresh();
+    const loadSources = async () => {
+      await refresh();
+    };
+    void loadSources();
   }, [refresh]);
 
   const uploadFiles = async (files: FileList | null) => {
