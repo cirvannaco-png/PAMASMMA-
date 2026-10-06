@@ -2,7 +2,8 @@
 from typing import Any
 
 from app.social.contracts import Capability, Platform, PublishCommand, ReplyCommand
-from app.social.providers.common import _env, provider_error as _provider_error
+from app.social.providers.common import _env
+from app.social.providers.common import provider_error as _provider_error
 from app.social.providers.oauth import OAuthRestProvider
 
 
