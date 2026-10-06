@@ -59,7 +59,7 @@ async def test_durable_postgres_valkey_auth_and_kernel() -> None:
         assert await connection.scalar(text("SELECT 1")) == 1
         assert await connection.scalar(
             text("SELECT version_num FROM alembic_version")
-         ) == "007"
+         ) == "008"
         assert await connection.scalar(
             text("SELECT extversion FROM pg_extension WHERE extname = 'vector'")
         ) is not None
