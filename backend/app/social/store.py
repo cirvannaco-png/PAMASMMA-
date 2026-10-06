@@ -359,7 +359,7 @@ async def publish_now(
     platform = Platform(account["platform"])
     provider = get_provider(platform)
     result = await provider.publish(
-        _access_token_for(account),
+        await _access_token_for(account),
         command,
         account["external_account_id"],
     )
