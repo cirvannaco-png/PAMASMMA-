@@ -251,6 +251,18 @@ export const cognitive = {
     }),
 };
 
+export const knowledge = {
+  listSources: (limit = 100) => apiFetch<{ sources: Array<Record<string, unknown>>; count: number }>(`/knowledge/sources?limit=${limit}`),
+  upload: async (file: File, trainingMode: "knowledge" | "procedure" = "knowledge") => {
+    const form = new FormData(); form.append("file", file);
+    const headers: Record<string, string> = {}; if (_accessToken) headers.Authorization = "Bearer " + _accessToken;
+    const response = await fetch(API_BASE + `/knowledge/upload?training_mode=${trainingMode}`, { method: "POST", headers, body: form });
+    if (!response.ok) { const err = await response.json().catch(() => ({ detail: "Upload failed" })); throw new Error(err.detail ?? "Upload failed"); }
+    return response.json() as Promise<{ source_id: string; status: string; filename: string; chunks: number; mode: string }>;
+  },
+  remove: (sourceId: string) => apiFetch<{ status: string; source_id: string }>(`/knowledge/sources/${encodeURIComponent(sourceId)}`, { method: "DELETE" }),
+};
+
 export const health = {
   check: () =>
     fetch(API_BASE.replace("/api/v1", "") + "/health").then((res) =>
