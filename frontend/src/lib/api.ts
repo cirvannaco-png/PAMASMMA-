@@ -251,16 +251,94 @@ export const cognitive = {
     }),
 };
 
+export interface KnowledgeSource {
+  id: string;
+  filename: string;
+  media_type?: string;
+  status: string;
+  content_hash?: string;
+  size_bytes?: number;
+  chunk_count?: number;
+  training_mode: "knowledge" | "procedure";
+  metadata?: Record<string, unknown> | string | null;
+  error?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface KnowledgeChunk {
+  ordinal: number;
+  locator: string | null;
+  content: string;
+  metadata?: Record<string, unknown> | string | null;
+}
+
 export const knowledge = {
-  listSources: (limit = 100) => apiFetch<{ sources: Array<Record<string, unknown>>; count: number }>(`/knowledge/sources?limit=${limit}`),
-  upload: async (file: File, trainingMode: "knowledge" | "procedure" = "knowledge") => {
-    const form = new FormData(); form.append("file", file);
-    const headers: Record<string, string> = {}; if (_accessToken) headers.Authorization = "Bearer " + _accessToken;
-    const response = await fetch(API_BASE + `/knowledge/upload?training_mode=${trainingMode}`, { method: "POST", headers, body: form });
-    if (!response.ok) { const err = await response.json().catch(() => ({ detail: "Upload failed" })); throw new Error(err.detail ?? "Upload failed"); }
-    return response.json() as Promise<{ source_id: string; status: string; filename: string; chunks: number; mode: string }>;
+  listSources: (limit = 100) =>
+    apiFetch<{ sources: KnowledgeSource[]; count: number }>(
+      `/knowledge/sources?limit=${limit}`,
+    ),
+
+  listChunks: (sourceId: string, limit = 100) =>
+    apiFetch<{ chunks: KnowledgeChunk[]; count: number; source_id: string }>(
+      `/knowledge/sources/${encodeURIComponent(sourceId)}/chunks?limit=${limit}`,
+    ),
+
+  upload: async (
+    file: File,
+    trainingMode: "knowledge" | "procedure" = "knowledge",
+  ) => {
+    const form = new FormData();
+    form.append("file", file);
+
+    const headers: Record<string, string> = {};
+    if (_accessToken) headers.Authorization = "Bearer " + _accessToken;
+
+    const response = await fetch(
+      API_BASE +
+        `/knowledge/upload?training_mode=${encodeURIComponent(trainingMode)}`,
+      {
+        method: "POST",
+        headers,
+        body: form,
+      },
+    );
+
+    if (response.status === 401 && _refreshToken) {
+      const refreshed = await refreshAccessToken();
+      if (refreshed) {
+        return knowledge.upload(file, trainingMode);
+      }
+      clearTokens();
+      throw new Error("Session expired");
+    }
+
+    if (!response.ok) {
+      const err = await response
+        .json()
+        .catch(() => ({ detail: "Upload failed" }));
+      throw Object.assign(
+        new Error(err.detail ?? "Upload failed"),
+        { status: response.status },
+      );
+    }
+
+    return response.json() as Promise<{
+      source_id: string;
+      status: string;
+      filename: string;
+      chunks: number;
+      mode: "knowledge" | "procedure";
+      content_hash: string;
+      deduplicated: boolean;
+    }>;
   },
-  remove: (sourceId: string) => apiFetch<{ status: string; source_id: string }>(`/knowledge/sources/${encodeURIComponent(sourceId)}`, { method: "DELETE" }),
+
+  remove: (sourceId: string) =>
+    apiFetch<{ status: string; source_id: string }>(
+      `/knowledge/sources/${encodeURIComponent(sourceId)}`,
+      { method: "DELETE" },
+    ),
 };
 
 export const health = {
