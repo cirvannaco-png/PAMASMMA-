@@ -1,6 +1,7 @@
 """Governed knowledge ingestion, storage and retrieval."""
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import logging
@@ -21,10 +22,6 @@ from app.runtime import memory_store
 
 settings = get_settings()
 log = logging.getLogger(__name__)
-
-
-class DuplicateKnowledgeSource(ValueError):
-    """Raised when the same active source is already ingested for a user."""
 
 
 def _chunks(
@@ -193,7 +190,7 @@ async def ingest_file(
         with tempfile.TemporaryDirectory(prefix="pamasmma-knowledge-") as directory:
             path = Path(directory) / safe_filename
             path.write_bytes(data)
-            segments = extract_document(path)
+            segments = await asyncio.to_thread(extract_document, path)
 
         chunks = _chunk_segments(
             segments,
@@ -202,6 +199,11 @@ async def ingest_file(
         )
         if not chunks:
             raise ValueError("No readable text was extracted from the upload.")
+        if len(chunks) > settings.knowledge_max_chunks_per_source:
+            raise ValueError(
+                "Knowledge source exceeds the configured chunk limit "
+                f"({settings.knowledge_max_chunks_per_source})."
+            )
 
         memory_type = _memory_type_for_mode(mode)
 
@@ -280,6 +282,10 @@ async def ingest_file(
                     item["chunk_count"] = len(chunks)
                     item["updated_at"] = datetime.now(UTC)
                     break
+            if len(memory_store.knowledge_sources) > settings.knowledge_memory_source_limit:
+                del memory_store.knowledge_sources[:-settings.knowledge_memory_source_limit]
+            if len(memory_store.knowledge_chunks) > settings.knowledge_memory_chunk_limit:
+                del memory_store.knowledge_chunks[:-settings.knowledge_memory_chunk_limit]
 
         return {
             "source_id": source_id,
