@@ -35,7 +35,7 @@ class OAuthRestProvider(SocialProvider, HttpProvider):
             params["scope"] = scopes
         return self.auth_url + ("&" if "?" in self.auth_url else "?") + urlencode(params)
 
-    async def exchange_code(self, code: str) -> dict[str, Any]:
+    async def exchange_code(self, code: str, state: str | None = None) -> dict[str, Any]:
         client_id, secret, redirect_uri = _env(self.client_id_env), _env(self.client_secret_env), _env(self.redirect_env)
         if not all((client_id, secret, redirect_uri)):
             raise SocialProviderError(self.platform, "oauth_not_configured", f"{self.platform.value} OAuth is not configured.", 503)
