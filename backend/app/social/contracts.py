@@ -1,6 +1,7 @@
 """Provider-neutral contracts for social publishing, engagement, analytics and ads."""
 from enum import StrEnum
 from typing import Any
+
 from pydantic import BaseModel, Field, HttpUrl
 
 class Platform(StrEnum):
