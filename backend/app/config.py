@@ -61,6 +61,14 @@ class Settings(BaseSettings):
     embedding_dimensions: int = 1536
     vector_similarity_threshold: float = 0.78
 
+    knowledge_max_upload_mb: int = 100
+    knowledge_chunk_size: int = 420
+    knowledge_chunk_overlap: int = 60
+    knowledge_similarity_threshold: float = 0.68
+    knowledge_transcription_provider: str = "openai"
+    knowledge_transcription_model: str = "gpt-4o-mini-transcribe"
+    knowledge_media_timeout_seconds: int = 900
+
     # Cognitive operating system controls
     intelligence_memory_limit: int = 5
     intelligence_max_specialists: int = 4
@@ -107,6 +115,8 @@ class Settings(BaseSettings):
             raise ValueError("PAMASMMA_BOOTSTRAP_TOKEN must be configured in production.")
         if self.is_persistent and (not self.database_url or not self.redis_url):
             raise ValueError("DATABASE_URL and REDIS_URL are required when PERSISTENCE_MODE=postgres.")
+        if self.knowledge_max_upload_mb < 1 or self.knowledge_chunk_overlap >= self.knowledge_chunk_size:
+            raise ValueError("Knowledge upload/chunk settings are invalid.")
         if self.embedding_provider == "openai" and not self.openai_api_key:
             raise ValueError("OPENAI_API_KEY is required when EMBEDDING_PROVIDER=openai.")
         if self.model_provider == "anthropic" and not self.anthropic_api_key:
