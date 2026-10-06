@@ -26,6 +26,7 @@ from app.routers.cognitive import router as cognitive_router
 from app.routers.events import broadcast
 from app.routers.events import router as events_router
 from app.routers.health import router as health_router
+from app.social.router import router as social_router
 from app.scheduler.jobs import configure_scheduler, scheduler
 
 settings = get_settings()
@@ -122,6 +123,7 @@ def create_app() -> FastAPI:
     app.include_router(cognitive_router, prefix="/api/v1")
     app.include_router(events_router, prefix="/api/v1")
     app.include_router(knowledge_router, prefix="/api/v1")
+    app.include_router(social_router, prefix="/api/v1")
     return app
 
 
