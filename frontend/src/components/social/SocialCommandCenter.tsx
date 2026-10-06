@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { social } from "@/lib/api";
 
@@ -30,7 +30,7 @@ export function SocialCommandCenter(){
         setPlatforms(p.platforms);
         setAccounts(a.accounts);
         setEngagement(e.items);
-        if (!selectedAccount && a.accounts[0]) {
+        if (a.accounts[0]) {
           setSelectedAccount(a.accounts[0].id);
         }
       } catch {
