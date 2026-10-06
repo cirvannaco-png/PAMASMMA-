@@ -52,6 +52,28 @@ export function Sidebar({ onLogout, onSystemSelect }: SidebarProps) {
         ))}
       </div>
 
+      <div style={{ padding: "8px 14px", borderBottom: "1px solid #111128" }}>
+        <button
+          type="button"
+          onClick={() => { window.location.href = "/social"; }}
+          style={{
+            width: "100%",
+            padding: "9px 10px",
+            borderRadius: 8,
+            border: "1px solid #2B2450",
+            background: "#141128",
+            color: "#BBAEFF",
+            textAlign: "left",
+            cursor: "pointer",
+            fontSize: 10,
+            fontWeight: 700,
+            letterSpacing: 1,
+          }}
+        >
+          SOCIAL GROWTH →
+        </button>
+      </div>
+
       <div style={{ flex: 1, overflowY: "auto", padding: "12px 14px" }}>
         <SectionLabel>Knowledge Training</SectionLabel>
         <div style={{ marginBottom: 12 }}>
