@@ -1,5 +1,5 @@
 """Persistence for external integrations using PAMASMMA's encrypted secret boundary."""
-import uuid
+import uuid\nfrom urllib.parse import urlparse
 from datetime import UTC,datetime,timedelta
 from typing import Any
 from sqlalchemy import text
