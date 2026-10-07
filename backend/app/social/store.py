@@ -439,7 +439,11 @@ async def process_due_posts() -> int:
             for post in memory_store.social_posts
             if post["status"] in {"queued", "processing"}
             and (
-                (post.get("scheduled_at") and post["scheduled_at"] <= now)
+                (
+                    post.get("next_attempt_at") is None
+                    and post.get("scheduled_at")
+                    and post["scheduled_at"] <= now
+                )
                 or (post.get("next_attempt_at") and post["next_attempt_at"] <= now)
                 or (
                     post["status"] == "processing"
@@ -471,7 +475,10 @@ async def process_due_posts() -> int:
                         SELECT id
                         FROM pamasmma_social_posts
                         WHERE status = 'queued'
-                          AND (scheduled_at <= now() OR next_attempt_at <= now())
+                          AND (
+                              (next_attempt_at IS NULL AND scheduled_at <= now())
+                              OR next_attempt_at <= now()
+                          )
                         ORDER BY COALESCE(next_attempt_at, scheduled_at), created_at
                         FOR UPDATE SKIP LOCKED
                         LIMIT 50
