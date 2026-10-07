@@ -39,6 +39,13 @@ class XProvider(OAuthRestProvider):
         state: str,
         code_verifier: str,
     ) -> dict[str, Any]:
+        if not code_verifier:
+            raise _provider_error(
+                self.platform,
+                "oauth_pkce_required",
+                "X OAuth requires a server-held PKCE verifier.",
+                400,
+            )
         client_id = _env(self.client_id_env)
         secret = _env(self.client_secret_env)
         redirect_uri = _env(self.redirect_env)
