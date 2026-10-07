@@ -68,7 +68,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     def _get_client_ip(request: Request) -> str:
         forwarded = request.headers.get("X-Forwarded-For")
         if forwarded:
-            return forwarded.split(",")[0].strip()
+            values = [value.strip() for value in forwarded.split(",") if value.strip()]
+            if values:
+                # Render/proxies append the connecting client; using the
+                # right-most value avoids trusting an attacker-supplied prefix.
+                return values[-1]
         return request.client.host if request.client else "unknown"
 
     @staticmethod
