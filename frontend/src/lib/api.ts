@@ -408,3 +408,15 @@ export const social = {
   planCampaign: (body:any) => apiFetch<{campaign_id:string;status:string;approval_required:boolean}>("/social/campaigns", {method:"POST",body:JSON.stringify(body)}),
   approveCampaign: (campaignId:string) => apiFetch<{status:string;campaign_id:string;external_campaign_id?:string|null}>("/social/campaigns/" + encodeURIComponent(campaignId) + "/approve", {method:"POST"}),
 };
+
+
+export const integrations = {
+  googleStart: () => apiFetch<{ authorization_url: string; state: string }>("/integrations/google/start"),
+  list: () => apiFetch<{ integrations: Array<Record<string, unknown>>; mcp: Array<Record<string, unknown>> }>("/integrations"),
+  gmailMessages: (accountId: string, q?: string) => apiFetch<Record<string, unknown>>(\`/integrations/google/\${encodeURIComponent(accountId)}/gmail/messages\${q ? \`?q=\${encodeURIComponent(q)}\` : ""}\`),
+  gmailSend: (accountId: string, body: { to: string[]; subject: string; body: string; cc?: string[]; bcc?: string[] }) => apiFetch<Record<string, unknown>>(\`/integrations/google/\${encodeURIComponent(accountId)}/gmail/send\`, { method: "POST", body: JSON.stringify(body) }),
+  driveFiles: (accountId: string, q?: string) => apiFetch<Record<string, unknown>>(\`/integrations/google/\${encodeURIComponent(accountId)}/drive/files\${q ? \`?q=\${encodeURIComponent(q)}\` : ""}\`),
+  driveUpload: (accountId: string, body: { name: string; mime_type: string; content_base64: string; parent_id?: string }) => apiFetch<Record<string, unknown>>(\`/integrations/google/\${encodeURIComponent(accountId)}/drive/upload\`, { method: "POST", body: JSON.stringify(body) }),
+  mcpAdd: (body: { name: string; endpoint: string; bearer_token?: string; enabled?: boolean }) => apiFetch<Record<string, unknown>>("/integrations/mcp", { method: "POST", body: JSON.stringify(body) }),
+  mcpTools: (connectorId: string) => apiFetch<{ tools: Array<Record<string, unknown>> }>(\`/integrations/mcp/\${encodeURIComponent(connectorId)}/tools\`),
+};
