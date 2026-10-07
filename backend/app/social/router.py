@@ -1,4 +1,6 @@
 """HTTP boundary for PAMASMMA social growth operations."""
+import base64
+import hashlib
 import json
 import secrets
 from datetime import UTC, datetime
@@ -95,18 +97,26 @@ async def oauth_start(
 ) -> dict:
     provider = get_provider(platform)
     state = secrets.token_urlsafe(32)
-    await cache_set(
-        f"social:oauth:{state}",
-        {
-            "user_id": current_user["user_id"],
-            "platform": platform.value,
-            "external_account_id": external_account_id,
-        },
-        ttl=600,
-    )
+    payload = {
+        "user_id": current_user["user_id"],
+        "platform": platform.value,
+        "external_account_id": external_account_id,
+    }
+    authorization_url = provider.authorization_url(state)
+    if platform is Platform.X:
+        code_verifier = secrets.token_urlsafe(64)
+        challenge = base64.urlsafe_b64encode(
+            hashlib.sha256(code_verifier.encode("ascii")).digest()
+        ).decode("ascii").rstrip("=")
+        payload["pkce_verifier_enc"] = encrypt_secret(code_verifier)
+        authorization_url = provider.authorization_url(
+            state,
+            code_challenge=challenge,
+        )
+    await cache_set(f"social:oauth:{state}", payload, ttl=600)
     return {
         "platform": platform.value,
-        "authorization_url": provider.authorization_url(state),
+        "authorization_url": authorization_url,
         "state": state,
     }
 
@@ -149,7 +159,17 @@ async def oauth_callback(
     provider = get_provider(platform)
 
     try:
-        token_data = await provider.exchange_code(code, state)
+        exchange_kwargs: dict[str, str] = {}
+        if platform is Platform.X:
+            verifier_enc = payload.get("pkce_verifier_enc")
+            if not verifier_enc:
+                raise ValueError("X OAuth PKCE verifier is missing or expired.")
+            exchange_kwargs["code_verifier"] = decrypt_secret(verifier_enc)
+        token_data = await provider.exchange_code(
+            code,
+            state,
+            **exchange_kwargs,
+        )
         access_token = str(
             token_data.get("access_token") or token_data.get("token") or ""
         )
