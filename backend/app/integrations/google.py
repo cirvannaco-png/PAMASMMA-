@@ -85,7 +85,7 @@ async def refresh_access_token(refresh_token: str) -> dict[str, Any]:
         )
     if response.is_error:
         raise GoogleProviderError("Google token refresh failed.", 502)
-    return response.json()
+    return cast(dict[str, Any], response.json())
 
 
 async def userinfo(access_token: str) -> dict[str, Any]:
@@ -96,7 +96,7 @@ async def userinfo(access_token: str) -> dict[str, Any]:
         )
     if response.is_error:
         raise GoogleProviderError("Google identity lookup failed.", 502)
-    return response.json()
+    return cast(dict[str, Any], response.json())
 
 
 async def request_json(
@@ -120,7 +120,7 @@ async def request_json(
             f"Google API request failed: {response.text[:1000]}",
             response.status_code,
         )
-    return response.json() if response.content else {}
+    return cast(dict[str, Any], response.json()) if response.content else {}
 
 
 def encode_raw_message(payload: dict[str, Any]) -> str:
@@ -262,4 +262,4 @@ async def upload_drive_file(
             "Google Drive upload failed.",
             response.status_code,
         )
-    return response.json()
+    return cast(dict[str, Any], response.json())
