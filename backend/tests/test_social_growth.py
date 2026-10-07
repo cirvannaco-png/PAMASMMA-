@@ -348,3 +348,87 @@ async def test_memory_scheduler_retries_transient_failures(monkeypatch):
     finally:
         memory_store.social_accounts[:] = original_accounts
         memory_store.social_posts[:] = original_posts
+
+
+@pytest.mark.asyncio
+async def test_oauth_account_selection_storage_and_publish_e2e(monkeypatch, app, client):
+    import app.social.router as social_router
+    import app.social.store as store
+    from app.auth.dependencies import get_current_user
+    from app.runtime import memory_store
+
+    class FakeProvider:
+        platform = Platform.X
+        capabilities = frozenset({Capability.PUBLISH})
+
+        def authorization_url(self, state):
+            return f"https://provider.example/authorize?state={state}"
+
+        async def exchange_code(self, code, state=None):
+            assert code == "oauth-code"
+            return {"access_token": "access-token", "refresh_token": "refresh-token"}
+
+        async def discover_accounts(self, token):
+            assert token == "access-token"
+            return [
+                {"external_account_id": "acct-a", "display_name": "Account A"},
+                {"external_account_id": "acct-b", "display_name": "Account B"},
+            ]
+
+        async def publish(self, token, command, external_account_id):
+            assert token == "access-token"
+            assert external_account_id == "acct-b"
+            return {"id": "provider-post-1"}
+
+    provider = FakeProvider()
+    monkeypatch.setattr(social_router, "get_provider", lambda _platform: provider)
+    monkeypatch.setattr(store, "get_provider", lambda _platform: provider)
+
+    application = client._transport.app
+    application.dependency_overrides[get_current_user] = lambda: {
+        "user_id": "e2e-user",
+        "session_id": "e2e-session",
+    }
+
+    try:
+        started = await client.get("/api/v1/social/oauth/x/start")
+        assert started.status_code == 200
+        state = started.json()["state"]
+
+        callback = await client.get(
+            "/api/v1/social/oauth/x/callback",
+            params={"code": "oauth-code", "state": state},
+            follow_redirects=False,
+        )
+        assert callback.status_code == 303
+        assert "social_connect=" in callback.headers["location"]
+
+        pending_id = callback.headers["location"].split("social_connect=", 1)[1]
+        pending = await client.get(f"/api/v1/social/oauth/pending/{pending_id}")
+        assert pending.status_code == 200
+        assert {item["external_account_id"] for item in pending.json()["accounts"]} == {
+            "acct-a",
+            "acct-b",
+        }
+
+        completed = await client.post(
+            f"/api/v1/social/oauth/pending/{pending_id}/complete",
+            json={"external_account_id": "acct-b"},
+        )
+        assert completed.status_code == 200
+        assert completed.json()["status"] == "connected"
+
+        accounts = await client.get("/api/v1/social/accounts")
+        assert accounts.status_code == 200
+        assert accounts.json()["count"] == 1
+        assert accounts.json()["accounts"][0]["external_account_id"] == "acct-b"
+
+        published = await client.post(
+            "/api/v1/social/publish",
+            json={"command": {"account_id": accounts.json()["accounts"][0]["id"], "text": "hello"}},
+        )
+        assert published.status_code == 200
+        assert published.json()["platform_post_id"] == "provider-post-1"
+        assert memory_store.social_posts[-1]["status"] == "published"
+    finally:
+        application.dependency_overrides.pop(get_current_user, None)
