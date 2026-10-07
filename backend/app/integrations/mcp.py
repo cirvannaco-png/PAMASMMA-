@@ -28,3 +28,20 @@ async def call_tool(user_id:str,connector_id:str,tool_name:str,arguments:dict[st
         async with Client(transport) as mcp:
             result=await mcp.call_tool(tool_name,arguments)
             return {"content":[x.model_dump(mode="json") if hasattr(x,"model_dump") else str(x) for x in result.content],"structured_content":result.structured_content}
+
+
+async def registry_search(query: str, limit: int = 20) -> list[dict[str, Any]]:
+    async with httpx2.AsyncClient(timeout=httpx2.Timeout(20)) as client:
+        response = await client.get(
+            "https://registry.modelcontextprotocol.io/v0.1/servers",
+            params={"search": query, "version": "latest", "limit": min(limit, 100)},
+        )
+    response.raise_for_status()
+    return response.json().get("servers", [])
+
+def requires_confirmation(tool_name: str) -> bool:
+    lowered = tool_name.lower()
+    return any(token in lowered for token in (
+        "delete","remove","write","create","update","send","publish","post",
+        "execute","run","deploy","purchase","transfer",
+    ))
