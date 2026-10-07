@@ -432,3 +432,19 @@ async def test_oauth_account_selection_storage_and_publish_e2e(monkeypatch, app,
         assert memory_store.social_posts[-1]["status"] == "published"
     finally:
         application.dependency_overrides.pop(get_current_user, None)
+
+
+@pytest.mark.asyncio
+async def test_oauth_refresh_fails_closed_without_client_credentials(monkeypatch):
+    from app.social.providers import oauth, x
+
+    provider = x.XProvider()
+
+    monkeypatch.setattr(x, "_env", lambda _name: "")
+    monkeypatch.setattr(oauth, "_env", lambda _name: "")
+
+    with pytest.raises(SocialProviderError) as exc:
+        await provider.refresh_token("refresh-token")
+
+    assert exc.value.code == "oauth_refresh_not_configured"
+    assert exc.value.status_code == 503
