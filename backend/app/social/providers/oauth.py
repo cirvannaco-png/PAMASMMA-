@@ -20,12 +20,7 @@ class OAuthRestProvider(SocialProvider, HttpProvider):
     def __init__(self) -> None:
         HttpProvider.__init__(self, self.platform)
 
-    def authorization_url(
-        self,
-        state: str,
-        *,
-        code_challenge: str | None = None,
-    ) -> str:
+    def authorization_url(self, state: str) -> str:
         client_id = _env(self.client_id_env)
         redirect_uri = _env(self.redirect_env)
         if not client_id or not redirect_uri:
@@ -45,9 +40,6 @@ class OAuthRestProvider(SocialProvider, HttpProvider):
         scopes = _env(self.scope_env)
         if scopes:
             params["scope"] = scopes
-        if code_challenge:
-            params["code_challenge"] = code_challenge
-            params["code_challenge_method"] = "S256"
         query = urlencode(params)
         separator = "&" if "?" in self.auth_url else "?"
         return f"{self.auth_url}{separator}{query}"
@@ -56,10 +48,8 @@ class OAuthRestProvider(SocialProvider, HttpProvider):
         self,
         code: str,
         state: str | None = None,
-        *,
-        code_verifier: str | None = None,
     ) -> dict[str, Any]:
-        del state, code_verifier
+        del state
         client_id = _env(self.client_id_env)
         secret = _env(self.client_secret_env)
         redirect_uri = _env(self.redirect_env)
