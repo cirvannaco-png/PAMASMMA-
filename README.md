@@ -1,4 +1,4 @@
-# PAMASMMA v4.2
+# PAMASMMA v4.2.1
 
 **Governed Synthetic Executive Intelligence**  
 Provider-neutral cognitive infrastructure for the PAMASMMA assistant platform.
@@ -248,6 +248,8 @@ The current migration chain is linear:
 007_social_growth
   ↓
 008_social_integrity
+  ↓
+009_social_delivery_resilience
 ```
 
 The cognitive migrations add durable decision records, beliefs, outcomes, world-model entities/relationships, and cognitive audit state. The knowledge migrations add provenance-aware training sources/chunks and active-source deduplication/chunk-order integrity.
@@ -305,11 +307,11 @@ v4.2 cognitive architecture includes:
 - runtime provider failover
 - explicit evidence and uncertainty governance
 
-The application code and CI gates are production-hardened. Final launch still depends on external infrastructure provisioning and platform-side credentials/approvals: isolated durable PostgreSQL + Redis-compatible storage, real OAuth app credentials, redirect URIs, verified domains where required, platform scopes/app review, and ad-account permissions. Those controls cannot be bypassed by application code.
+The application code, durable migration path, scheduled-delivery resilience, and CI gates are production-hardened. Final launch still depends on external infrastructure provisioning and platform-side credentials/approvals: isolated durable PostgreSQL + Redis-compatible storage, real OAuth app credentials, redirect URIs, verified domains where required, platform scopes/app review, and ad-account permissions. Those controls cannot be bypassed by application code.
 
 
 ## Knowledge Training
 PAMASMMA includes a governed Knowledge Training subsystem for importing books, notes, documents, subtitles, audio and video. Sources are parsed, chunked, embedded and retrieved as provenance-aware cognitive context; uploads do not silently modify model weights. See `docs/KNOWLEDGE_TRAINING.md` for supported formats, API endpoints and governance.
 ## Social Growth
 
-PAMASMMA now includes a governed social execution layer at `/social`. It provides provider-neutral account connections, publishing and scheduling, engagement synchronization and replies, analytics adapters, campaign planning, and an explicit campaign approval gate. Platform adapters remain isolated from the cognitive engine. See [docs/SOCIAL_GROWTH.md](docs/SOCIAL_GROWTH.md).
+PAMASMMA now includes a governed social execution layer at `/social`. It provides provider-neutral account connections, publishing and scheduling, engagement synchronization and replies, analytics adapters, campaign planning, an explicit campaign approval gate, and resilient scheduled delivery with bounded retries and worker leasing. Platform adapters remain isolated from the cognitive engine. See [docs/SOCIAL_GROWTH.md](docs/SOCIAL_GROWTH.md).
