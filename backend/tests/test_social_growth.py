@@ -450,3 +450,29 @@ async def test_oauth_refresh_fails_closed_without_client_credentials(monkeypatch
 
     assert exc.value.code == "oauth_refresh_not_configured"
     assert exc.value.status_code == 503
+
+
+@pytest.mark.asyncio
+async def test_worker_waits_for_required_schema_head(monkeypatch):
+    import app.worker as worker
+
+    class FakeResult:
+        def first(self):
+            return ("009",)
+
+    class FakeConnection:
+        async def execute(self, _query):
+            return FakeResult()
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, _exc_type, _exc, _tb):
+            return False
+
+    class FakeEngine:
+        def connect(self):
+            return FakeConnection()
+
+    monkeypatch.setattr(worker, "engine", FakeEngine())
+    await worker.wait_for_schema_head()
