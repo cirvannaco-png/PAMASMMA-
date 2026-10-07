@@ -104,7 +104,7 @@ class Settings(BaseSettings):
     personality_formality: float = 0.61
     personality_strategic_depth: float = 0.91
 
-    # Social Growth / Platform OAuth. Secrets are injected at deployment time.
+    # Google Workspace OAuth. Secrets are injected at deployment time.\n    google_client_id: str | None = None\n    google_client_secret: str | None = None\n    google_redirect_uri: str | None = None\n    mcp_allowed_hosts: list[str] = []\n\n    # Social Growth / Platform OAuth. Secrets are injected at deployment time.
     social_meta_client_id: str | None = None
     social_meta_client_secret: str | None = None
     social_meta_redirect_uri: str | None = None
