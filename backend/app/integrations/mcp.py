@@ -1,5 +1,5 @@
 """Governed MCP client bridge for external Streamable HTTP servers."""
-from typing import Any
+from typing import Any, cast
 
 import httpx2
 from mcp import Client
@@ -64,7 +64,7 @@ async def discover_tools(
                 {
                     "name": tool.name,
                     "description": tool.description,
-                    "input_schema": tool.inputSchema,
+                    "input_schema": tool.input_schema,
                 }
                 for tool in result.tools
             ]
@@ -117,4 +117,5 @@ async def registry_search(
             },
         )
     response.raise_for_status()
-    return response.json().get("servers", [])
+    payload = cast(dict[str, Any], response.json())
+    return cast(list[dict[str, Any]], payload.get("servers", []))
