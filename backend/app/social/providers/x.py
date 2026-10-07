@@ -1,6 +1,4 @@
 """X platform adapter."""
-import base64
-import hashlib
 from typing import Any
 
 from app.social.contracts import Capability, Platform, PublishCommand, ReplyCommand
