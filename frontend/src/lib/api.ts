@@ -420,3 +420,14 @@ export const integrations = {
   mcpAdd: (body: { name: string; endpoint: string; bearer_token?: string; enabled?: boolean }) => apiFetch<Record<string, unknown>>("/integrations/mcp", { method: "POST", body: JSON.stringify(body) }),
   mcpTools: (connectorId: string) => apiFetch<{ tools: Array<Record<string, unknown>> }>(\`/integrations/mcp/\${encodeURIComponent(connectorId)}/tools\`),
 };
+
+
+export const mcp = {
+  registrySearch: (q: string, limit = 20) =>
+    apiFetch<{ servers: Array<Record<string, unknown>> }>(\`/integrations/mcp/registry/search?q=\${encodeURIComponent(q)}&limit=\${limit}\`),
+  call: (connectorId: string, toolName: string, arguments_: Record<string, unknown>, confirmed = false) =>
+    apiFetch<Record<string, unknown>>(\`/integrations/mcp/\${encodeURIComponent(connectorId)}/call\`, {
+      method: "POST",
+      body: JSON.stringify({ tool_name: toolName, arguments: arguments_, confirmed }),
+    }),
+};
