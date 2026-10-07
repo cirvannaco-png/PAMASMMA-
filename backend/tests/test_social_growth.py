@@ -352,7 +352,9 @@ async def test_memory_scheduler_retries_transient_failures(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_oauth_account_selection_storage_and_publish_e2e(monkeypatch, app, client):
-    import app.social.router as social_router
+    from importlib import import_module
+
+    social_router = import_module("app.social.router")
     import app.social.store as store
     from app.auth.dependencies import get_current_user
     from app.runtime import memory_store
