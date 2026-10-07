@@ -26,20 +26,18 @@ class XProvider(OAuthRestProvider):
     redirect_env = "SOCIAL_X_REDIRECT_URI"
     scope_env = "SOCIAL_X_SCOPES"
 
-    def authorization_url(
+    def authorization_url_with_pkce(
         self,
         state: str,
-        *,
-        code_challenge: str | None = None,
+        code_challenge: str,
     ) -> str:
-        return super().authorization_url(state, code_challenge=code_challenge)
+        return f"{super().authorization_url(state)}&code_challenge={code_challenge}&code_challenge_method=S256"
 
-    async def exchange_code(
+    async def exchange_code_with_pkce(
         self,
         code: str,
-        state: str | None = None,
-        *,
-        code_verifier: str | None = None,
+        state: str,
+        code_verifier: str,
     ) -> dict[str, Any]:
         client_id = _env(self.client_id_env)
         secret = _env(self.client_secret_env)
@@ -52,13 +50,6 @@ class XProvider(OAuthRestProvider):
                 503,
             )
 
-        if not code_verifier:
-            raise _provider_error(
-                self.platform,
-                "oauth_pkce_required",
-                "X OAuth requires a server-held PKCE verifier.",
-                400,
-            )
         return await self.request(
             "POST",
             self.token_url,
