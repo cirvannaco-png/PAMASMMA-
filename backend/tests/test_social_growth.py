@@ -291,3 +291,64 @@ async def test_x_oauth_uses_server_held_pkce_verifier(monkeypatch):
     )
     assert "code_challenge=challenge-1" in auth
     assert "code_challenge_method=S256" in auth
+
+
+@pytest.mark.asyncio
+async def test_memory_scheduler_retries_transient_failures(monkeypatch):
+    import app.social.store as store
+    from app.runtime import memory_store
+
+    original_accounts = list(memory_store.social_accounts)
+    original_posts = list(memory_store.social_posts)
+    try:
+        account_id = "memory-account"
+        post_id = "memory-post"
+        memory_store.social_accounts[:] = [
+            {
+                "id": account_id,
+                "user_id": "user-a",
+                "platform": Platform.X.value,
+                "external_account_id": "x-user",
+                "access_token_enc": "encrypted",
+                "status": "active",
+            }
+        ]
+        memory_store.social_posts[:] = [
+            {
+                "id": post_id,
+                "account_id": account_id,
+                "status": "queued",
+                "content": {"account_id": account_id, "text": "hello"},
+                "scheduled_at": store._now(),
+                "next_attempt_at": None,
+                "delivery_attempts": 0,
+                "lease_expires_at": None,
+                "error": None,
+            }
+        ]
+
+        class FakeProvider:
+            async def publish(self, token, command, external_account_id):
+                raise SocialProviderError(
+                    Platform.X,
+                    "provider_error",
+                    "temporary outage",
+                    503,
+                )
+
+        monkeypatch.setattr(store, "get_provider", lambda _platform: FakeProvider())
+        monkeypatch.setattr(
+            store,
+            "_access_token_for",
+            lambda _account: __import__("asyncio").sleep(0, result="token"),
+        )
+
+        assert await store.process_due_posts() == 0
+        post = memory_store.social_posts[0]
+        assert post["status"] == "queued"
+        assert post["delivery_attempts"] == 1
+        assert post["next_attempt_at"] is not None
+        assert post["lease_expires_at"] is None
+    finally:
+        memory_store.social_accounts[:] = original_accounts
+        memory_store.social_posts[:] = original_posts
