@@ -256,12 +256,11 @@ async def test_x_oauth_uses_server_held_pkce_verifier(monkeypatch):
     monkeypatch.setattr(
         x,
         "_env",
-        lambda name: {
-            "SOCIAL_X_CLIENT_ID": "client-id",
-            "SOCIAL_X_CLIENT_SECRET": "client-secret",
-            "SOCIAL_X_REDIRECT_URI": "https://example.test/callback",
-            "SOCIAL_X_SCOPES": "tweet.read tweet.write users.read offline.access",
-        }.get(name, ""),
+        lambda name: (
+            "https://example.test/callback"
+            if name == "SOCIAL_X_REDIRECT_URI"
+            else "test-value"
+        ),
     )
     seen = {}
 
