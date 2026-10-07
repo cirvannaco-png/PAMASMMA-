@@ -403,6 +403,7 @@ async def test_security_headers_are_present(client):
 
 def test_forwarded_client_address_uses_rightmost_proxy_value():
     from starlette.requests import Request
+
     from app.middleware.rate_limit import RateLimitMiddleware
 
     scope = {
