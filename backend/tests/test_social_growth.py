@@ -273,18 +273,22 @@ async def test_x_oauth_uses_server_held_pkce_verifier(monkeypatch):
     from app.social.contracts import SocialProviderError
 
     with pytest.raises(SocialProviderError):
-        await provider.exchange_code("code-1", "state-1")
+        await provider.exchange_code_with_pkce(
+            "code-1",
+            "state-1",
+            "",
+        )
 
-    await provider.exchange_code(
+    await provider.exchange_code_with_pkce(
         "code-1",
         "state-1",
-        code_verifier="server-held-verifier",
+        "server-held-verifier",
     )
     assert seen["data"]["code_verifier"] == "server-held-verifier"
 
-    auth = provider.authorization_url(
+    auth = provider.authorization_url_with_pkce(
         "state-1",
-        code_challenge="challenge-1",
+        "challenge-1",
     )
     assert "code_challenge=challenge-1" in auth
     assert "code_challenge_method=S256" in auth
