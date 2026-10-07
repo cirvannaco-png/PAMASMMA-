@@ -2,7 +2,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.social.contracts import Capability, Platform, PublishCommand
+from app.social.contracts import Capability, Platform, PublishCommand, SocialProviderError
 from app.social.providers.adapters import PROVIDERS
 from app.social.store import classify_engagement
 
@@ -233,7 +233,6 @@ async def test_instagram_video_waits_for_container_ready(monkeypatch):
 
 
 def test_social_delivery_retry_policy():
-    from app.social.contracts import SocialProviderError
     from app.social.store import _is_retryable_delivery_error, _retry_delay_seconds
 
     assert _is_retryable_delivery_error(
