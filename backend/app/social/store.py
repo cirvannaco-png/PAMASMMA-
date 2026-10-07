@@ -49,10 +49,8 @@ def _is_retryable_delivery_error(exc: Exception) -> bool:
 
 def _retry_delay_seconds(attempt: int) -> int:
     exponent = max(0, attempt - 1)
-    return min(
-        settings.social_delivery_retry_base_seconds * (2**exponent),
-        3600,
-    )
+    delay = settings.social_delivery_retry_base_seconds * (2**exponent)
+    return int(min(delay, 3600))
 
 
 async def _access_token_for(account: dict[str, Any]) -> str:
