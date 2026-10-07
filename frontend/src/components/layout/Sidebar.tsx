@@ -76,7 +76,7 @@ export function Sidebar({ onLogout, onSystemSelect }: SidebarProps) {
         </button>
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto", padding: "12px 14px" }}>
+      <div style={{ padding: "8px 14px", borderBottom: "1px solid #111128" }}>\n        <button type="button" onClick={() => router.push("/integrations")} style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: "1px solid #2B2450", background: "#141128", color: "#BBAEFF", textAlign: "left", cursor: "pointer", fontSize: 10, fontWeight: 700, letterSpacing: 1 }}>\n          GOOGLE + MCP INTEGRATIONS →\n        </button>\n      </div>\n\n      <div style={{ flex: 1, overflowY: "auto", padding: "12px 14px" }}>
         <SectionLabel>Knowledge Training</SectionLabel>
         <div style={{ marginBottom: 12 }}>
           <KnowledgeTrainingPanel />
@@ -142,7 +142,7 @@ export function Sidebar({ onLogout, onSystemSelect }: SidebarProps) {
       <div style={{ padding: "12px 16px", borderTop: "1px solid #111128" }}>
         {[
           { color: "#3BFFA0", label: "MALI v7 · ACTIVE" },
-          { color: "#00D4FF", label: "17 MCP · BOUND" },
+          { color: "#00D4FF", label: "MCP FABRIC · GOVERNED" },
           { color: "#D4AF37", label: "Cirvanna · Nakuru KE" },
         ].map((f) => (
           <div key={f.label} style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 6, fontSize: 9, color: "#3A3A6A", fontFamily: "monospace" }}>
