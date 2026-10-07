@@ -12,13 +12,13 @@ from fastapi.responses import JSONResponse
 from app.auth.router import router as auth_router
 from app.config import get_settings
 from app.database import close_db, init_db, pg_event_bus
-from app.integrations.router import router as integrations_router
 from app.events.handlers import (
     handle_cognitive_invocation,
     handle_cognitive_outcome,
     handle_override_queue,
     handle_scheduler_event,
 )
+from app.integrations.router import router as integrations_router
 from app.knowledge.router import router as knowledge_router
 from app.middleware.logging import LoggingMiddleware
 from app.middleware.rate_limit import RateLimitMiddleware
