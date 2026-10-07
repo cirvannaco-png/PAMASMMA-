@@ -1,5 +1,7 @@
 # PAMASMMA production Render Blueprint
-# Durable infrastructure is isolated to PAMASMMA. Render billing is required.
+# The API serves HTTP traffic; the dedicated worker owns recurring jobs.
+# External social OAuth credentials remain sync:false and must be supplied in Render.
+
 databases:
   - name: pamasmma-production-db
     databaseName: pamasmma
@@ -52,7 +54,7 @@ services:
           type: keyvalue
           property: connectionString
       - key: SCHEDULER_ENABLED
-        value: "true"
+        value: "false"
       - key: MODEL_PROVIDER
         value: kernel
       - key: EMBEDDING_PROVIDER
@@ -65,6 +67,175 @@ services:
         value: https://pamasmma-web.onrender.com
       - key: ALLOWED_ORIGINS
         value: '["https://pamasmma-web.onrender.com"]'
+      - key: SOCIAL_META_CLIENT_ID
+        sync: false
+      - key: SOCIAL_META_CLIENT_SECRET
+        sync: false
+      - key: SOCIAL_META_REDIRECT_URI
+        sync: false
+      - key: SOCIAL_META_GRAPH_VERSION
+        value: v23.0
+      - key: SOCIAL_META_SCOPES
+        value: pages_show_list,pages_manage_posts,pages_read_engagement,instagram_basic,instagram_content_publish,instagram_manage_comments
+      - key: SOCIAL_TIKTOK_CLIENT_KEY
+        sync: false
+      - key: SOCIAL_TIKTOK_CLIENT_SECRET
+        sync: false
+      - key: SOCIAL_TIKTOK_REDIRECT_URI
+        sync: false
+      - key: SOCIAL_TIKTOK_SCOPES
+        value: user.info.basic,video.publish
+      - key: SOCIAL_YOUTUBE_CLIENT_ID
+        sync: false
+      - key: SOCIAL_YOUTUBE_CLIENT_SECRET
+        sync: false
+      - key: SOCIAL_YOUTUBE_REDIRECT_URI
+        sync: false
+      - key: SOCIAL_YOUTUBE_SCOPES
+        value: https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube.force-ssl https://www.googleapis.com/auth/yt-analytics.readonly
+      - key: SOCIAL_LINKEDIN_CLIENT_ID
+        sync: false
+      - key: SOCIAL_LINKEDIN_CLIENT_SECRET
+        sync: false
+      - key: SOCIAL_LINKEDIN_REDIRECT_URI
+        sync: false
+      - key: SOCIAL_LINKEDIN_SCOPES
+        value: openid profile w_member_social rw_ads
+      - key: SOCIAL_LINKEDIN_VERSION
+        value: "202609"
+      - key: SOCIAL_X_CLIENT_ID
+        sync: false
+      - key: SOCIAL_X_CLIENT_SECRET
+        sync: false
+      - key: SOCIAL_X_REDIRECT_URI
+        sync: false
+      - key: SOCIAL_X_SCOPES
+        value: tweet.read tweet.write users.read offline.access
+      - key: SOCIAL_THREADS_CLIENT_ID
+        sync: false
+      - key: SOCIAL_THREADS_CLIENT_SECRET
+        sync: false
+      - key: SOCIAL_THREADS_REDIRECT_URI
+        sync: false
+      - key: SOCIAL_THREADS_SCOPES
+        value: threads_basic,threads_content_publish,threads_manage_replies
+      - key: SOCIAL_PINTEREST_APP_ID
+        sync: false
+      - key: SOCIAL_PINTEREST_APP_SECRET
+        sync: false
+      - key: SOCIAL_PINTEREST_REDIRECT_URI
+        sync: false
+      - key: SOCIAL_PINTEREST_SCOPES
+        value: user_accounts:read,boards:read,boards:write,pins:read,pins:write,ads:read,ads:write
+      - key: SOCIAL_REDDIT_CLIENT_ID
+        sync: false
+      - key: SOCIAL_REDDIT_CLIENT_SECRET
+        sync: false
+      - key: SOCIAL_REDDIT_REDIRECT_URI
+        sync: false
+      - key: SOCIAL_REDDIT_SCOPES
+        value: identity,submit,read,comment
+      - key: SOCIAL_TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: SOCIAL_WHATSAPP_ACCESS_TOKEN
+        sync: false
+      - key: SOCIAL_AUTOPILOT_ENABLED
+        value: "false"
+      - key: SOCIAL_ADS_AUTONOMOUS_ENABLED
+        value: "false"
+
+  - type: worker
+    name: pamasmma-worker
+    runtime: python
+    plan: starter
+    region: frankfurt
+    branch: main
+    autoDeployTrigger: checksPass
+    numInstances: 1
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: cd backend && python -m app.worker
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: APP_ENV
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: SECRET_KEY
+        fromService:
+          name: pamasmma-api
+          type: web
+          envVarKey: SECRET_KEY
+      - key: PAMASMMA_BOOTSTRAP_TOKEN
+        fromService:
+          name: pamasmma-api
+          type: web
+          envVarKey: PAMASMMA_BOOTSTRAP_TOKEN
+      - key: PERSISTENCE_MODE
+        value: postgres
+      - key: DATABASE_URL
+        fromDatabase:
+          name: pamasmma-production-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: pamasmma-cache-prod
+          type: keyvalue
+          property: connectionString
+      - key: SCHEDULER_ENABLED
+        value: "true"
+      - key: MODEL_PROVIDER
+        value: kernel
+      - key: EMBEDDING_PROVIDER
+        value: local
+      - key: SOCIAL_META_CLIENT_ID
+        sync: false
+      - key: SOCIAL_META_CLIENT_SECRET
+        sync: false
+      - key: SOCIAL_META_GRAPH_VERSION
+        value: v23.0
+      - key: SOCIAL_META_SCOPES
+        value: pages_show_list,pages_manage_posts,pages_read_engagement,instagram_basic,instagram_content_publish,instagram_manage_comments
+      - key: SOCIAL_TIKTOK_CLIENT_KEY
+        sync: false
+      - key: SOCIAL_TIKTOK_CLIENT_SECRET
+        sync: false
+      - key: SOCIAL_YOUTUBE_CLIENT_ID
+        sync: false
+      - key: SOCIAL_YOUTUBE_CLIENT_SECRET
+        sync: false
+      - key: SOCIAL_YOUTUBE_SCOPES
+        value: https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube.force-ssl https://www.googleapis.com/auth/yt-analytics.readonly
+      - key: SOCIAL_LINKEDIN_CLIENT_ID
+        sync: false
+      - key: SOCIAL_LINKEDIN_CLIENT_SECRET
+        sync: false
+      - key: SOCIAL_LINKEDIN_VERSION
+        value: "202609"
+      - key: SOCIAL_X_CLIENT_ID
+        sync: false
+      - key: SOCIAL_X_CLIENT_SECRET
+        sync: false
+      - key: SOCIAL_THREADS_CLIENT_ID
+        sync: false
+      - key: SOCIAL_THREADS_CLIENT_SECRET
+        sync: false
+      - key: SOCIAL_PINTEREST_APP_ID
+        sync: false
+      - key: SOCIAL_PINTEREST_APP_SECRET
+        sync: false
+      - key: SOCIAL_REDDIT_CLIENT_ID
+        sync: false
+      - key: SOCIAL_REDDIT_CLIENT_SECRET
+        sync: false
+      - key: SOCIAL_TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: SOCIAL_WHATSAPP_ACCESS_TOKEN
+        sync: false
+      - key: SOCIAL_AUTOPILOT_ENABLED
+        value: "false"
+      - key: SOCIAL_ADS_AUTONOMOUS_ENABLED
+        value: "false"
 
   - type: web
     name: pamasmma-web
@@ -73,7 +244,8 @@ services:
     region: frankfurt
     branch: main
     autoDeployTrigger: checksPass
-    buildCommand: cd frontend && npm install && npm run build && mkdir -p .next/standalone/.next && cp -R .next/static .next/standalone/.next/static && if [ -d public ]; then cp -R public .next/standalone/public; fi
+    numInstances: 1
+    buildCommand: cd frontend && npm ci && npm run build && mkdir -p .next/standalone/.next && cp -R .next/static .next/standalone/.next/static && if [ -d public ]; then cp -R public .next/standalone/public; fi
     startCommand: cd frontend && HOSTNAME=0.0.0.0 node .next/standalone/server.js
     envVars:
       - key: NEXT_PUBLIC_API_URL
