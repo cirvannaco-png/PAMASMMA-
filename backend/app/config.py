@@ -93,7 +93,7 @@ class Settings(BaseSettings):
     totp_interval: int = 30
 
     scheduler_timezone: str = "Africa/Nairobi"
-    scheduler_enabled: bool = True
+    scheduler_enabled: bool = False
 
     rate_limit_auth_per_minute: int = 5
     rate_limit_api_per_minute: int = 60
