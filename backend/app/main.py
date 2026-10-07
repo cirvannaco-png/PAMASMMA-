@@ -107,7 +107,11 @@ def create_app() -> FastAPI:
     async def add_timing(request: Request, call_next):
         start=time.perf_counter()
         response=await call_next(request)
-        response.headers["X-Response-Time-Ms"]=f"{(time.perf_counter()-start)*1000:.2f}"
+        response.headers["X-Response-Time-Ms"] = f"{(time.perf_counter()-start)*1000:.2f}"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
         return response
 
     @app.exception_handler(Exception)
