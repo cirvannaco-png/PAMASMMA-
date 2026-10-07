@@ -37,6 +37,24 @@ def _capabilities(platform: Platform) -> list[str]:
     return [cap.value for cap in get_provider(platform).capabilities]
 
 
+def _is_retryable_delivery_error(exc: Exception) -> bool:
+    if isinstance(exc, SocialProviderError):
+        return (
+            exc.code in {"network_error", "provider_timeout", "rate_limited"}
+            or exc.status_code in {408, 425, 429}
+            or exc.status_code >= 500
+        )
+    return isinstance(exc, (TimeoutError, ConnectionError))
+
+
+def _retry_delay_seconds(attempt: int) -> int:
+    exponent = max(0, attempt - 1)
+    return min(
+        settings.social_delivery_retry_base_seconds * (2**exponent),
+        3600,
+    )
+
+
 async def _access_token_for(account: dict[str, Any]) -> str:
     """Return a usable token and refresh it shortly before expiry when possible."""
     token = decrypt_secret(account["access_token_enc"])
@@ -415,29 +433,65 @@ async def queue_post(
 
 async def process_due_posts() -> int:
     if not settings.is_persistent:
+        now = _now()
         due = [
             post
             for post in memory_store.social_posts
-            if post["status"] == "queued"
-            and post.get("scheduled_at")
-            and post["scheduled_at"] <= _now()
+            if post["status"] in {"queued", "processing"}
+            and (
+                (post.get("scheduled_at") and post["scheduled_at"] <= now)
+                or (post.get("next_attempt_at") and post["next_attempt_at"] <= now)
+                or (
+                    post["status"] == "processing"
+                    and post.get("lease_expires_at")
+                    and post["lease_expires_at"] <= now
+                )
+            )
         ]
     else:
         assert AsyncSessionLocal is not None
         async with AsyncSessionLocal() as session:
-            result = await session.execute(
+            # Recover deliveries whose worker lease expired, then atomically
+            # claim due work with SKIP LOCKED so multiple workers do not race.
+            await session.execute(
                 text(
                     """
-                    SELECT *
-                    FROM pamasmma_social_posts
-                    WHERE status = 'queued'
-                      AND scheduled_at <= now()
-                    ORDER BY scheduled_at
-                    LIMIT 50
+                    UPDATE pamasmma_social_posts
+                    SET status = 'queued',
+                        lease_expires_at = NULL
+                    WHERE status = 'processing'
+                      AND lease_expires_at <= now()
                     """
                 )
             )
+            result = await session.execute(
+                text(
+                    """
+                    WITH claim AS (
+                        SELECT id
+                        FROM pamasmma_social_posts
+                        WHERE status = 'queued'
+                          AND (scheduled_at <= now() OR next_attempt_at <= now())
+                        ORDER BY COALESCE(next_attempt_at, scheduled_at), created_at
+                        FOR UPDATE SKIP LOCKED
+                        LIMIT 50
+                    )
+                    UPDATE pamasmma_social_posts AS p
+                    SET status = 'processing',
+                        delivery_attempts = p.delivery_attempts + 1,
+                        last_attempt_at = now(),
+                        lease_expires_at = now() + make_interval(
+                            secs => :lease_seconds
+                        )
+                    FROM claim
+                    WHERE p.id = claim.id
+                    RETURNING p.*
+                    """
+                ),
+                {"lease_seconds": settings.social_delivery_lease_seconds},
+            )
             due = [dict(row) for row in result.mappings().all()]
+            await session.commit()
 
     processed = 0
     for post in due:
@@ -470,7 +524,7 @@ async def process_due_posts() -> int:
                 )
 
             if not account:
-                continue
+                raise ValueError("Social account for scheduled post no longer exists.")
 
             command = PublishCommand.model_validate(post["content"])
             result = await get_provider(Platform(account["platform"])).publish(
@@ -478,12 +532,7 @@ async def process_due_posts() -> int:
                 command,
                 account["external_account_id"],
             )
-            platform_post_id = _token_value(
-                result,
-                "id",
-                "post_id",
-                "uri",
-            )
+            platform_post_id = _token_value(result, "id", "post_id", "uri")
 
             if settings.is_persistent:
                 assert AsyncSessionLocal is not None
@@ -495,14 +544,13 @@ async def process_due_posts() -> int:
                             SET status = 'published',
                                 platform_post_id = :platform_post_id,
                                 published_at = now(),
+                                next_attempt_at = NULL,
+                                lease_expires_at = NULL,
                                 error = NULL
-                            WHERE id = :id
+                            WHERE id = :id AND status = 'processing'
                             """
                         ),
-                        {
-                            "platform_post_id": platform_post_id,
-                            "id": post["id"],
-                        },
+                        {"platform_post_id": platform_post_id, "id": post["id"]},
                     )
                     await session.commit()
             else:
@@ -511,33 +559,78 @@ async def process_due_posts() -> int:
                         "status": "published",
                         "platform_post_id": platform_post_id,
                         "published_at": _now(),
+                        "next_attempt_at": None,
+                        "lease_expires_at": None,
                         "error": None,
                     }
                 )
 
             processed += 1
         except Exception as exc:
-            if settings.is_persistent:
-                assert AsyncSessionLocal is not None
-                async with AsyncSessionLocal() as session:
-                    await session.execute(
-                        text(
-                            """
-                            UPDATE pamasmma_social_posts
-                            SET status = 'failed', error = :error
-                            WHERE id = :id
-                            """
-                        ),
-                        {"error": str(exc)[:2000], "id": post["id"]},
+            attempts = int(post.get("delivery_attempts") or 0)
+            retryable = _is_retryable_delivery_error(exc)
+            can_retry = retryable and attempts < settings.social_delivery_max_attempts
+            if can_retry:
+                retry_at = _now() + timedelta(seconds=_retry_delay_seconds(attempts))
+                if settings.is_persistent:
+                    assert AsyncSessionLocal is not None
+                    async with AsyncSessionLocal() as session:
+                        await session.execute(
+                            text(
+                                """
+                                UPDATE pamasmma_social_posts
+                                SET status = 'queued',
+                                    next_attempt_at = :next_attempt_at,
+                                    lease_expires_at = NULL,
+                                    error = :error
+                                WHERE id = :id
+                                  AND status = 'processing'
+                                """
+                            ),
+                            {
+                                "next_attempt_at": retry_at,
+                                "error": str(exc)[:2000],
+                                "id": post["id"],
+                            },
+                        )
+                        await session.commit()
+                else:
+                    post.update(
+                        {
+                            "status": "queued",
+                            "next_attempt_at": retry_at,
+                            "lease_expires_at": None,
+                            "error": str(exc)[:2000],
+                        }
                     )
-                    await session.commit()
             else:
-                post.update(
-                    {
-                        "status": "failed",
-                        "error": str(exc)[:2000],
-                    }
-                )
+                if settings.is_persistent:
+                    assert AsyncSessionLocal is not None
+                    async with AsyncSessionLocal() as session:
+                        await session.execute(
+                            text(
+                                """
+                                UPDATE pamasmma_social_posts
+                                SET status = 'failed',
+                                    next_attempt_at = NULL,
+                                    lease_expires_at = NULL,
+                                    error = :error
+                                WHERE id = :id
+                                  AND status = 'processing'
+                                """
+                            ),
+                            {"error": str(exc)[:2000], "id": post["id"]},
+                        )
+                        await session.commit()
+                else:
+                    post.update(
+                        {
+                            "status": "failed",
+                            "next_attempt_at": None,
+                            "lease_expires_at": None,
+                            "error": str(exc)[:2000],
+                        }
+                    )
 
     return processed
 
