@@ -360,7 +360,7 @@ async def test_oauth_account_selection_storage_and_publish_e2e(monkeypatch, app,
     from app.runtime import memory_store
 
     class FakeProvider:
-        platform = Platform.X
+        platform = Platform.FACEBOOK
         capabilities = frozenset({Capability.PUBLISH})
 
         def authorization_url(self, state):
@@ -393,12 +393,12 @@ async def test_oauth_account_selection_storage_and_publish_e2e(monkeypatch, app,
     }
 
     try:
-        started = await client.get("/api/v1/social/oauth/x/start")
+        started = await client.get("/api/v1/social/oauth/facebook/start")
         assert started.status_code == 200
         state = started.json()["state"]
 
         callback = await client.get(
-            "/api/v1/social/oauth/x/callback",
+            "/api/v1/social/oauth/facebook/callback",
             params={"code": "oauth-code", "state": state},
             follow_redirects=False,
         )
