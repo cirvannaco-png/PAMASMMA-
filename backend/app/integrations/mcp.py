@@ -23,6 +23,7 @@ async def discover_tools(user_id:str,connector_id:str)->list[dict[str,Any]]:
 async def call_tool(user_id:str,connector_id:str,tool_name:str,arguments:dict[str,Any],confirmed:bool=False)->dict[str,Any]:
     connector=await get_mcp_connector(user_id,connector_id)
     if not connector: raise ValueError("MCP connector not found or disabled.")
+    if requires_confirmation(tool_name) and not confirmed: raise PermissionError("This MCP tool appears write-capable or high-impact. Explicit confirmation is required.")
     http_client,transport=await _client(connector)
     async with http_client:
         async with Client(transport) as mcp:
