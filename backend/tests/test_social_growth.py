@@ -247,3 +247,43 @@ def test_social_delivery_retry_policy():
         SocialProviderError(Platform.X, "provider_error", "bad request", 400)
     )
     assert _retry_delay_seconds(1) < _retry_delay_seconds(2)
+
+
+@pytest.mark.asyncio
+async def test_x_oauth_uses_server_held_pkce_verifier(monkeypatch):
+    from app.social.providers import x
+
+    provider = x.XProvider()
+    monkeypatch.setattr(
+        x,
+        "_env",
+        lambda name: {
+            "SOCIAL_X_CLIENT_ID": "client-id",
+            "SOCIAL_X_CLIENT_SECRET": "client-secret",
+            "SOCIAL_X_REDIRECT_URI": "https://example.test/callback",
+            "SOCIAL_X_SCOPES": "tweet.read tweet.write users.read offline.access",
+        }.get(name, ""),
+    )
+    seen = {}
+
+    async def fake_request(method, url, **kwargs):
+        seen.update({"method": method, "url": url, **kwargs})
+        return {"access_token": "token"}
+
+    monkeypatch.setattr(provider, "request", fake_request)
+    with pytest.raises(Exception):
+        await provider.exchange_code("code-1", "state-1")
+
+    await provider.exchange_code(
+        "code-1",
+        "state-1",
+        code_verifier="server-held-verifier",
+    )
+    assert seen["data"]["code_verifier"] == "server-held-verifier"
+
+    auth = provider.authorization_url(
+        "state-1",
+        code_challenge="challenge-1",
+    )
+    assert "code_challenge=challenge-1" in auth
+    assert "code_challenge_method=S256" in auth
