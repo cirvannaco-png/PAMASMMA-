@@ -111,7 +111,20 @@ The browser receives account identity metadata, not access or refresh tokens.
 
 PAMASMMA can plan campaigns and persist an approval state. Campaign execution remains explicitly gated. Autonomous ad spending stays disabled unless the operator deliberately enables it and the external ad account grants the corresponding permission.
 
-## 6. Production database and cache
+## 6. Process topology
+
+Production is split into two application processes:
+
+- **API** (`pamasmma-api`) — HTTP, OAuth callbacks, authenticated commands, liveness/readiness.
+- **Worker** (`pamasmma-worker`) — APScheduler, scheduled social delivery, engagement sync, health reports, and recurring intelligence jobs.
+
+Keep `SCHEDULER_ENABLED=false` on the API and `SCHEDULER_ENABLED=true` on exactly one worker instance. This prevents scheduler duplication when the HTTP service is scaled.
+
+Start the worker with:
+
+`cd backend && python -m app.worker`
+
+## 7. Production database and cache
 
 Required:
 
@@ -127,7 +140,7 @@ Run:
 
 before traffic admission.
 
-## 7. Scheduled delivery guarantees
+## 8. Scheduled delivery guarantees
 
 Scheduled social posts use:
 
@@ -135,7 +148,7 @@ Scheduled social posts use:
 
 Transient failures use bounded exponential backoff and a worker lease. Stale leases are recoverable. The scheduler is intentionally at-least-once across external APIs; exactly-once cannot be guaranteed generically when a provider may accept a request but the network fails before PAMASMMA records the response.
 
-## 8. Final production verification
+## 9. Final production verification
 
 The codebase must pass:
 
@@ -164,3 +177,14 @@ For failure handling:
 For observability:
 
 `/health` for liveness and `/health/ready` for durable dependency readiness.
+
+
+## 10. Render infrastructure contract
+
+The committed `render.yaml` defines isolated production PostgreSQL, Valkey/Key Value, API, worker, and frontend services in Frankfurt. OAuth client credentials, callback URIs, bot tokens, and advertising credentials are deliberately `sync: false` and must be entered in the Render secret store.
+
+The production API runs the migration command before deploy admission:
+
+`cd backend && alembic upgrade head`
+
+The frontend uses `NEXT_PUBLIC_API_URL` and never receives provider OAuth secrets or access tokens.
