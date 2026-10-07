@@ -28,23 +28,20 @@ class XProvider(OAuthRestProvider):
     redirect_env = "SOCIAL_X_REDIRECT_URI"
     scope_env = "SOCIAL_X_SCOPES"
 
-    def _pkce_verifier(self, state: str) -> str:
-        return base64.urlsafe_b64encode(
-            hashlib.sha256(state.encode()).digest()
-        ).decode().rstrip("=")
-
-    def authorization_url(self, state: str) -> str:
-        verifier = self._pkce_verifier(state)
-        challenge = base64.urlsafe_b64encode(
-            hashlib.sha256(verifier.encode()).digest()
-        ).decode().rstrip("=")
-        url = super().authorization_url(state)
-        return f"{url}&code_challenge={challenge}&code_challenge_method=S256"
+    def authorization_url(
+        self,
+        state: str,
+        *,
+        code_challenge: str | None = None,
+    ) -> str:
+        return super().authorization_url(state, code_challenge=code_challenge)
 
     async def exchange_code(
         self,
         code: str,
         state: str | None = None,
+        *,
+        code_verifier: str | None = None,
     ) -> dict[str, Any]:
         client_id = _env(self.client_id_env)
         secret = _env(self.client_secret_env)
@@ -57,7 +54,13 @@ class XProvider(OAuthRestProvider):
                 503,
             )
 
-        verifier = self._pkce_verifier(state or "")
+        if not code_verifier:
+            raise _provider_error(
+                self.platform,
+                "oauth_pkce_required",
+                "X OAuth requires a server-held PKCE verifier.",
+                400,
+            )
         return await self.request(
             "POST",
             self.token_url,
@@ -67,7 +70,7 @@ class XProvider(OAuthRestProvider):
                 "client_secret": secret,
                 "redirect_uri": redirect_uri,
                 "grant_type": "authorization_code",
-                "code_verifier": verifier,
+                "code_verifier": code_verifier,
             },
             headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
