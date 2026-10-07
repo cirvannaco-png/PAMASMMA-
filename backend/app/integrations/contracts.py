@@ -26,3 +26,4 @@ class McpConnectorCreate(BaseModel):
 class McpToolCall(BaseModel):
     tool_name:str=Field(min_length=1,max_length=255)
     arguments:dict=Field(default_factory=dict)
+    confirmed:bool=False
