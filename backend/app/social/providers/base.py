@@ -22,23 +22,15 @@ class SocialProvider:
         if capability not in self.capabilities:
             raise UnsupportedCapability(self.platform, capability)
 
-    def authorization_url(
-        self,
-        state: str,
-        *,
-        code_challenge: str | None = None,
-    ) -> str:
-        del code_challenge
+    def authorization_url(self, state: str) -> str:
         raise NotImplementedError
 
     async def exchange_code(
         self,
         code: str,
         state: str | None = None,
-        *,
-        code_verifier: str | None = None,
     ) -> dict[str, Any]:
-        del state, code_verifier
+        del state
         raise NotImplementedError
 
     async def discover_accounts(self, token: str) -> list[dict[str, Any]]:
