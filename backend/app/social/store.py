@@ -500,6 +500,14 @@ async def process_due_posts() -> int:
 
     processed = 0
     for post in due:
+        if not settings.is_persistent:
+            attempt = int(post.get("delivery_attempts") or 0) + 1
+            post["status"] = "processing"
+            post["delivery_attempts"] = attempt
+            post["last_attempt_at"] = _now()
+            post["lease_expires_at"] = (
+                _now() + timedelta(seconds=settings.social_delivery_lease_seconds)
+            )
         try:
             if settings.is_persistent:
                 assert AsyncSessionLocal is not None
