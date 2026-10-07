@@ -77,6 +77,13 @@ class OAuthRestProvider(SocialProvider, HttpProvider):
     async def refresh_token(self, refresh_token: str) -> dict[str, Any]:
         client_id = _env(self.client_id_env)
         secret = _env(self.client_secret_env)
+        if not refresh_token or not client_id or not secret:
+            raise provider_error(
+                self.platform,
+                "oauth_refresh_not_configured",
+                f"{self.platform.value} OAuth refresh credentials are not configured.",
+                503,
+            )
         return await self.request(
             "POST",
             self.token_url,
