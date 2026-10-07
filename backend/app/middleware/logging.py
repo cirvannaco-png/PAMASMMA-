@@ -67,5 +67,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
     def _get_client_ip(self, request: Request) -> str:
         forwarded = request.headers.get("X-Forwarded-For")
         if forwarded:
-            return forwarded.split(",")[0].strip()
+            values = [value.strip() for value in forwarded.split(",") if value.strip()]
+            if values:
+                return values[-1]
         return request.client.host if request.client else "unknown"
