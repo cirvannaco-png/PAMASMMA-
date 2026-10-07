@@ -91,11 +91,11 @@ Use additional provider-specific identifiers through the account metadata / plat
 
 PAMASMMA does not and cannot bypass external approval.
 
-Before public operation, obtain the provider-side permissions required by the chosen capability set. TikTok's Direct Post flow currently requires the `video.publish` scope and a creator-info call, and content from unaudited clients is restricted to private viewing until the required audit is passed. citeturn910579search0turn910579search3turn910579search5
+Before public operation, obtain the provider-side permissions required by the chosen capability set. TikTok's Direct Post integration in this repository is designed around the `video.publish` scope and creator-info flow. Public visibility can remain restricted until the provider-side review/audit requirements for the client are satisfied.
 
-LinkedIn Marketing API campaign management requires `rw_ads`, and the target ad account must be mapped/authorized for the application. citeturn910579search2turn910579search9
+LinkedIn Marketing API campaign management requires the appropriate advertising permission, including `rw_ads` for the campaign-management boundary, and the target ad account must be authorized for the application.
 
-Pinterest advertising endpoints require the corresponding ads scopes/access, while organic Pin operations use the Pin/board permissions. citeturn910579search8turn910579search12
+Pinterest advertising endpoints require the corresponding ads scopes/access, while organic Pin operations use the Pin/board permissions.
 
 ## 4. Account linking behavior
 
