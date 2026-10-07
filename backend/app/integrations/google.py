@@ -2,7 +2,7 @@
 import base64
 import json
 from email.message import EmailMessage
-from typing import Any
+from typing import Any, cast
 from urllib.parse import urlencode
 
 import httpx
@@ -66,7 +66,7 @@ async def exchange_code(code: str) -> dict[str, Any]:
         )
     if response.is_error:
         raise GoogleProviderError("Google token exchange failed.", 502)
-    return response.json()
+    return cast(dict[str, Any], response.json())
 
 
 async def refresh_access_token(refresh_token: str) -> dict[str, Any]:
