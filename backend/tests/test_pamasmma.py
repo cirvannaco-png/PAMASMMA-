@@ -390,3 +390,29 @@ def test_postgres_url_normalization():
         )
         == "postgresql+asyncpg://user:pass@host.example/db"
     )
+
+
+@pytest.mark.asyncio
+async def test_security_headers_are_present(client):
+    response = await client.get("/health")
+    assert response.headers["X-Content-Type-Options"] == "nosniff"
+    assert response.headers["X-Frame-Options"] == "DENY"
+    assert response.headers["Referrer-Policy"] == "no-referrer"
+    assert response.headers["Permissions-Policy"] == "camera=(), microphone=(), geolocation=()"
+
+
+def test_forwarded_client_address_uses_rightmost_proxy_value():
+    from starlette.requests import Request
+    from app.middleware.rate_limit import RateLimitMiddleware
+
+    scope = {
+        "type": "http",
+        "method": "GET",
+        "path": "/health",
+        "headers": [(b"x-forwarded-for", b"198.51.100.10, 203.0.113.7")],
+        "client": ("10.0.0.1", 1234),
+        "server": ("test", 80),
+        "scheme": "http",
+    }
+    request = Request(scope)
+    assert RateLimitMiddleware._get_client_ip(request) == "203.0.113.7"
