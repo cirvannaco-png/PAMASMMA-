@@ -230,3 +230,20 @@ async def test_instagram_video_waits_for_container_ready(monkeypatch):
     assert result["id"] == "media-1"
     assert [method for method, _, _ in calls] == ["POST", "GET", "GET", "POST"]
     assert calls[-1][2]["data"]["creation_id"] == "container-1"
+
+
+def test_social_delivery_retry_policy():
+    from app.social.store import _is_retryable_delivery_error, _retry_delay_seconds
+
+    from app.social.contracts import SocialProviderError
+
+    assert _is_retryable_delivery_error(
+        SocialProviderError(Platform.X, "provider_error", "temporary", 503)
+    )
+    assert _is_retryable_delivery_error(
+        SocialProviderError(Platform.X, "provider_error", "rate limited", 429)
+    )
+    assert not _is_retryable_delivery_error(
+        SocialProviderError(Platform.X, "provider_error", "bad request", 400)
+    )
+    assert _retry_delay_seconds(1) < _retry_delay_seconds(2)
