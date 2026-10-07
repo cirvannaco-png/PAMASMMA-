@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 from app.auth.router import router as auth_router
 from app.config import get_settings
 from app.database import close_db, init_db, pg_event_bus
+from app.integrations.router import router as integrations_router
 from app.events.handlers import (
     handle_cognitive_invocation,
     handle_cognitive_outcome,
@@ -27,7 +28,6 @@ from app.routers.events import broadcast
 from app.routers.events import router as events_router
 from app.routers.health import router as health_router
 from app.scheduler.jobs import configure_scheduler, scheduler
-from app.integrations.router import router as integrations_router
 from app.social.router import router as social_router
 
 settings = get_settings()
