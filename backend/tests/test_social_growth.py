@@ -252,11 +252,10 @@ async def test_x_oauth_uses_server_held_pkce_verifier(monkeypatch):
     from app.social.providers import oauth, x
 
     provider = x.XProvider()
-    fake_env = lambda name: (
-        "https://example.test/callback"
-        if name == "SOCIAL_X_REDIRECT_URI"
-        else "test-value"
-    )
+    def fake_env(name: str) -> str:
+        if name == "SOCIAL_X_REDIRECT_URI":
+            return "https://example.test/callback"
+        return "test-value"
     monkeypatch.setattr(x, "_env", fake_env)
     monkeypatch.setattr(oauth, "_env", fake_env)
     seen = {}
