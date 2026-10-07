@@ -109,9 +109,10 @@ async def oauth_start(
             hashlib.sha256(code_verifier.encode("ascii")).digest()
         ).decode("ascii").rstrip("=")
         payload["pkce_verifier_enc"] = encrypt_secret(code_verifier)
-        authorization_url = provider.authorization_url(
+        x_provider = get_provider(Platform.X)
+        authorization_url = x_provider.authorization_url_with_pkce(
             state,
-            code_challenge=challenge,
+            challenge,
         )
     await cache_set(f"social:oauth:{state}", payload, ttl=600)
     return {
@@ -159,17 +160,17 @@ async def oauth_callback(
     provider = get_provider(platform)
 
     try:
-        exchange_kwargs: dict[str, str] = {}
         if platform is Platform.X:
             verifier_enc = payload.get("pkce_verifier_enc")
             if not verifier_enc:
                 raise ValueError("X OAuth PKCE verifier is missing or expired.")
-            exchange_kwargs["code_verifier"] = decrypt_secret(verifier_enc)
-        token_data = await provider.exchange_code(
-            code,
-            state,
-            **exchange_kwargs,
-        )
+            token_data = await provider.exchange_code_with_pkce(
+                code,
+                state,
+                decrypt_secret(verifier_enc),
+            )
+        else:
+            token_data = await provider.exchange_code(code, state)
         access_token = str(
             token_data.get("access_token") or token_data.get("token") or ""
         )
