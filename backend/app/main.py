@@ -27,8 +27,8 @@ from app.routers.events import broadcast
 from app.routers.events import router as events_router
 from app.routers.health import router as health_router
 from app.scheduler.jobs import configure_scheduler, scheduler
-from app.social.router import router as social_router
 from app.integrations.router import router as integrations_router
+from app.social.router import router as social_router
 
 settings = get_settings()
 
