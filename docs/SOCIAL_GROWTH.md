@@ -58,7 +58,7 @@ OAuth state is single-use and stored in the existing Redis cache. Access and ref
 ## Operator workflow
 
 1. Configure only the platforms you intend to connect.
-2. Run `alembic upgrade head` to apply the current social schema, including migrations 007 and 008.
+2. Run `alembic upgrade head` to apply the current social schema, including migrations 007, 008 and 009.
 3. Open /social, connect an account, and verify capabilities.
 4. Test publishing on a sandbox/private target before public distribution.
 5. Synchronize engagement and verify classification/escalation behavior.
@@ -67,3 +67,14 @@ OAuth state is single-use and stored in the existing Redis cache. Access and ref
 ## External API notes
 
 Capabilities differ materially by platform. TikTok Direct Post supports video and photo publishing, but public visibility depends on client review/audit requirements; media URLs must be reachable from a verified domain or URL prefix. YouTube uploads from unverified API projects remain private until the project passes the required audit. LinkedIn Marketing APIs require the `rw_ads` scope for campaign management, plus additional product-specific scopes and ad-account access. Pinterest OAuth token exchange uses HTTP Basic authentication, and ads access requires the corresponding ad scopes and access tier. PAMASMMA models capabilities explicitly rather than pretending every platform exposes the same operations.
+
+
+## Scheduled delivery resilience
+
+Queued posts use a durable delivery state machine:
+
+`queued → processing → published`
+
+Transient provider failures are retried with bounded exponential backoff. A worker lease prevents concurrent scheduler instances from claiming the same row; an expired lease returns work to the queue. After the configured maximum attempts, the post becomes `failed` and retains the last error for operator review.
+
+The delivery model is deliberately **at-least-once** for scheduled provider calls. A worker crash after a provider accepts a publish but before PAMASMMA persists the success state can require manual reconciliation; provider-specific idempotency is used where an adapter exposes it, rather than pretending the generic layer can guarantee exactly-once delivery.
