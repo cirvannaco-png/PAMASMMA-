@@ -271,7 +271,9 @@ async def test_x_oauth_uses_server_held_pkce_verifier(monkeypatch):
         return {"access_token": "token"}
 
     monkeypatch.setattr(provider, "request", fake_request)
-    with pytest.raises(Exception):
+    from app.social.contracts import SocialProviderError
+
+    with pytest.raises(SocialProviderError):
         await provider.exchange_code("code-1", "state-1")
 
     await provider.exchange_code(
