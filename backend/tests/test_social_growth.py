@@ -249,18 +249,16 @@ def test_social_delivery_retry_policy():
 
 @pytest.mark.asyncio
 async def test_x_oauth_uses_server_held_pkce_verifier(monkeypatch):
-    from app.social.providers import x
+    from app.social.providers import oauth, x
 
     provider = x.XProvider()
-    monkeypatch.setattr(
-        x,
-        "_env",
-        lambda name: (
-            "https://example.test/callback"
-            if name == "SOCIAL_X_REDIRECT_URI"
-            else "test-value"
-        ),
+    fake_env = lambda name: (
+        "https://example.test/callback"
+        if name == "SOCIAL_X_REDIRECT_URI"
+        else "test-value"
     )
+    monkeypatch.setattr(x, "_env", fake_env)
+    monkeypatch.setattr(oauth, "_env", fake_env)
     seen = {}
 
     async def fake_request(method, url, **kwargs):
