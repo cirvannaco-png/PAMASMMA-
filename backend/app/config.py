@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     )
 
     app_name: str = "PAMASMMA"
-    app_version: str = "4.2.1"
+    app_version: str = "4.3.0"
     app_env: str = "production"
     debug: bool = False
 
