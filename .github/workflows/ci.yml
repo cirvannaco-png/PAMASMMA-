@@ -50,10 +50,11 @@ jobs:
           MODEL_PROVIDER: kernel
           EMBEDDING_PROVIDER: local
         run: pytest tests/ -v --cov=app --cov-report=xml --cov-report=term-missing
-      - name: Upload coverage (best effort)
+      - name: Upload coverage
         uses: codecov/codecov-action@v4
-        if: always()
-        continue-on-error: true
+        if: ${{ always() && env.CODECOV_TOKEN != '' }}
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
           file: backend/coverage.xml
 
