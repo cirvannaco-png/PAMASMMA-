@@ -144,6 +144,9 @@ class Settings(BaseSettings):
     social_autopilot_enabled: bool = False
     social_ads_autonomous_enabled: bool = False
     social_sync_batch_size: int = 100
+    social_delivery_max_attempts: int = 5
+    social_delivery_retry_base_seconds: int = 30
+    social_delivery_lease_seconds: int = 300
 
     @property
     def is_production(self) -> bool:
@@ -165,6 +168,12 @@ class Settings(BaseSettings):
             raise ValueError("PAMASMMA_BOOTSTRAP_TOKEN must be configured in production.")
         if self.is_persistent and (not self.database_url or not self.redis_url):
             raise ValueError("DATABASE_URL and REDIS_URL are required when PERSISTENCE_MODE=postgres.")
+        if self.social_delivery_max_attempts < 1:
+            raise ValueError("SOCIAL_DELIVERY_MAX_ATTEMPTS must be at least 1.")
+        if self.social_delivery_retry_base_seconds < 1:
+            raise ValueError("SOCIAL_DELIVERY_RETRY_BASE_SECONDS must be at least 1.")
+        if self.social_delivery_lease_seconds < 30:
+            raise ValueError("SOCIAL_DELIVERY_LEASE_SECONDS must be at least 30.")
         if self.knowledge_max_upload_mb < 1:
             raise ValueError("KNOWLEDGE_MAX_UPLOAD_MB must be at least 1.")
         if (
