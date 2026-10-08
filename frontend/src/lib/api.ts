@@ -422,6 +422,10 @@ export const integrations = {
       "/integrations/mcp/recommended" + (query ? "?" + query : ""),
     );
   },
+  mcpProfile: (connectionId: string) =>
+    apiFetch<{ connection: Record<string, unknown> }>(
+      "/integrations/mcp/catalog/" + encodeURIComponent(connectionId),
+    ),
   gmailMessages: (accountId: string, q?: string) => apiFetch<Record<string, unknown>>(`/integrations/google/${encodeURIComponent(accountId)}/gmail/messages${q ? `?q=${encodeURIComponent(q)}` : ""}`),
   gmailSend: (accountId: string, body: { to: string[]; subject: string; body: string; cc?: string[]; bcc?: string[] }) => apiFetch<Record<string, unknown>>(`/integrations/google/${encodeURIComponent(accountId)}/gmail/send`, { method: "POST", body: JSON.stringify(body) }),
   driveFiles: (accountId: string, q?: string) => apiFetch<Record<string, unknown>>(`/integrations/google/${encodeURIComponent(accountId)}/drive/files${q ? `?q=${encodeURIComponent(q)}` : ""}`),
