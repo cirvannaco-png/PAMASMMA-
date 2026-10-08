@@ -240,6 +240,7 @@ async def mcp_recommended(
     del current_user
     return {"connections": recommended_mcp_connections(role=role, priority=priority)}
 
+
 @router.get("/mcp/{connector_id}/tools")
 async def mcp_tools(
     connector_id: str,
