@@ -413,6 +413,15 @@ export const social = {
 export const integrations = {
   googleStart: () => apiFetch<{ authorization_url: string; state: string }>("/integrations/google/start"),
   list: () => apiFetch<{ integrations: Array<Record<string, unknown>>; mcp: Array<Record<string, unknown>> }>("/integrations"),
+  mcpRecommended: (role?: string, priority?: "core" | "optional") => {
+    const params = new URLSearchParams();
+    if (role) params.set("role", role);
+    if (priority) params.set("priority", priority);
+    const query = params.toString();
+    return apiFetch<{ connections: Array<Record<string, unknown>> }>(
+      "/integrations/mcp/recommended" + (query ? "?" + query : ""),
+    );
+  },
   gmailMessages: (accountId: string, q?: string) => apiFetch<Record<string, unknown>>(`/integrations/google/${encodeURIComponent(accountId)}/gmail/messages${q ? `?q=${encodeURIComponent(q)}` : ""}`),
   gmailSend: (accountId: string, body: { to: string[]; subject: string; body: string; cc?: string[]; bcc?: string[] }) => apiFetch<Record<string, unknown>>(`/integrations/google/${encodeURIComponent(accountId)}/gmail/send`, { method: "POST", body: JSON.stringify(body) }),
   driveFiles: (accountId: string, q?: string) => apiFetch<Record<string, unknown>>(`/integrations/google/${encodeURIComponent(accountId)}/drive/files${q ? `?q=${encodeURIComponent(q)}` : ""}`),
