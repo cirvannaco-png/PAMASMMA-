@@ -13,6 +13,7 @@ export default function IntegrationsPage() {
   const { isAuthenticated, isRestoring } = useAuth();
   const [items, setItems] = useState<Array<Record<string, unknown>>>([]);
   const [mcp, setMcp] = useState<Array<Record<string, unknown>>>([]);
+  const [recommended, setRecommended] = useState<Array<Record<string, unknown>>>([]);
   const [name, setName] = useState("");
   const [endpoint, setEndpoint] = useState("");
   const [token, setToken] = useState("");
@@ -21,6 +22,8 @@ export default function IntegrationsPage() {
     const data = await integrations.list();
     setItems(data.integrations);
     setMcp(data.mcp);
+    const catalog = await integrations.mcpRecommended(undefined, "core");
+    setRecommended(catalog.connections);
   };
 
   useEffect(() => {
@@ -87,6 +90,21 @@ export default function IntegrationsPage() {
           </div>
           <div style={{ marginTop: 16 }}>
             {mcp.map((item) => <div key={String(item.id)} style={{ padding: 10, background: "#0A0A18", borderRadius: 8, marginTop: 8 }}>{String(item.name)} <span style={{ color: "#55C8A0", fontSize: 11 }}>· governed</span><div style={{ color: "#68688A", fontSize: 11 }}>{String(item.endpoint)}</div></div>)}
+          </div>
+          <div style={{ marginTop: 22, borderTop: "1px solid #202040", paddingTop: 18 }}>
+            <h3 style={{ fontSize: 14, marginBottom: 6 }}>Recommended MCP connections</h3>
+            <p style={{ color: "#77779A", fontSize: 12, marginBottom: 10 }}>
+              Discovery profiles are shown here. A connection is not auto-installed; you still choose the endpoint, credentials and scopes.
+            </p>
+            <div style={{ display: "grid", gap: 8 }}>
+              {recommended.map((item) => (
+                <div key={String(item.id)} style={{ padding: 11, background: "#070713", borderRadius: 8, border: "1px solid #18182F" }}>
+                  <div style={{ fontWeight: 700, fontSize: 13 }}>{String(item.name)} <span style={{ color: "#68688A", fontSize: 10 }}>· {String(item.priority)}</span></div>
+                  <div style={{ color: "#7E7E9E", fontSize: 11, marginTop: 4 }}>{String(item.reason)}</div>
+                  <div style={{ color: "#52526E", fontSize: 10, marginTop: 5 }}>Registry: {String(item.registry_server)}</div>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
       </div>
