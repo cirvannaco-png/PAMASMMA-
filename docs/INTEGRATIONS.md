@@ -33,3 +33,27 @@ The catalog prioritizes integrations that fit PAMASMMA's operating surface: pers
 Google Workspace is already implemented natively for Gmail and Drive. The Google Workspace MCP profile is an optional expansion path for Calendar, Docs and Sheets. Avoid enabling duplicate permission surfaces without a deliberate reason.
 
 The official MCP Registry supports remote Streamable HTTP servers through the remotes property. PAMASMMA remains compatible with that transport, while treating every remote endpoint and credential as independently governed.
+
+## Registry-verified MCP profiles — October 2026
+
+The following requested connections are represented as governed discovery profiles. Registry identity is recorded for operator review; it is not an authorization grant.
+
+| Service | MCP Registry server | Verified version |
+|---|---|---:|
+| Google Workspace expansion | `com.proscendia/google-workspace` | 1.0.0 |
+| Notion | `com.notion/mcp` | 1.0.1 |
+| Slack | `com.mcparmory/slack` | 1.0.1 |
+| Linear | `app.linear/linear` | 1.0.1 |
+| Sentry | `io.github.getsentry/sentry-mcp` | 0.41.0 |
+| HubSpot | `io.github.mindstone/mcp-server-hubspot` | 0.4.1 |
+| Figma | `com.figma.mcp/mcp` | 1.0.3 |
+| Canva | `com.canva.mcp/mcp` | 1.0.0 |
+| Google Analytics 4 | `com.getmcpads/google-analytics` | 2.0.1 |
+| Google Search Console | `com.getmcpads/google-search-console` | 2.0.1 |
+| Jira | `io.github.proprock/jira-mini-mcp` | 1.3.0 |
+| Grafana | `io.github.grafana/mcp-grafana` | 1.6.0 |
+| Apify | `com.apify/apify-mcp-server` | 0.17.4 |
+
+Google Workspace already has a native PAMASMMA OAuth path for Gmail and Drive. The MCP profile is therefore treated as an expansion path for broader Workspace services, rather than an instruction to duplicate existing credential surfaces.
+
+The catalog intentionally separates **discoverable**, **connected**, and **enabled** states. No listed MCP server is automatically connected, trusted, or granted write access.
