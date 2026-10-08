@@ -1,0 +1,190 @@
+"""Curated MCP capability catalog for PAMASMMA.
+
+The catalog is discovery metadata only. It never auto-connects a server or treats
+registry membership as a trust decision. Users/operators still choose an endpoint,
+credentials, scopes and whether the connection is permitted.
+"""
+
+from typing import Any
+
+
+MCP_CAPABILITY_CATALOG: tuple[dict[str, Any], ...] = (
+    {
+        "id": "github",
+        "name": "GitHub",
+        "registry_server": "io.github.github/github-mcp-server",
+        "priority": "core",
+        "roles": ["software-ops", "executive-ops"],
+        "capabilities": ["repositories", "issues", "pull-requests", "workflows", "code"],
+        "auth": ["oauth", "token"],
+        "risk": "high",
+        "reason": "Direct repository, issue and CI context for project execution and technical governance.",
+    },
+    {
+        "id": "gitlab",
+        "name": "GitLab",
+        "registry_server": "io.github.dubuqingfeng/gitlab-mcp-server",
+        "priority": "core",
+        "roles": ["software-ops", "executive-ops"],
+        "capabilities": ["projects", "issues", "merge-requests", "pipelines"],
+        "auth": ["token"],
+        "risk": "high",
+        "reason": "Provider-neutral source-control and CI/CD coverage alongside GitHub.",
+    },
+    {
+        "id": "google-workspace",
+        "name": "Google Workspace",
+        "registry_server": "com.proscendia/google-workspace",
+        "priority": "core",
+        "roles": ["personal-assistant", "executive-ops"],
+        "capabilities": ["gmail", "drive", "calendar"],
+        "auth": ["oauth"],
+        "risk": "critical",
+        "reason": "Extends PAMASMMA beyond its native Gmail + Drive integration into calendar and broader Workspace workflows.",
+    },
+    {
+        "id": "notion",
+        "name": "Notion",
+        "registry_server": "com.notion/mcp",
+        "priority": "core",
+        "roles": ["personal-assistant", "knowledge", "executive-ops"],
+        "capabilities": ["pages", "databases", "workspace-knowledge"],
+        "auth": ["oauth", "token"],
+        "risk": "high",
+        "reason": "Useful external knowledge base and operating-system context for executive memory.",
+    },
+    {
+        "id": "slack",
+        "name": "Slack",
+        "registry_server": "com.mcparmory/slack",
+        "priority": "core",
+        "roles": ["personal-assistant", "relationship-management"],
+        "capabilities": ["messages", "channels", "threads", "users"],
+        "auth": ["oauth", "token"],
+        "risk": "high",
+        "reason": "Turns PAMASMMA into a governed team communications assistant.",
+    },
+    {
+        "id": "linear",
+        "name": "Linear",
+        "registry_server": "app.linear/linear",
+        "priority": "core",
+        "roles": ["executive-ops", "project-ops"],
+        "capabilities": ["issues", "projects", "teams", "cycles"],
+        "auth": ["oauth"],
+        "risk": "high",
+        "reason": "Structured planning and execution state for product and operational work.",
+    },
+    {
+        "id": "jira",
+        "name": "Jira",
+        "registry_server": "io.github.proprock/jira-mini-mcp",
+        "priority": "optional",
+        "roles": ["project-ops", "software-ops"],
+        "capabilities": ["issues", "search", "transitions", "projects"],
+        "auth": ["token"],
+        "risk": "high",
+        "reason": "Enterprise project-management alternative when collaborators operate in Atlassian.",
+    },
+    {
+        "id": "sentry",
+        "name": "Sentry",
+        "registry_server": "io.github.getsentry/sentry-mcp",
+        "priority": "core",
+        "roles": ["executive-ops", "software-ops"],
+        "capabilities": ["errors", "issues", "debugging", "incident-context"],
+        "auth": ["token"],
+        "risk": "high",
+        "reason": "Feeds production failure evidence into PAMASMMA's critic and decision pipeline.",
+    },
+    {
+        "id": "grafana",
+        "name": "Grafana",
+        "registry_server": "io.github.grafana/mcp-grafana",
+        "priority": "optional",
+        "roles": ["executive-ops", "observability"],
+        "capabilities": ["dashboards", "metrics", "observability"],
+        "auth": ["token"],
+        "risk": "high",
+        "reason": "Allows executive decisions to use live operational telemetry instead of anecdotes.",
+    },
+    {
+        "id": "hubspot",
+        "name": "HubSpot",
+        "registry_server": "io.github.mindstone/mcp-server-hubspot",
+        "priority": "core",
+        "roles": ["marketing", "customer-support", "relationship-management"],
+        "capabilities": ["contacts", "deals", "tickets", "marketing", "workflows"],
+        "auth": ["token", "oauth"],
+        "risk": "critical",
+        "reason": "Strong fit for CRM, lead intelligence, customer support and growth execution.",
+    },
+    {
+        "id": "figma",
+        "name": "Figma",
+        "registry_server": "com.figma.mcp/mcp",
+        "priority": "core",
+        "roles": ["content-creation", "brand", "design"],
+        "capabilities": ["design-context", "assets", "files"],
+        "auth": ["oauth", "token"],
+        "risk": "high",
+        "reason": "Provides design-system and creative context for brand and product work.",
+    },
+    {
+        "id": "canva",
+        "name": "Canva",
+        "registry_server": "com.mcparmory/canva",
+        "priority": "core",
+        "roles": ["content-creation", "marketing", "social-media"],
+        "capabilities": ["designs", "templates", "assets", "exports"],
+        "auth": ["oauth", "token"],
+        "risk": "high",
+        "reason": "Directly supports PAMASMMA's content-creator and social-marketing responsibilities.",
+    },
+    {
+        "id": "google-analytics",
+        "name": "Google Analytics 4",
+        "registry_server": "com.getmcpads/google-analytics",
+        "priority": "core",
+        "roles": ["marketing", "strategy", "audience-psychology"],
+        "capabilities": ["traffic", "events", "funnels", "attribution"],
+        "auth": ["oauth"],
+        "risk": "high",
+        "reason": "Adds first-party behavioural evidence for campaign and audience decisions.",
+    },
+    {
+        "id": "google-search-console",
+        "name": "Google Search Console",
+        "registry_server": "com.getmcpads/google-search-console",
+        "priority": "core",
+        "roles": ["marketing", "strategy"],
+        "capabilities": ["search-performance", "queries", "indexing"],
+        "auth": ["oauth"],
+        "risk": "medium",
+        "reason": "Useful for SEO, demand discovery and evidence-backed content planning.",
+    },
+    {
+        "id": "apify",
+        "name": "Apify",
+        "registry_server": "com.apify/apify-mcp-server",
+        "priority": "optional",
+        "roles": ["marketing", "research", "customer-support"],
+        "capabilities": ["web-extraction", "crawling", "automation"],
+        "auth": ["token"],
+        "risk": "critical",
+        "reason": "Broad web-data acquisition for market research, competitive intelligence and support workflows; keep behind strict policy controls.",
+    },
+)
+
+
+def recommended_mcp_connections(
+    role: str | None = None,
+    priority: str | None = None,
+) -> list[dict[str, Any]]:
+    """Return catalog entries matching optional role/priority filters."""
+    entries = MCP_CAPABILITY_CATALOG
+    if role:
+        entries = tuple(item for item in entries if role in item["roles"])
+    if priority:
+        entries = tuple(item for item in entries if item["priority"] == priority)
+    return [dict(item) for item in entries]
