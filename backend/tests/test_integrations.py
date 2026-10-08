@@ -4,6 +4,7 @@ import pytest
 
 from app.integrations.google import GOOGLE_SCOPES, encode_raw_message
 from app.integrations.mcp import requires_confirmation
+from app.integrations.mcp_catalog import recommended_mcp_connections
 
 
 def test_google_scopes_include_read_write_workspace_access():
@@ -29,3 +30,14 @@ async def test_google_oauth_state_is_user_bound():
         await save_oauth_state("state123", "user-1")
         cache_set.assert_awaited_once()
         assert cache_set.await_args.args[1]["user_id"] == "user-1"
+
+
+def test_mcp_catalog_contains_core_assistant_connections():
+    ids = {entry["id"] for entry in recommended_mcp_connections(priority="core")}
+    assert {"github", "google-workspace", "notion", "slack", "hubspot", "canva"} <= ids
+
+
+def test_mcp_catalog_role_filtering():
+    entries = recommended_mcp_connections(role="marketing")
+    assert entries
+    assert all("marketing" in entry["roles"] for entry in entries)
