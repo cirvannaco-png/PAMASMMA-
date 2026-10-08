@@ -315,3 +315,11 @@ PAMASMMA includes a governed Knowledge Training subsystem for importing books, n
 ## Social Growth
 
 PAMASMMA now includes a governed social execution layer at `/social`. It provides provider-neutral account connections, publishing and scheduling, engagement synchronization and replies, analytics adapters, campaign planning, an explicit campaign approval gate, and resilient scheduled delivery with bounded retries and worker leasing. Platform adapters remain isolated from the cognitive engine. See [docs/SOCIAL_GROWTH.md](docs/SOCIAL_GROWTH.md).
+
+## MCP Connection Catalog
+
+PAMASMMA includes a curated MCP capability catalog and UI discovery layer for high-value integrations spanning executive operations, personal assistance, marketing, customer support, content creation, knowledge and observability.
+
+Core candidates include GitHub, GitLab, Google Workspace expansion, Notion, Slack, Linear, Sentry, HubSpot, Figma, Canva, Google Analytics 4 and Google Search Console. Optional candidates include Jira, Grafana and Apify.
+
+The catalog does not auto-install or trust a server. MCP Registry entries are discovery metadata; endpoint selection, credentials, scopes and enablement remain operator-controlled.
