@@ -29,7 +29,7 @@ from app.integrations.google import (
     userinfo,
 )
 from app.integrations.mcp import call_tool, discover_tools, registry_search
-from app.integrations.mcp_catalog import recommended_mcp_connections
+from app.integrations.mcp_catalog import get_mcp_connection_profile, recommended_mcp_connections
 from app.integrations.store import (
     google_access_token,
     list_integrations,
@@ -240,6 +240,17 @@ async def mcp_recommended(
     del current_user
     return {"connections": recommended_mcp_connections(role=role, priority=priority)}
 
+
+@router.get("/mcp/catalog/{connection_id}")
+async def mcp_catalog_profile(
+    connection_id: str,
+    current_user: CurrentUser,
+) -> dict:
+    del current_user
+    profile = get_mcp_connection_profile(connection_id)
+    if not profile:
+        raise HTTPException(404, "MCP catalog connection not found.")
+    return {"connection": profile}
 
 @router.get("/mcp/{connector_id}/tools")
 async def mcp_tools(
