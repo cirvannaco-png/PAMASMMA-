@@ -29,6 +29,7 @@ from app.integrations.google import (
     userinfo,
 )
 from app.integrations.mcp import call_tool, discover_tools, registry_search
+from app.integrations.mcp_catalog import recommended_mcp_connections
 from app.integrations.store import (
     google_access_token,
     list_integrations,
@@ -229,6 +230,15 @@ async def mcp_registry_search(
     del current_user
     return {"servers": await registry_search(q, limit)}
 
+
+@router.get("/mcp/recommended")
+async def mcp_recommended(
+    current_user: CurrentUser,
+    role: str | None = Query(default=None, max_length=80),
+    priority: str | None = Query(default=None, max_length=20),
+) -> dict:
+    del current_user
+    return {"connections": recommended_mcp_connections(role=role, priority=priority)}
 
 @router.get("/mcp/{connector_id}/tools")
 async def mcp_tools(
