@@ -14,6 +14,7 @@ export default function IntegrationsPage() {
   const [items, setItems] = useState<Array<Record<string, unknown>>>([]);
   const [mcp, setMcp] = useState<Array<Record<string, unknown>>>([]);
   const [recommended, setRecommended] = useState<Array<Record<string, unknown>>>([]);
+  const [selectedProfile, setSelectedProfile] = useState<Record<string, unknown> | null>(null);
   const [name, setName] = useState("");
   const [endpoint, setEndpoint] = useState("");
   const [token, setToken] = useState("");
@@ -101,10 +102,48 @@ export default function IntegrationsPage() {
                 <div key={String(item.id)} style={{ padding: 11, background: "#070713", borderRadius: 8, border: "1px solid #18182F" }}>
                   <div style={{ fontWeight: 700, fontSize: 13 }}>{String(item.name)} <span style={{ color: "#68688A", fontSize: 10 }}>· {String(item.priority)}</span></div>
                   <div style={{ color: "#7E7E9E", fontSize: 11, marginTop: 4 }}>{String(item.reason)}</div>
-                  <div style={{ color: "#52526E", fontSize: 10, marginTop: 5 }}>Registry: {String(item.registry_server)}</div>
+                  <div style={{ color: "#52526E", fontSize: 10, marginTop: 5 }}>
+                    Registry: {String(item.registry_server)} · v{String(item.registry_version ?? "current")}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void integrations.mcpProfile(String(item.id))
+                        .then((result) => setSelectedProfile(result.connection))
+                        .catch((error) =>
+                          toast.error(error instanceof Error ? error.message : "Profile lookup failed."),
+                        )
+                    }
+                    style={{
+                      marginTop: 8,
+                      padding: "7px 10px",
+                      borderRadius: 7,
+                      border: "1px solid #25254A",
+                      background: "#0D0D1B",
+                      color: "#A7A2D8",
+                      cursor: "pointer",
+                      fontSize: 10,
+                    }}
+                  >
+                    View connection profile
+                  </button>
                 </div>
               ))}
             </div>
+          {selectedProfile && (
+            <div style={{ marginTop: 16, padding: 12, border: "1px solid #2A2850", borderRadius: 8, background: "#09091A" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 6 }}>Selected connection profile</div>
+              <div style={{ color: "#77779A", fontSize: 11 }}>
+                {String(selectedProfile.name)} · risk {String(selectedProfile.risk)} · {String(selectedProfile.connection_state)}
+              </div>
+              <div style={{ color: "#55556E", fontSize: 10, marginTop: 5 }}>
+                Auth: {Array.isArray(selectedProfile.auth) ? selectedProfile.auth.join(", ") : String(selectedProfile.auth)}
+              </div>
+              <div style={{ color: "#55556E", fontSize: 10, marginTop: 5 }}>
+                Capabilities: {Array.isArray(selectedProfile.capabilities) ? selectedProfile.capabilities.join(", ") : String(selectedProfile.capabilities)}
+              </div>
+            </div>
+          )}
           </div>
         </section>
       </div>
