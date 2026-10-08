@@ -4,7 +4,7 @@ import pytest
 
 from app.integrations.google import GOOGLE_SCOPES, encode_raw_message
 from app.integrations.mcp import requires_confirmation
-from app.integrations.mcp_catalog import recommended_mcp_connections
+from app.integrations.mcp_catalog import get_mcp_connection_profile, recommended_mcp_connections
 
 
 def test_google_scopes_include_read_write_workspace_access():
