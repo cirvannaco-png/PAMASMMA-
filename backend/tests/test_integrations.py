@@ -41,3 +41,10 @@ def test_mcp_catalog_role_filtering():
     entries = recommended_mcp_connections(role="marketing")
     assert entries
     assert all("marketing" in entry["roles"] for entry in entries)
+
+
+def test_mcp_catalog_profile_lookup():
+    profile = get_mcp_connection_profile("apify")
+    assert profile is not None
+    assert profile["registry_server"] == "com.apify/apify-mcp-server"
+    assert profile["connection_state"] == "discoverable"
