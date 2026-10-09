@@ -35,31 +35,17 @@ def requires_confirmation(
     tool_name: str,
     annotations: dict[str, Any] | None = None,
 ) -> bool:
-    """Fail closed for unknown/side-effecting tools; respect explicit MCP hints."""
+    """Require confirmation unless the server explicitly marks a tool read-only."""
+    del tool_name  # Names are not a trustworthy security boundary.
     metadata = annotations or {}
     read_only = metadata.get("readOnlyHint", metadata.get("read_only_hint"))
     destructive = metadata.get("destructiveHint", metadata.get("destructive_hint"))
     open_world = metadata.get("openWorldHint", metadata.get("open_world_hint"))
-    if read_only is True and destructive is not True and open_world is not True:
-        return False
-    if read_only is False or destructive is True or open_world is True:
-        return True
-
-    lowered = tool_name.lower()
-    unsafe_tokens = (
-        "delete", "remove", "write", "create", "update", "send", "publish",
-        "post", "execute", "run", "deploy", "purchase", "transfer", "edit",
-        "modify", "invite", "grant", "revoke", "schedule", "upload", "merge",
-        "close", "comment", "reply", "submit", "trigger", "start",
+    return not (
+        read_only is True
+        and destructive is not True
+        and open_world is not True
     )
-    if any(token in lowered for token in unsafe_tokens):
-        return True
-
-    safe_prefixes = (
-        "get", "list", "search", "find", "read", "fetch", "query", "inspect",
-        "describe", "retrieve", "lookup", "whoami", "count", "check",
-    )
-    return not lowered.startswith(safe_prefixes)
 
 
 class _PersistentOAuthStorage:
