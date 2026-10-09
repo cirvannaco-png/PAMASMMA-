@@ -76,6 +76,20 @@ def test_mcp_endpoint_rejects_local_and_private_destinations():
         validate_mcp_endpoint("http://mcp.example.com/mcp")
 
 
+@pytest.mark.parametrize(
+    "endpoint",
+    [
+        "https://127.1/mcp",
+        "https://2130706433/mcp",
+        "https://0x7f000001/mcp",
+        "https://0177.0.0.1/mcp",
+    ],
+)
+def test_mcp_endpoint_rejects_noncanonical_ipv4_literals(endpoint):
+    with pytest.raises(ValueError, match="Non-canonical IP literal"):
+        validate_mcp_endpoint(endpoint)
+
+
 def test_mcp_endpoint_requires_exact_host_allowlist_in_production(monkeypatch):
     monkeypatch.setattr(integration_settings, "app_env", "production")
     monkeypatch.setattr(integration_settings, "mcp_allowed_hosts", ["mcp.example.com"])
