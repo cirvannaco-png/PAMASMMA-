@@ -19,6 +19,7 @@ from app.integrations.store import (
     get_mcp_connector,
     save_mcp_oauth_client_info,
     save_mcp_oauth_tokens,
+    update_mcp_oauth_status,
     validate_mcp_endpoint,
 )
 from app.redis_client import cache_pop, cache_set
@@ -280,6 +281,10 @@ async def _run_oauth_flow(user_id: str, connector_id: str, flow_id: str) -> None
         )
     except Exception as exc:
         log.warning("MCP OAuth flow failed for connector %s: %s", connector_id, type(exc).__name__)
+        try:
+            await update_mcp_oauth_status(user_id, connector_id, "error")
+        except ValueError:
+            pass
         await cache_set(
             f"{_OAUTH_KEY_PREFIX}result:{flow_id}",
             {"status": "failed", "message": "Authorization failed. Retry the connection."},
