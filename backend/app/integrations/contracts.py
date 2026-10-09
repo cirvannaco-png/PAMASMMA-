@@ -1,5 +1,6 @@
 """Contracts for Google Workspace and MCP integrations."""
 from enum import StrEnum
+from typing import Literal
 
 from pydantic import BaseModel, Field, HttpUrl
 
@@ -30,10 +31,11 @@ class DriveUpload(BaseModel):
 
 
 class McpConnectorCreate(BaseModel):
-    name:str=Field(min_length=1,max_length=255)
-    endpoint:HttpUrl
-    bearer_token:str|None=Field(default=None,max_length=10000)
-    enabled:bool=True
+    name: str = Field(min_length=1, max_length=255)
+    endpoint: HttpUrl
+    auth_mode: Literal["bearer", "oauth"] = "bearer"
+    bearer_token: str | None = Field(default=None, max_length=10000)
+    enabled: bool = True
 
 
 class McpToolCall(BaseModel):
