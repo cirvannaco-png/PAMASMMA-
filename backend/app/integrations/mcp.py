@@ -43,17 +43,13 @@ def requires_confirmation(
     tool_name: str,
     annotations: dict[str, Any] | None = None,
 ) -> bool:
-    """Require confirmation unless the server explicitly marks a tool read-only."""
-    del tool_name  # Names are not a trustworthy security boundary.
-    metadata = annotations or {}
-    read_only = metadata.get("readOnlyHint", metadata.get("read_only_hint"))
-    destructive = metadata.get("destructiveHint", metadata.get("destructive_hint"))
-    open_world = metadata.get("openWorldHint", metadata.get("open_world_hint"))
-    return not (
-        read_only is True
-        and destructive is not True
-        and open_world is not True
-    )
+    """Require explicit confirmation for every remote MCP tool invocation.
+
+    MCP ToolAnnotations are hints supplied by the remote server, not trustworthy
+    authorization policy. They must never disable the confirmation boundary.
+    """
+    del tool_name, annotations
+    return True
 
 
 class _PersistentOAuthStorage:
