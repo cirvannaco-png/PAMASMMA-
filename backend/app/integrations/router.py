@@ -55,7 +55,6 @@ from app.integrations.store import (
     save_oauth_state,
 )
 
-
 router = APIRouter(prefix="/integrations", tags=["Integrations"])
 CurrentUser = Annotated[dict, Depends(get_current_user)]
 settings = get_settings()
