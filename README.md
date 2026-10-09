@@ -250,6 +250,10 @@ The current migration chain is linear:
 008_social_integrity
   ↓
 009_social_delivery_resilience
+  ↓
+010_integrations
+  ↓
+011_mcp_oauth
 ```
 
 The cognitive migrations add durable decision records, beliefs, outcomes, world-model entities/relationships, and cognitive audit state. The knowledge migrations add provenance-aware training sources/chunks and active-source deduplication/chunk-order integrity.
@@ -281,6 +285,9 @@ Core settings include:
 | `WEBAUTHN_ORIGIN` | WebAuthn browser origin |
 | `ALLOWED_ORIGINS` | CORS allow-list |
 | `NEXT_PUBLIC_API_URL` | Frontend API base URL |
+| `MCP_ALLOWED_HOSTS` | Exact-host allowlist for outbound MCP endpoints; required for production MCP use |
+| `MCP_OAUTH_REDIRECT_URI` | Public HTTPS callback for MCP OAuth authorization codes |
+| `MCP_OAUTH_FLOW_TIMEOUT_SECONDS` | Maximum time allowed for an MCP OAuth authorization flow |
 
 ## Release status
 
