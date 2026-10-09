@@ -47,6 +47,7 @@ from app.integrations.store import (
     google_access_token,
     list_integrations,
     list_mcp_connectors,
+    list_mcp_tool_audit,
     pop_oauth_state,
     save_google_account,
     save_mcp_connector,
@@ -374,6 +375,23 @@ async def mcp_remove(
     if not removed:
         raise HTTPException(404, "MCP connector not found.")
     return {"status": "deleted", "connector_id": connector_id}
+
+
+@router.get("/mcp/audit")
+async def mcp_audit(
+    current_user: CurrentUser,
+    connector_id: str | None = Query(default=None, max_length=80),
+    limit: int = Query(default=50, ge=1, le=200),
+) -> dict:
+    try:
+        entries = await list_mcp_tool_audit(
+            current_user["user_id"],
+            limit=limit,
+            connector_id=connector_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(422, "Invalid connector_id.") from exc
+    return {"entries": entries, "count": len(entries)}
 
 
 @router.get("/mcp/{connector_id}/tools")
