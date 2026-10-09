@@ -356,14 +356,14 @@ async def save_mcp_oauth_client_info(
 
 
 async def clear_mcp_oauth_credentials(user_id: str, connector_id: str) -> None:
+    """Clear tokens while retaining OAuth client registration for safe reconnects."""
     assert AsyncSessionLocal is not None
     async with AsyncSessionLocal() as session:
         result = await session.execute(
             text(
                 """
                 UPDATE pamasmma_mcp_connectors
-                SET oauth_tokens_enc=NULL, oauth_client_info_enc=NULL,
-                    auth_status='disconnected', updated_at=now()
+                SET oauth_tokens_enc=NULL, auth_status='disconnected', updated_at=now()
                 WHERE id=:id AND user_id=:user_id AND auth_mode='oauth'
                 """
             ),
