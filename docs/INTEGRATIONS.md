@@ -72,7 +72,7 @@ Endpoints:
 
 - `POST /api/v1/integrations/mcp/{connector_id}/oauth/start` — initiate an OAuth flow and return an authorization URL.
 - `GET /api/v1/integrations/mcp/oauth/callback` — receive the authorization-server callback, validated against the SDK-generated state and issuer.
-- `POST /api/v1/integrations/mcp/{connector_id}/oauth/disconnect` — clear PAMASMMA's stored OAuth client data and tokens. This does not promise that the remote authorization server revokes its grant; use the provider's account-security page for remote grant revocation where available.
+- `POST /api/v1/integrations/mcp/{connector_id}/oauth/disconnect` — clear PAMASMMA's locally stored OAuth tokens while retaining encrypted OAuth client-registration metadata for reconnect. This does not revoke the remote authorization-server grant; use the provider's account-security page for remote grant revocation where available.
 
 Configure `MCP_OAUTH_REDIRECT_URI` to the exact public callback URL registered/advertised to the authorization server. Production must use HTTPS. The MCP Python SDK currently handles dynamic client registration when supported; MCP servers that require pre-registration or a provider-specific OAuth client configuration may need additional operator configuration.
 
@@ -116,3 +116,16 @@ Configure only the hosts PAMASMMA will actually use in `MCP_ALLOWED_HOSTS`. The 
 ### Operational status
 
 A profile in the catalog means only that PAMASMMA has a reviewed discovery record. A service is **not connected** until the user's connector has been registered; it is **not authenticated** until the provider's OAuth or token exchange succeeds; and it is **not production-ready** until scopes, provider-side approval, allowlisting, tool-level policy and end-to-end tests are complete. In particular, Google Analytics 4 and Search Console remain provider-adapter choices rather than claimed official hosted integrations.
+
+
+## MCP Tool Audit
+
+Each tool execution creates a durable audit record before a tool capable of side effects is invoked. The audit records the authenticated PAMASMMA user, connector, tool name, status, whether confirmation was required/provided, timing, error class, and SHA-256 fingerprints of arguments/results. It does **not** persist raw tool arguments, raw tool results, or connector tokens.
+
+- `GET /api/v1/integrations/mcp/audit?limit=50` returns audit entries for the current authenticated user; optional `connector_id` narrows the view.
+- `POST /api/v1/integrations/mcp/{connector_id}/health-check` performs live tool discovery and reports healthy, authorization-required, or unhealthy status without exposing provider response bodies.
+- `DELETE /api/v1/integrations/mcp/{connector_id}` removes the user's connector and encrypted credentials. Audit history is retained; the connector foreign key is nulled on deletion.
+
+Tool calls are fail-closed for authorization: unless the tool explicitly advertises read-only annotations and does not advertise destructive/open-world behavior, PAMASMMA requires explicit confirmation. A tool name such as `search` or `get` is not sufficient evidence of read-only behavior. Tool arguments are validated against the latest discovered JSON Schema before execution. External MCP tool output is returned with `source="mcp_external"` and `trusted=false` so downstream cognitive systems can handle it as untrusted evidence.
+
+The audit row is persisted in `pamasmma_mcp_tool_audit` before an external call. If the provider action succeeds but final audit update fails, the tool result is still returned with `audit_status="completion_pending_reconciliation"` to avoid prompting unsafe duplicate retries; the stale `started` row remains available for operator reconciliation.
