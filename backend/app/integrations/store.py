@@ -2,6 +2,7 @@
 import hashlib
 import ipaddress
 import json
+import socket
 import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any, cast
@@ -201,7 +202,16 @@ def validate_mcp_endpoint(endpoint: str) -> str:
     try:
         address = ipaddress.ip_address(host)
     except ValueError:
-        address = None
+        # Some URL/network stacks accept legacy IPv4 forms such as 127.1,
+        # 2130706433, or 0x7f000001 and normalize them to loopback addresses.
+        # Reject any host that inet_aton recognizes as an address but
+        # ipaddress did not accept as a canonical IPv4/IPv6 literal.
+        try:
+            socket.inet_aton(host)
+        except OSError:
+            address = None
+        else:
+            raise ValueError("Non-canonical IP literal addresses are not permitted.")
     if address and (
         address.is_private
         or address.is_loopback
