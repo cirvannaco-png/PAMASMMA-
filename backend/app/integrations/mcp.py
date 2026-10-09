@@ -1,5 +1,6 @@
 """Governed MCP bridge with persisted MCP SDK OAuth client support."""
 import asyncio
+import json
 import logging
 import time
 from typing import Any, cast
@@ -7,6 +8,8 @@ from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
 
 import httpx2
+from jsonschema import ValidationError as JSONSchemaValidationError
+from jsonschema import validate as validate_json_schema
 from mcp import Client
 from mcp.client.auth import AuthorizationCodeResult, OAuthClientProvider
 from mcp.client.streamable_http import streamable_http_client
@@ -16,6 +19,8 @@ from pydantic import AnyUrl
 from app.config import get_settings
 from app.integrations.store import (
     clear_mcp_oauth_credentials,
+    create_mcp_tool_audit,
+    finish_mcp_tool_audit,
     get_mcp_connector,
     save_mcp_oauth_client_info,
     save_mcp_oauth_tokens,
@@ -229,32 +234,148 @@ async def call_tool(
         and not connector.get("oauth_tokens_enc")
     ):
         raise PermissionError("Authorize this MCP connector before using its tools.")
+
     http_client, transport = await _client(connector, user_id)
     async with http_client:
         async with Client(transport) as mcp:
             listed = await mcp.list_tools()
-            tool = next((candidate for candidate in listed.tools if candidate.name == tool_name), None)
+            tool = next(
+                (candidate for candidate in listed.tools if candidate.name == tool_name),
+                None,
+            )
             if tool is None:
                 raise ValueError("MCP tool is not present in the connector's current tool list.")
-            raw_tool = tool.model_dump(mode="json", by_alias=True) if hasattr(tool, "model_dump") else {}
+
+            raw_tool = (
+                tool.model_dump(mode="json", by_alias=True)
+                if hasattr(tool, "model_dump")
+                else {}
+            )
             annotations = raw_tool.get("annotations") if isinstance(raw_tool, dict) else {}
             if not isinstance(annotations, dict):
                 annotations = {}
-            if requires_confirmation(tool_name, annotations) and not confirmed:
+
+            input_schema = getattr(tool, "input_schema", None)
+            if isinstance(input_schema, dict):
+                try:
+                    validate_json_schema(instance=arguments, schema=input_schema)
+                except JSONSchemaValidationError as exc:
+                    audit_id = await create_mcp_tool_audit(
+                        user_id=user_id,
+                        connector_id=str(connector["id"]),
+                        connector_name=str(connector["name"]),
+                        tool_name=tool_name,
+                        arguments=arguments,
+                        confirmation_required=True,
+                        confirmed=False,
+                        status="blocked",
+                    )
+                    log.warning(
+                        "MCP tool call blocked by input validation",
+                        extra={
+                            "user_id": user_id,
+                            "connector_id": str(connector["id"]),
+                            "tool_name": tool_name,
+                            "audit_id": audit_id,
+                        },
+                    )
+                    raise ValueError(
+                        "MCP tool arguments do not match the discovered input schema."
+                    ) from exc
+
+            confirmation_required = requires_confirmation(tool_name, annotations)
+            if confirmation_required and not confirmed:
+                await create_mcp_tool_audit(
+                    user_id=user_id,
+                    connector_id=str(connector["id"]),
+                    connector_name=str(connector["name"]),
+                    tool_name=tool_name,
+                    arguments=arguments,
+                    confirmation_required=True,
+                    confirmed=False,
+                    status="blocked",
+                )
                 raise PermissionError(
                     "This MCP tool is not explicitly known to be read-only. "
                     "Explicit confirmation is required."
                 )
-            result = await mcp.call_tool(tool_name, arguments)
-            return {
-                "content": [
-                    item.model_dump(mode="json")
-                    if hasattr(item, "model_dump")
-                    else str(item)
-                    for item in result.content
-                ],
+
+            # Persist the invocation record before allowing any external side effect.
+            audit_id = await create_mcp_tool_audit(
+                user_id=user_id,
+                connector_id=str(connector["id"]),
+                connector_name=str(connector["name"]),
+                tool_name=tool_name,
+                arguments=arguments,
+                confirmation_required=confirmation_required,
+                confirmed=confirmed,
+                status="started",
+            )
+            started_at = time.monotonic()
+            try:
+                result = await mcp.call_tool(tool_name, arguments)
+            except Exception as exc:
+                try:
+                    await finish_mcp_tool_audit(
+                        user_id=user_id,
+                        audit_id=audit_id,
+                        status="failed",
+                        duration_ms=int((time.monotonic() - started_at) * 1000),
+                        error_type=type(exc).__name__,
+                    )
+                except Exception as audit_exc:
+                    log.error(
+                        "Could not finalize failed MCP audit record",
+                        extra={
+                            "audit_id": audit_id,
+                            "error_type": type(audit_exc).__name__,
+                        },
+                    )
+                raise
+
+            content = [
+                item.model_dump(mode="json")
+                if hasattr(item, "model_dump")
+                else str(item)
+                for item in result.content
+            ]
+            result_payload = {
+                "content": content,
                 "structured_content": result.structured_content,
+                "is_error": bool(getattr(result, "isError", False)),
             }
+            is_error = result_payload["is_error"]
+            audit_status = "recorded"
+            try:
+                await finish_mcp_tool_audit(
+                    user_id=user_id,
+                    audit_id=audit_id,
+                    status="failed" if is_error else "succeeded",
+                    duration_ms=int((time.monotonic() - started_at) * 1000),
+                    result=result_payload,
+                    error_type="MCPToolResultError" if is_error else None,
+                )
+            except Exception as audit_exc:
+                # The external operation already ran; do not induce a duplicate by
+                # failing the response solely because final audit persistence failed.
+                audit_status = "completion_pending_reconciliation"
+                log.error(
+                    "MCP result returned but audit finalization failed",
+                    extra={
+                        "audit_id": audit_id,
+                        "error_type": type(audit_exc).__name__,
+                    },
+                )
+
+            return {
+                **result_payload,
+                "audit_id": audit_id,
+                "audit_status": audit_status,
+                "source": "mcp_external",
+                "trusted": False,
+                "confirmation_required": confirmation_required,
+            }
+
 
 
 async def _run_oauth_flow(user_id: str, connector_id: str, flow_id: str) -> None:
