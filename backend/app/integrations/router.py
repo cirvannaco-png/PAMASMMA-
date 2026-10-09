@@ -7,6 +7,8 @@ from urllib.parse import quote
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import RedirectResponse
 
+from mcp.shared.auth import OAuthClientInformationFull
+
 from app.auth.dependencies import get_current_user
 from app.config import get_settings
 from app.integrations.contracts import (
@@ -36,19 +38,21 @@ from app.integrations.mcp import (
     receive_oauth_callback,
     registry_search,
 )
-from app.integrations.mcp_catalog import get_mcp_connection_profile, recommended_mcp_connections
-from app.integrations.store import delete_mcp_connector, save_mcp_oauth_client_info
-from mcp.shared.auth import OAuthClientInformationFull
+from app.integrations.mcp_catalog import (
+    get_mcp_connection_profile,
+    recommended_mcp_connections,
+)
 from app.integrations.store import (
+    delete_mcp_connector,
     google_access_token,
     list_integrations,
     list_mcp_connectors,
     pop_oauth_state,
     save_google_account,
     save_mcp_connector,
+    save_mcp_oauth_client_info,
     save_oauth_state,
 )
-
 router = APIRouter(prefix="/integrations", tags=["Integrations"])
 CurrentUser = Annotated[dict, Depends(get_current_user)]
 settings = get_settings()
