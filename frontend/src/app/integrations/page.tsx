@@ -18,6 +18,7 @@ export default function IntegrationsPage() {
   const [name, setName] = useState("");
   const [endpoint, setEndpoint] = useState("");
   const [token, setToken] = useState("");
+  const [authMode, setAuthMode] = useState<"bearer" | "oauth">("bearer");
 
   const load = async () => {
     const data = await integrations.list();
@@ -49,8 +50,8 @@ export default function IntegrationsPage() {
   const addMcp = async () => {
     if (!name.trim() || !endpoint.trim()) return;
     try {
-      await integrations.mcpAdd({ name: name.trim(), endpoint: endpoint.trim(), bearer_token: token || undefined, enabled: true });
-      setName(""); setEndpoint(""); setToken("");
+      await integrations.mcpAdd({ name: name.trim(), endpoint: endpoint.trim(), auth_mode: authMode, bearer_token: authMode === "bearer" ? token || undefined : undefined, enabled: true });
+      setName(""); setEndpoint(""); setToken(""); setAuthMode("bearer");
       await load();
       toast.success("MCP connector registered.");
     } catch (error) {
@@ -86,11 +87,54 @@ export default function IntegrationsPage() {
           <div style={{ display: "grid", gap: 8 }}>
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Connector name" style={{ padding: 10, background: "#0A0A18", border: "1px solid #29294A", color: "#D0D0EC", borderRadius: 8 }} />
             <input value={endpoint} onChange={(e) => setEndpoint(e.target.value)} placeholder="https://example.com/mcp" style={{ padding: 10, background: "#0A0A18", border: "1px solid #29294A", color: "#D0D0EC", borderRadius: 8 }} />
-            <input type="password" value={token} onChange={(e) => setToken(e.target.value)} placeholder="Bearer token (optional)" style={{ padding: 10, background: "#0A0A18", border: "1px solid #29294A", color: "#D0D0EC", borderRadius: 8 }} />
+            <label style={{ display: "grid", gap: 6, fontSize: 12, color: "#77779A" }}>
+              Authentication mode
+              <select value={authMode} onChange={(e) => setAuthMode(e.target.value as "bearer" | "oauth")} style={{ padding: 10, background: "#0A0A18", border: "1px solid #29294A", color: "#D0D0EC", borderRadius: 8 }}>
+                <option value="oauth">OAuth 2.1 / MCP authorization</option>
+                <option value="bearer">Bearer token / public server</option>
+              </select>
+            </label>
+            {authMode === "bearer" && (
+              <input type="password" value={token} onChange={(e) => setToken(e.target.value)} placeholder="Bearer token (optional)" style={{ padding: 10, background: "#0A0A18", border: "1px solid #29294A", color: "#D0D0EC", borderRadius: 8 }} />
+            )}
             <button onClick={() => void addMcp()} style={{ padding: "10px 14px", borderRadius: 8, border: "1px solid #315F72", background: "#10202A", color: "#AEEBFF", cursor: "pointer" }}>Add MCP connector</button>
           </div>
           <div style={{ marginTop: 16 }}>
-            {mcp.map((item) => <div key={String(item.id)} style={{ padding: 10, background: "#0A0A18", borderRadius: 8, marginTop: 8 }}>{String(item.name)} <span style={{ color: "#55C8A0", fontSize: 11 }}>· governed</span><div style={{ color: "#68688A", fontSize: 11 }}>{String(item.endpoint)}</div></div>)}
+            {mcp.map((item) => {
+              const connectorId = String(item.id);
+              const connectorAuthMode = String(item.auth_mode ?? "bearer");
+              const authStatus = String(item.auth_status ?? "configured");
+              return (
+                <div key={connectorId} style={{ padding: 10, background: "#0A0A18", borderRadius: 8, marginTop: 8 }}>
+                  <strong>{String(item.name)}</strong>
+                  <div style={{ color: "#68688A", fontSize: 11 }}>{String(item.endpoint)}</div>
+                  <div style={{ color: authStatus === "connected" ? "#55C8A0" : "#BBAEFF", fontSize: 11, marginTop: 4 }}>
+                    {connectorAuthMode.toUpperCase()} · {authStatus}
+                  </div>
+                  {connectorAuthMode === "oauth" && authStatus !== "connected" && (
+                    <button
+                      type="button"
+                      onClick={() => void integrations.mcpOAuthStart(connectorId).then((result) => {
+                        if (result.authorization_url) window.location.assign(result.authorization_url);
+                        else toast.success("MCP OAuth connection completed.");
+                      }).catch((error) => toast.error(error instanceof Error ? error.message : "MCP OAuth start failed."))}
+                      style={{ marginTop: 8, padding: "7px 10px", borderRadius: 7, border: "1px solid #315F72", background: "#10202A", color: "#AEEBFF", cursor: "pointer", fontSize: 11 }}
+                    >
+                      Authorize connection
+                    </button>
+                  )}
+                  {connectorAuthMode === "oauth" && authStatus === "connected" && (
+                    <button
+                      type="button"
+                      onClick={() => void integrations.mcpOAuthDisconnect(connectorId).then(() => load()).then(() => toast.success("Saved MCP authorization cleared.")).catch((error) => toast.error(error instanceof Error ? error.message : "Could not clear authorization."))}
+                      style={{ marginTop: 8, padding: "7px 10px", borderRadius: 7, border: "1px solid #543939", background: "#211010", color: "#F0B4B4", cursor: "pointer", fontSize: 11 }}
+                    >
+                      Clear saved authorization
+                    </button>
+                  )}
+                </div>
+              );
+            })}
           </div>
           <div style={{ marginTop: 22, borderTop: "1px solid #202040", paddingTop: 18 }}>
             <h3 style={{ fontSize: 14, marginBottom: 6 }}>Recommended MCP connections</h3>
