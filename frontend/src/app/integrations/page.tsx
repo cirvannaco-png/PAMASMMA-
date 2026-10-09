@@ -271,6 +271,70 @@ export default function IntegrationsPage() {
                       Health: {healthStatuses[connectorId]}
                     </div>
                   )}
+                  <div style={{ marginTop: 12, borderTop: "1px solid #18182F", paddingTop: 10 }}>
+                    <button
+                      type="button"
+                      disabled={Boolean(toolBusy[`discover:${connectorId}`] || (connectorAuthMode === "oauth" && authStatus !== "connected"))}
+                      onClick={() => void toggleMcpTools(connectorId)}
+                      style={{ padding: "7px 10px", borderRadius: 7, border: "1px solid #315F72", background: "#10202A", color: "#AEEBFF", cursor: "pointer", fontSize: 11, opacity: connectorAuthMode === "oauth" && authStatus !== "connected" ? 0.55 : 1 }}
+                    >
+                      {toolBusy[`discover:${connectorId}`] ? "Discovering tools…" : Object.prototype.hasOwnProperty.call(toolLists, connectorId) ? "Hide tools" : "Discover tools"}
+                    </button>
+                    {connectorAuthMode === "oauth" && authStatus !== "connected" && (
+                      <span style={{ marginLeft: 8, color: "#68688A", fontSize: 11 }}>Authorize this connector first.</span>
+                    )}
+                    {Object.prototype.hasOwnProperty.call(toolLists, connectorId) && (
+                      <div style={{ display: "grid", gap: 10, marginTop: 10 }}>
+                        {toolLists[connectorId].length === 0 ? (
+                          <div style={{ color: "#68688A", fontSize: 12 }}>This MCP server returned no tools.</div>
+                        ) : toolLists[connectorId].map((tool) => {
+                          const toolName = typeof tool.name === "string" ? tool.name : "unnamed-tool";
+                          const toolKey = getToolKey(connectorId, toolName);
+                          return (
+                            <div key={toolKey} style={{ background: "#070713", border: "1px solid #202040", borderRadius: 9, padding: 12 }}>
+                              <strong style={{ fontSize: 12 }}>{toolName}</strong>
+                              <p style={{ color: "#77779A", fontSize: 11, lineHeight: 1.5, margin: "5px 0 8px", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+                                {String(tool.description ?? "No description provided by this MCP server.")}
+                              </p>
+                              <details style={{ marginBottom: 8, color: "#A7A2D8", fontSize: 11 }}>
+                                <summary style={{ cursor: "pointer" }}>Input schema</summary>
+                                <pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", maxHeight: 220, overflow: "auto", background: "#04040D", padding: 8, borderRadius: 6 }}>
+                                  {JSON.stringify(tool.input_schema ?? {}, null, 2)}
+                                </pre>
+                              </details>
+                              <label style={{ display: "grid", gap: 5, color: "#A7A2D8", fontSize: 11 }}>
+                                Arguments (JSON object)
+                                <textarea
+                                  aria-label={`JSON arguments for ${toolName}`}
+                                  value={toolArguments[toolKey] ?? "{}"}
+                                  onChange={(event) => setToolArguments((current) => ({ ...current, [toolKey]: event.target.value }))}
+                                  spellCheck={false}
+                                  rows={5}
+                                  style={{ width: "100%", boxSizing: "border-box", resize: "vertical", padding: 9, background: "#04040D", border: "1px solid #29294A", color: "#D0D0EC", borderRadius: 6, fontFamily: "monospace", fontSize: 11 }}
+                                />
+                              </label>
+                              <button
+                                type="button"
+                                disabled={Boolean(toolBusy[toolKey])}
+                                onClick={() => void runMcpTool(connectorId, String(item.name ?? connectorId), toolName)}
+                                style={{ marginTop: 8, padding: "7px 10px", borderRadius: 7, border: "1px solid #5E4C28", background: "#211A0D", color: "#E7C98C", cursor: "pointer", fontSize: 11, opacity: toolBusy[toolKey] ? 0.6 : 1 }}
+                              >
+                                {toolBusy[toolKey] ? "Running…" : "Review & run"}
+                              </button>
+                              {toolResults[toolKey] && (
+                                <details open style={{ marginTop: 9, color: "#D5B46D", fontSize: 11 }}>
+                                  <summary style={{ cursor: "pointer" }}>Latest result · untrusted external output</summary>
+                                  <pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", maxHeight: 300, overflow: "auto", background: "#04040D", padding: 8, borderRadius: 6, color: "#D0D0EC" }}>
+                                    {toolResults[toolKey]}
+                                  </pre>
+                                </details>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                   {connectorAuthMode === "oauth" && authStatus === "connected" && (
                     <button
                       type="button"
