@@ -435,6 +435,11 @@ export const integrations = {
   mcpOAuthDisconnect: (connectorId: string) => apiFetch<{ status: string; connector_id: string }>(`/integrations/mcp/${encodeURIComponent(connectorId)}/oauth/disconnect`, { method: "POST" }),
   mcpHealthCheck: (connectorId: string) => apiFetch<{ status: string; connector_id: string; tool_count?: number; error_type?: string }>(`/integrations/mcp/${encodeURIComponent(connectorId)}/health-check`, { method: "POST" }),
   mcpRemove: (connectorId: string) => apiFetch<{ status: string; connector_id: string }>(`/integrations/mcp/${encodeURIComponent(connectorId)}`, { method: "DELETE" }),
+  mcpAudit: (limit = 50, connectorId?: string) => {
+    const params = new URLSearchParams({ limit: String(limit) });
+    if (connectorId) params.set("connector_id", connectorId);
+    return apiFetch<{ entries: Array<Record<string, unknown>>; count: number }>(`/integrations/mcp/audit?${params.toString()}`);
+  },
   mcpTools: (connectorId: string) => apiFetch<{ tools: Array<Record<string, unknown>> }>(`/integrations/mcp/${encodeURIComponent(connectorId)}/tools`),
 };
 
