@@ -254,6 +254,8 @@ The current migration chain is linear:
 010_integrations
   ↓
 011_mcp_oauth
+  ↓
+012_mcp_tool_audit
 ```
 
 The cognitive migrations add durable decision records, beliefs, outcomes, world-model entities/relationships, and cognitive audit state. The knowledge migrations add provenance-aware training sources/chunks and active-source deduplication/chunk-order integrity.
