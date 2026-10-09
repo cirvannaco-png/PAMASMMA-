@@ -31,6 +31,7 @@ from app.integrations.google import (
     userinfo,
 )
 from app.integrations.mcp import (
+    InvalidMcpToolArguments,
     begin_oauth_authorization,
     call_tool,
     disconnect_oauth,
@@ -426,6 +427,8 @@ async def mcp_call(
             body.arguments,
             body.confirmed,
         )
+    except InvalidMcpToolArguments as exc:
+        raise HTTPException(422, str(exc)) from exc
     except PermissionError as exc:
         raise HTTPException(409, str(exc)) from exc
     except ValueError as exc:
