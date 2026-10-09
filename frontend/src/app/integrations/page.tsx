@@ -15,6 +15,7 @@ export default function IntegrationsPage() {
   const [mcp, setMcp] = useState<Array<Record<string, unknown>>>([]);
   const [recommended, setRecommended] = useState<Array<Record<string, unknown>>>([]);
   const [selectedProfile, setSelectedProfile] = useState<Record<string, unknown> | null>(null);
+  const [selectedEndpointNotes, setSelectedEndpointNotes] = useState("");
   const [name, setName] = useState("");
   const [endpoint, setEndpoint] = useState("");
   const [token, setToken] = useState("");
@@ -27,7 +28,7 @@ export default function IntegrationsPage() {
     const data = await integrations.list();
     setItems(data.integrations);
     setMcp(data.mcp);
-    const catalog = await integrations.mcpRecommended(undefined, "core");
+    const catalog = await integrations.mcpRecommended();
     setRecommended(catalog.connections);
   };
 
@@ -167,7 +168,7 @@ export default function IntegrationsPage() {
                   <div style={{ fontWeight: 700, fontSize: 13 }}>{String(item.name)} <span style={{ color: "#68688A", fontSize: 10 }}>· {String(item.priority)}</span></div>
                   <div style={{ color: "#7E7E9E", fontSize: 11, marginTop: 4 }}>{String(item.reason)}</div>
                   <div style={{ color: "#52526E", fontSize: 10, marginTop: 5 }}>
-                    Registry: {String(item.registry_server)} · v{String(item.registry_version ?? "current")}
+                    Registry: {String(item.registry_server)}{item.registry_version ? ` · v${String(item.registry_version)}` : ""}
                   </div>
                   {Array.isArray(item.remote_endpoints) && item.remote_endpoints.map((candidate) => {
                     if (!candidate || typeof candidate !== "object") return null;
@@ -187,6 +188,7 @@ export default function IntegrationsPage() {
                           setOauthClientId("");
                           setOauthClientSecret("");
                           setSelectedProfile(item);
+                          setSelectedEndpointNotes(String(option.notes ?? ""));
                           document.getElementById("mcp-connect-form")?.scrollIntoView({ behavior: "smooth", block: "center" });
                           toast.success("Endpoint selected. Review auth settings and register to continue.");
                         }}
