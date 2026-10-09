@@ -16,7 +16,7 @@ Endpoints:
 
 PAMASMMA can register authorized MCP Streamable HTTP servers per user, discover their tools, search the official MCP Registry, and invoke selected tools. Bearer credentials are encrypted at rest and never returned by list endpoints.
 
-High-impact MCP tool names (for example send, create, update, delete, publish, deploy or execute) require explicit confirmation before invocation. PAMASMMA does not treat registry presence as a security approval: a registry entry is discovery metadata, not proof that a server is safe. The official registry exposes an unauthenticated, read-only discovery API under /v0.1/servers.
+Every remote MCP tool invocation requires explicit confirmation before execution. PAMASMMA does not treat registry presence or remote tool annotations as a security approval: a registry entry is discovery metadata, and annotations are hints rather than trustworthy authorization policy. The official registry exposes an unauthenticated, read-only discovery API under /v0.1/servers.
 
 The connector uses the official MCP Python SDK v2 and Streamable HTTP transport. The SDK supports modern 2026-07-28 MCP plus compatibility with earlier protocol-era servers.
 
@@ -78,9 +78,9 @@ Configure `MCP_OAUTH_REDIRECT_URI` to the exact public callback URL registered/a
 
 ### Outbound MCP endpoint controls
 
-MCP registration and every MCP tool invocation validate the target endpoint. PAMASMMA requires HTTPS on port 443, rejects embedded URL credentials/fragments, and blocks localhost, internal hostnames, and private/loopback/link-local/reserved IP literals. **Production also requires a non-empty exact-host allowlist in `MCP_ALLOWED_HOSTS`.** Only add hosts that operators have reviewed. This is a deliberate production gate; leave an unknown endpoint disconnected rather than weakening egress restrictions.
+MCP registration and every MCP tool invocation validate the target endpoint. PAMASMMA requires HTTPS on port 443, rejects embedded URL credentials/fragments and non-canonical IPv4 literals, and blocks localhost, internal hostnames, and private/loopback/link-local/reserved IP literals. **Production also requires a non-empty exact-host allowlist in `MCP_ALLOWED_HOSTS`.** Only add hosts that operators have reviewed. This is a deliberate production gate; leave an unknown endpoint disconnected rather than weakening egress restrictions. The same host validation is applied to each request made through the MCP SDK HTTP client, including OAuth metadata discovery and token exchange. OAuth connectors must allowlist the MCP host and any separate, reviewed authorization-server/token hosts advertised during discovery; unlisted destinations are rejected.
 
-MCP tool invocation is fail-closed: tools explicitly annotated read-only can run without an extra confirmation, destructive/open-world tools require confirmation, and tools without trustworthy read-only metadata require explicit confirmation. Tool names are not treated as a sufficient security boundary by themselves.
+MCP tool invocation is fail-closed: every remote tool requires explicit confirmation. The server-provided `readOnlyHint`, `destructiveHint` and `openWorldHint` fields may inform display/risk context but never bypass approval, because remote annotations are untrusted.
 
 
 ## Provider endpoint profiles
@@ -126,6 +126,6 @@ Each tool execution creates a durable audit record before a tool capable of side
 - `POST /api/v1/integrations/mcp/{connector_id}/health-check` performs live tool discovery and reports healthy, authorization-required, or unhealthy status without exposing provider response bodies.
 - `DELETE /api/v1/integrations/mcp/{connector_id}` removes the user's connector and encrypted credentials. Audit history is retained; the connector foreign key is nulled on deletion.
 
-Tool calls are fail-closed for authorization: unless the tool explicitly advertises read-only annotations and does not advertise destructive/open-world behavior, PAMASMMA requires explicit confirmation. A tool name such as `search` or `get` is not sufficient evidence of read-only behavior. Tool arguments are validated against the latest discovered JSON Schema before execution. External MCP tool output is returned with `source="mcp_external"` and `trusted=false` so downstream cognitive systems can handle it as untrusted evidence.
+Tool calls are fail-closed for authorization: PAMASMMA requires explicit confirmation for every remote MCP invocation and never uses remote annotations or tool names to waive it. Tool arguments are validated against the latest discovered JSON Schema before execution. External MCP tool output is returned with `source="mcp_external"` and `trusted=false` so downstream cognitive systems can handle it as untrusted evidence.
 
 The audit row is persisted in `pamasmma_mcp_tool_audit` before an external call. If the provider action succeeds but final audit update fails, the tool result is still returned with `audit_status="completion_pending_reconciliation"` to avoid prompting unsafe duplicate retries; the stale `started` row remains available for operator reconciliation.

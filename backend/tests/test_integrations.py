@@ -53,17 +53,39 @@ def test_mcp_catalog_profile_lookup():
     assert profile["connection_state"] == "discoverable"
 
 
-def test_mcp_confirmation_fails_closed_for_unknown_tools():
+@pytest.mark.asyncio
+async def test_mcp_oauth_request_targets_obey_production_allowlist(monkeypatch):
+    from types import SimpleNamespace
+
+    from app.integrations.mcp import _validate_mcp_request_target
+
+    monkeypatch.setattr(integration_settings, "app_env", "production")
+    monkeypatch.setattr(integration_settings, "mcp_allowed_hosts", ["mcp.example.com"])
+
+    await _validate_mcp_request_target(
+        SimpleNamespace(url="https://mcp.example.com/mcp")
+    )
+    with pytest.raises(ValueError, match="not in MCP_ALLOWED_HOSTS"):
+        await _validate_mcp_request_target(
+            SimpleNamespace(
+                url="https://unapproved.example/.well-known/oauth-authorization-server"
+            )
+        )
+
+
+def test_mcp_confirmation_does_not_trust_remote_annotations():
     assert requires_confirmation("sync_workspace")
     assert requires_confirmation("update_customer")
     assert requires_confirmation("search_documents")
-    assert not requires_confirmation(
+    # The remote server cannot label its own tool as read-only to bypass
+    # PAMASMMA's explicit approval boundary.
+    assert requires_confirmation(
         "opaque_tool",
         {"readOnlyHint": True, "destructiveHint": False, "openWorldHint": False},
     )
     assert requires_confirmation(
         "nominally_read_only",
-        {"readOnlyHint": True, "destructiveHint": True},
+        {"readOnlyHint": True, "destructiveHint": False, "openWorldHint": False},
     )
 
 
@@ -74,6 +96,20 @@ def test_mcp_endpoint_rejects_local_and_private_destinations():
         validate_mcp_endpoint("https://127.0.0.1/mcp")
     with pytest.raises(ValueError, match="HTTPS"):
         validate_mcp_endpoint("http://mcp.example.com/mcp")
+
+
+@pytest.mark.parametrize(
+    "endpoint",
+    [
+        "https://127.1/mcp",
+        "https://2130706433/mcp",
+        "https://0x7f000001/mcp",
+        "https://0177.0.0.1/mcp",
+    ],
+)
+def test_mcp_endpoint_rejects_noncanonical_ipv4_literals(endpoint):
+    with pytest.raises(ValueError, match="Non-canonical IP literal"):
+        validate_mcp_endpoint(endpoint)
 
 
 def test_mcp_endpoint_requires_exact_host_allowlist_in_production(monkeypatch):

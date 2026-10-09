@@ -43,17 +43,13 @@ def requires_confirmation(
     tool_name: str,
     annotations: dict[str, Any] | None = None,
 ) -> bool:
-    """Require confirmation unless the server explicitly marks a tool read-only."""
-    del tool_name  # Names are not a trustworthy security boundary.
-    metadata = annotations or {}
-    read_only = metadata.get("readOnlyHint", metadata.get("read_only_hint"))
-    destructive = metadata.get("destructiveHint", metadata.get("destructive_hint"))
-    open_world = metadata.get("openWorldHint", metadata.get("open_world_hint"))
-    return not (
-        read_only is True
-        and destructive is not True
-        and open_world is not True
-    )
+    """Require explicit confirmation for every remote MCP tool invocation.
+
+    MCP ToolAnnotations are hints supplied by the remote server, not trustworthy
+    authorization policy. They must never disable the confirmation boundary.
+    """
+    del tool_name, annotations
+    return True
 
 
 class _PersistentOAuthStorage:
@@ -164,6 +160,17 @@ def _oauth_client(
     )
 
 
+async def _validate_mcp_request_target(request: Any) -> None:
+    """Apply the same egress policy to every MCP SDK HTTP request.
+
+    OAuth protected-resource metadata can advertise a distinct authorization
+    server. Validate each request target, not just the initial MCP endpoint, so
+    discovery and token exchange cannot silently bypass the production host
+    allowlist.
+    """
+    validate_mcp_endpoint(str(request.url))
+
+
 async def _client(
     connector: dict[str, Any],
     user_id: str,
@@ -185,6 +192,7 @@ async def _client(
         auth=auth,
         timeout=httpx2.Timeout(30, read=300),
         follow_redirects=False,
+        event_hooks={"request": [_validate_mcp_request_target]},
     )
     transport = streamable_http_client(
         connector["endpoint"],
