@@ -28,7 +28,14 @@ from app.integrations.google import (
     upload_drive_file,
     userinfo,
 )
-from app.integrations.mcp import call_tool, discover_tools, registry_search
+from app.integrations.mcp import (
+    begin_oauth_authorization,
+    call_tool,
+    disconnect_oauth,
+    discover_tools,
+    receive_oauth_callback,
+    registry_search,
+)
 from app.integrations.mcp_catalog import get_mcp_connection_profile, recommended_mcp_connections
 from app.integrations.store import (
     google_access_token,
@@ -211,6 +218,7 @@ async def mcp_add(
             str(body.endpoint),
             body.bearer_token,
             body.enabled,
+            body.auth_mode,
         )
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
@@ -252,6 +260,50 @@ async def mcp_catalog_profile(
         raise HTTPException(404, "MCP catalog connection not found.")
     return {"connection": profile}
 
+@router.get("/mcp/oauth/callback")
+async def mcp_oauth_callback(
+    state: str = Query(..., min_length=1, max_length=500),
+    code: str | None = Query(default=None, max_length=10000),
+    iss: str | None = Query(default=None, max_length=2000),
+    error: str | None = Query(default=None, max_length=500),
+) -> RedirectResponse:
+    try:
+        await receive_oauth_callback(code, state, iss, error)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    if error:
+        return RedirectResponse(_frontend("mcp_oauth=denied"), 303)
+    if not code:
+        return RedirectResponse(_frontend("mcp_oauth=failed"), 303)
+    return RedirectResponse(_frontend("mcp_oauth=callback_received"), 303)
+
+
+@router.post("/mcp/{connector_id}/oauth/start")
+async def mcp_oauth_start(
+    connector_id: str,
+    current_user: CurrentUser,
+) -> dict:
+    try:
+        return await begin_oauth_authorization(current_user["user_id"], connector_id)
+    except PermissionError as exc:
+        raise HTTPException(409, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    except TimeoutError as exc:
+        raise HTTPException(504, str(exc)) from exc
+
+
+@router.post("/mcp/{connector_id}/oauth/disconnect")
+async def mcp_oauth_disconnect(
+    connector_id: str,
+    current_user: CurrentUser,
+) -> dict:
+    try:
+        await disconnect_oauth(current_user["user_id"], connector_id)
+        return {"status": "disconnected", "connector_id": connector_id}
+    except ValueError as exc:
+        raise HTTPException(404, str(exc)) from exc
+
 @router.get("/mcp/{connector_id}/tools")
 async def mcp_tools(
     connector_id: str,
@@ -266,6 +318,8 @@ async def mcp_tools(
         }
     except ValueError as exc:
         raise HTTPException(404, str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(409, str(exc)) from exc
 
 
 @router.post("/mcp/{connector_id}/call")
