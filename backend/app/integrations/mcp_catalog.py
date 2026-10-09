@@ -5,12 +5,9 @@ registry membership as a trust decision. Users/operators still choose an endpoin
 credentials, scopes and whether the connection is permitted.
 """
 
-from __future__ import annotations
-
-from typing import Any
 
 
-MCP_CAPABILITY_CATALOG: tuple[dict[str, Any], ...] = (
+MCP_CAPABILITY_CATALOG: tuple[dict[str, object], ...] = (
     {
         "id": "github",
         "name": "GitHub",
@@ -223,7 +220,7 @@ MCP_CAPABILITY_CATALOG: tuple[dict[str, Any], ...] = (
 def recommended_mcp_connections(
     role: str | None = None,
     priority: str | None = None,
-) -> list[dict[str, Any]]:
+) -> list[dict[str, object]]:
     """Return catalog entries matching optional role/priority filters."""
     entries = MCP_CAPABILITY_CATALOG
     if role:
@@ -234,7 +231,7 @@ def recommended_mcp_connections(
 
 
 
-def get_mcp_connection_profile(connection_id: str) -> dict[str, Any] | None:
+def get_mcp_connection_profile(connection_id: str) -> dict[str, object] | None:
     """Return a copy of a catalog profile for explicit operator selection."""
     for item in MCP_CAPABILITY_CATALOG:
         if item["id"] == connection_id:
