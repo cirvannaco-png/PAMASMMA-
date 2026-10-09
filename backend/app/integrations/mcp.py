@@ -36,6 +36,10 @@ _OAUTH_KEY_PREFIX = "integration:mcp:oauth:"
 _oauth_tasks: dict[str, asyncio.Task[None]] = {}
 
 
+class InvalidMcpToolArguments(ValueError):
+    """MCP call arguments do not match the currently discovered tool schema."""
+
+
 def requires_confirmation(
     tool_name: str,
     annotations: dict[str, Any] | None = None,
@@ -279,7 +283,7 @@ async def call_tool(
                             "audit_id": audit_id,
                         },
                     )
-                    raise ValueError(
+                    raise InvalidMcpToolArguments(
                         "MCP tool arguments do not match the discovered input schema."
                     ) from exc
 
