@@ -21,10 +21,10 @@ def test_google_email_encoding():
     assert "=" not in raw[-2:]
 
 
-def test_mcp_write_tools_require_confirmation():
+def test_mcp_tools_require_confirmation_without_read_only_annotations():
     assert requires_confirmation("send_email")
     assert requires_confirmation("delete_file")
-    assert not requires_confirmation("search_documents")
+    assert requires_confirmation("search_documents")
 
 @pytest.mark.asyncio
 async def test_google_oauth_state_is_user_bound():
@@ -56,7 +56,7 @@ def test_mcp_catalog_profile_lookup():
 def test_mcp_confirmation_fails_closed_for_unknown_tools():
     assert requires_confirmation("sync_workspace")
     assert requires_confirmation("update_customer")
-    assert not requires_confirmation("search_documents")
+    assert requires_confirmation("search_documents")
     assert not requires_confirmation(
         "opaque_tool",
         {"readOnlyHint": True, "destructiveHint": False, "openWorldHint": False},
