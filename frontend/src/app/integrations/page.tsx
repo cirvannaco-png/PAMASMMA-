@@ -169,7 +169,7 @@ export default function IntegrationsPage() {
                   <div style={{ color: "#52526E", fontSize: 10, marginTop: 5 }}>
                     Registry: {String(item.registry_server)} · v{String(item.registry_version ?? "current")}
                   </div>
-                  {Array.isArray(item.remote_endpoints) && item.remote_endpoints.map((candidate, endpointIndex) => {
+                  {Array.isArray(item.remote_endpoints) && item.remote_endpoints.map((candidate) => {
                     if (!candidate || typeof candidate !== "object") return null;
                     const option = candidate as Record<string, unknown>;
                     const optionName = String(option.label ?? item.name);
