@@ -5,11 +5,10 @@ registry membership as a trust decision. Users/operators still choose an endpoin
 credentials, scopes and whether the connection is permitted.
 """
 
-
-
 MCP_CAPABILITY_CATALOG: tuple[dict[str, object], ...] = (
     {
         "id": "github",
+        "remote_endpoints": [{"label": "GitHub MCP", "endpoint": "https://api.githubcopilot.com/mcp/", "auth_mode": "oauth", "notes": "Use a GitHub account and grant least-privilege repository scopes."}],
         "name": "GitHub",
         "registry_server": "io.github.github/github-mcp-server",
         "priority": "core",
@@ -34,6 +33,14 @@ MCP_CAPABILITY_CATALOG: tuple[dict[str, object], ...] = (
     },
     {
         "id": "google-workspace",
+        "remote_endpoints": [
+            {"label": "Google Calendar", "endpoint": "https://calendarmcp.googleapis.com/mcp/v1", "auth_mode": "oauth", "notes": "Requires a Google OAuth client; register the exact PAMASMMA callback URL."},
+            {"label": "Google Docs", "endpoint": "https://docsmcp.googleapis.com/mcp/v1", "auth_mode": "oauth", "notes": "Requires Workspace API enablement and a registered Google OAuth client."},
+            {"label": "Google Sheets", "endpoint": "https://sheetsmcp.googleapis.com/mcp/v1", "auth_mode": "oauth", "notes": "Requires Workspace API enablement and a registered Google OAuth client."},
+            {"label": "Google Slides", "endpoint": "https://slidesmcp.googleapis.com/mcp/v1", "auth_mode": "oauth", "notes": "Requires Workspace API enablement and a registered Google OAuth client."},
+            {"label": "Google Chat", "endpoint": "https://chatmcp.googleapis.com/mcp/v1", "auth_mode": "oauth", "notes": "Requires Workspace API enablement, OAuth scopes and admin policy approval."},
+            {"label": "Google People", "endpoint": "https://people.googleapis.com/mcp/v1", "auth_mode": "oauth", "notes": "Requires People API enablement and user consent."}
+        ],
         "name": "Google Workspace",
         "registry_server": "com.proscendia/google-workspace",
         "registry_version": "1.0.0",
@@ -48,6 +55,7 @@ MCP_CAPABILITY_CATALOG: tuple[dict[str, object], ...] = (
     },
     {
         "id": "notion",
+        "remote_endpoints": [{"label": "Notion MCP", "endpoint": "https://mcp.notion.com/mcp", "auth_mode": "oauth", "notes": "Authorize the specific Notion workspace and pages needed."}],
         "name": "Notion",
         "registry_server": "com.notion/mcp",
         "registry_version": "1.0.1",
@@ -62,6 +70,7 @@ MCP_CAPABILITY_CATALOG: tuple[dict[str, object], ...] = (
     },
     {
         "id": "slack",
+        "remote_endpoints": [{"label": "Slack MCP", "endpoint": "https://mcp.slack.com/mcp", "auth_mode": "oauth", "notes": "Pre-register a Slack OAuth client; dynamic client registration is not supported by Slack. Request only required scopes."}],
         "name": "Slack",
         "registry_server": "com.mcparmory/slack",
         "registry_version": "1.0.1",
@@ -76,6 +85,7 @@ MCP_CAPABILITY_CATALOG: tuple[dict[str, object], ...] = (
     },
     {
         "id": "linear",
+        "remote_endpoints": [{"label": "Linear MCP", "endpoint": "https://mcp.linear.app/mcp", "auth_mode": "oauth", "notes": "Use OAuth or a supported Linear authorization method."}],
         "name": "Linear",
         "registry_server": "app.linear/linear",
         "registry_version": "1.0.1",
@@ -90,6 +100,7 @@ MCP_CAPABILITY_CATALOG: tuple[dict[str, object], ...] = (
     },
     {
         "id": "jira",
+        "remote_endpoints": [{"label": "Atlassian Remote MCP", "endpoint": "https://mcp.atlassian.com/v2/mcp", "auth_mode": "oauth", "notes": "Authorizes the user's selected Atlassian sites and products; use least privilege."}],
         "name": "Jira",
         "registry_server": "io.github.proprock/jira-mini-mcp",
         "registry_version": "1.3.0",
@@ -104,6 +115,7 @@ MCP_CAPABILITY_CATALOG: tuple[dict[str, object], ...] = (
     },
     {
         "id": "sentry",
+        "remote_endpoints": [{"label": "Sentry Remote MCP", "endpoint": "https://mcp.sentry.dev/mcp", "auth_mode": "oauth", "notes": "Authorize only the Sentry organization/projects required."}],
         "name": "Sentry",
         "registry_server": "io.github.getsentry/sentry-mcp",
         "registry_version": "0.41.0",
@@ -118,6 +130,7 @@ MCP_CAPABILITY_CATALOG: tuple[dict[str, object], ...] = (
     },
     {
         "id": "grafana",
+        "remote_endpoints": [{"label": "Grafana Cloud MCP", "endpoint": "https://mcp.grafana.com/mcp", "auth_mode": "oauth", "notes": "For Grafana Cloud append /<your-stack>.grafana.net to the path, for example /mcp/acme.grafana.net. Self-hosted Grafana requires deploying the open-source MCP server on an approved HTTPS host."}],
         "name": "Grafana",
         "registry_server": "io.github.grafana/mcp-grafana",
         "registry_version": "1.6.0",
@@ -132,6 +145,7 @@ MCP_CAPABILITY_CATALOG: tuple[dict[str, object], ...] = (
     },
     {
         "id": "hubspot",
+        "remote_endpoints": [{"label": "HubSpot CRM MCP", "endpoint": "https://mcp.hubspot.com", "auth_mode": "oauth", "notes": "Create an MCP Auth App with client ID/secret and PKCE; access remains scoped by HubSpot account permissions."}],
         "name": "HubSpot",
         "registry_server": "io.github.mindstone/mcp-server-hubspot",
         "registry_version": "0.4.1",
@@ -146,6 +160,7 @@ MCP_CAPABILITY_CATALOG: tuple[dict[str, object], ...] = (
     },
     {
         "id": "figma",
+        "remote_endpoints": [{"label": "Figma MCP", "endpoint": "https://mcp.figma.com/mcp", "auth_mode": "oauth", "notes": "Requires Figma account permissions and any applicable MCP client/catalog access approval."}],
         "name": "Figma",
         "registry_server": "com.figma.mcp/mcp",
         "registry_version": "1.0.3",
@@ -160,6 +175,10 @@ MCP_CAPABILITY_CATALOG: tuple[dict[str, object], ...] = (
     },
     {
         "id": "canva",
+        "remote_endpoints": [
+            {"label": "Canva Connect MCP", "endpoint": "https://api.canva.com/connect/v1/mcp", "auth_mode": "oauth", "notes": "Use this endpoint for an approved Canva developer client; OAuth client ID/secret and approved scopes are required."},
+            {"label": "Canva MCP waitlist endpoint", "endpoint": "https://mcp.canva.com/mcp", "auth_mode": "oauth", "notes": "Use only if the Canva account/client has been granted access to this endpoint."}
+        ],
         "name": "Canva",
         "registry_server": "com.canva.mcp/mcp",
         "registry_version": "1.0.0",
@@ -174,10 +193,12 @@ MCP_CAPABILITY_CATALOG: tuple[dict[str, object], ...] = (
     },
     {
         "id": "google-analytics",
+        "remote_endpoints": [],
+        "endpoint_status": "No official first-party hosted Google Analytics MCP endpoint confirmed; configure an independently reviewed third-party or self-hosted MCP adapter.",
+        "verified_source": "third-party MCP Registry entry; not an official Google-hosted MCP endpoint",
         "name": "Google Analytics 4",
         "registry_server": "com.getmcpads/google-analytics",
         "registry_version": "2.0.1",
-        "verified_source": "official MCP Registry",
         "priority": "core",
         "roles": ["marketing", "strategy", "audience-psychology"],
         "capabilities": ["traffic", "events", "funnels", "attribution"],
@@ -188,10 +209,12 @@ MCP_CAPABILITY_CATALOG: tuple[dict[str, object], ...] = (
     },
     {
         "id": "google-search-console",
+        "remote_endpoints": [],
+        "endpoint_status": "No official first-party hosted Search Console MCP endpoint confirmed; configure an independently reviewed third-party or self-hosted MCP adapter.",
+        "verified_source": "third-party MCP Registry entry; not an official Google-hosted MCP endpoint",
         "name": "Google Search Console",
         "registry_server": "com.getmcpads/google-search-console",
         "registry_version": "2.0.1",
-        "verified_source": "official MCP Registry",
         "priority": "core",
         "roles": ["marketing", "strategy"],
         "capabilities": ["search-performance", "queries", "indexing"],
@@ -202,6 +225,7 @@ MCP_CAPABILITY_CATALOG: tuple[dict[str, object], ...] = (
     },
     {
         "id": "apify",
+        "remote_endpoints": [{"label": "Apify MCP", "endpoint": "https://mcp.apify.com", "auth_mode": "oauth", "notes": "Hosted MCP supports OAuth or an Apify API token; apply usage limits to Actor runs."}],
         "name": "Apify",
         "registry_server": "com.apify/apify-mcp-server",
         "registry_version": "0.17.4",
@@ -233,7 +257,6 @@ def recommended_mcp_connections(
     if priority:
         entries = tuple(item for item in entries if item["priority"] == priority)
     return [dict(item) for item in entries]
-
 
 
 def get_mcp_connection_profile(connection_id: str) -> dict[str, object] | None:
