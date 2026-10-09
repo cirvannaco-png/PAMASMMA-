@@ -53,6 +53,26 @@ def test_mcp_catalog_profile_lookup():
     assert profile["connection_state"] == "discoverable"
 
 
+@pytest.mark.asyncio
+async def test_mcp_oauth_request_targets_obey_production_allowlist(monkeypatch):
+    from types import SimpleNamespace
+
+    from app.integrations.mcp import _validate_mcp_request_target
+
+    monkeypatch.setattr(integration_settings, "app_env", "production")
+    monkeypatch.setattr(integration_settings, "mcp_allowed_hosts", ["mcp.example.com"])
+
+    await _validate_mcp_request_target(
+        SimpleNamespace(url="https://mcp.example.com/mcp")
+    )
+    with pytest.raises(ValueError, match="not in MCP_ALLOWED_HOSTS"):
+        await _validate_mcp_request_target(
+            SimpleNamespace(
+                url="https://unapproved.example/.well-known/oauth-authorization-server"
+            )
+        )
+
+
 def test_mcp_confirmation_fails_closed_for_unknown_tools():
     assert requires_confirmation("sync_workspace")
     assert requires_confirmation("update_customer")
