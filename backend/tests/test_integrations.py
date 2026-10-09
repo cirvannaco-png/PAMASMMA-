@@ -73,17 +73,19 @@ async def test_mcp_oauth_request_targets_obey_production_allowlist(monkeypatch):
         )
 
 
-def test_mcp_confirmation_fails_closed_for_unknown_tools():
+def test_mcp_confirmation_does_not_trust_remote_annotations():
     assert requires_confirmation("sync_workspace")
     assert requires_confirmation("update_customer")
     assert requires_confirmation("search_documents")
-    assert not requires_confirmation(
+    # The remote server cannot label its own tool as read-only to bypass
+    # PAMASMMA's explicit approval boundary.
+    assert requires_confirmation(
         "opaque_tool",
         {"readOnlyHint": True, "destructiveHint": False, "openWorldHint": False},
     )
     assert requires_confirmation(
         "nominally_read_only",
-        {"readOnlyHint": True, "destructiveHint": True},
+        {"readOnlyHint": True, "destructiveHint": False, "openWorldHint": False},
     )
 
 
