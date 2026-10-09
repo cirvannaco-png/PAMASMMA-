@@ -2,6 +2,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from app.integrations.contracts import McpConnectorCreate
 from app.integrations.google import GOOGLE_SCOPES, encode_raw_message
 from app.integrations.mcp import requires_confirmation
 from app.integrations.mcp_catalog import get_mcp_connection_profile, recommended_mcp_connections
@@ -88,3 +89,53 @@ def test_mcp_production_connections_fail_closed_without_allowlist(monkeypatch):
     monkeypatch.setattr(integration_settings, "mcp_allowed_hosts", [])
     with pytest.raises(ValueError, match="MCP_ALLOWED_HOSTS"):
         validate_mcp_endpoint("https://mcp.example.com/mcp")
+
+
+def test_mcp_oauth_contract_accepts_pre_registered_public_client():
+    connector = McpConnectorCreate(
+        name="Notion",
+        endpoint="https://mcp.notion.com/mcp",
+        auth_mode="oauth",
+        oauth_client_id="public-client-id",
+        oauth_token_endpoint_auth_method="none",
+    )
+    assert connector.auth_mode == "oauth"
+    assert connector.oauth_client_id == "public-client-id"
+
+
+def test_mcp_oauth_contract_rejects_secret_without_client_id():
+    with pytest.raises(ValueError, match="requires an OAuth client ID"):
+        McpConnectorCreate(
+            name="Slack",
+            endpoint="https://mcp.slack.com/mcp",
+            auth_mode="oauth",
+            oauth_client_secret="not-persisted-plaintext",
+        )
+
+
+def test_mcp_oauth_contract_requires_secret_for_confidential_client():
+    with pytest.raises(ValueError, match="requires a client secret"):
+        McpConnectorCreate(
+            name="Slack",
+            endpoint="https://mcp.slack.com/mcp",
+            auth_mode="oauth",
+            oauth_client_id="client-id",
+            oauth_token_endpoint_auth_method="client_secret_post",
+        )
+
+
+def test_mcp_catalog_contains_remote_endpoints_and_flags_third_party_services():
+    workspace = get_mcp_connection_profile("google-workspace")
+    assert workspace is not None
+    endpoints = workspace["remote_endpoints"]
+    assert isinstance(endpoints, list)
+    assert any(
+        isinstance(endpoint, dict)
+        and endpoint.get("endpoint") == "https://calendarmcp.googleapis.com/mcp/v1"
+        for endpoint in endpoints
+    )
+
+    analytics = get_mcp_connection_profile("google-analytics")
+    assert analytics is not None
+    assert analytics["remote_endpoints"] == []
+    assert "third-party" in analytics["verified_source"]
