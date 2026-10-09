@@ -19,6 +19,9 @@ export default function IntegrationsPage() {
   const [endpoint, setEndpoint] = useState("");
   const [token, setToken] = useState("");
   const [authMode, setAuthMode] = useState<"bearer" | "oauth">("bearer");
+  const [oauthClientId, setOauthClientId] = useState("");
+  const [oauthClientSecret, setOauthClientSecret] = useState("");
+  const [oauthTokenMethod, setOauthTokenMethod] = useState<"none" | "client_secret_post" | "client_secret_basic">("client_secret_post");
 
   const load = async () => {
     const data = await integrations.list();
@@ -50,8 +53,8 @@ export default function IntegrationsPage() {
   const addMcp = async () => {
     if (!name.trim() || !endpoint.trim()) return;
     try {
-      await integrations.mcpAdd({ name: name.trim(), endpoint: endpoint.trim(), auth_mode: authMode, bearer_token: authMode === "bearer" ? token || undefined : undefined, enabled: true });
-      setName(""); setEndpoint(""); setToken(""); setAuthMode("bearer");
+      await integrations.mcpAdd({ name: name.trim(), endpoint: endpoint.trim(), auth_mode: authMode, bearer_token: authMode === "bearer" ? token || undefined : undefined, oauth_client_id: authMode === "oauth" ? oauthClientId.trim() || undefined : undefined, oauth_client_secret: authMode === "oauth" ? oauthClientSecret || undefined : undefined, oauth_token_endpoint_auth_method: oauthTokenMethod, enabled: true });
+      setName(""); setEndpoint(""); setToken(""); setAuthMode("bearer"); setOauthClientId(""); setOauthClientSecret(""); setOauthTokenMethod("client_secret_post");
       await load();
       toast.success("MCP connector registered.");
     } catch (error) {
@@ -84,7 +87,7 @@ export default function IntegrationsPage() {
         <section style={{ border: "1px solid #202040", borderRadius: 12, padding: 20 }}>
           <h2 style={{ fontSize: 16 }}>MCP application + AI connector fabric</h2>
           <p style={{ color: "#77779A", fontSize: 13 }}>Register authorized Streamable HTTP MCP servers. PAMASMMA discovers their tools and keeps credentials encrypted.</p>
-          <div style={{ display: "grid", gap: 8 }}>
+          <div id="mcp-connect-form" style={{ display: "grid", gap: 8 }}>
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Connector name" style={{ padding: 10, background: "#0A0A18", border: "1px solid #29294A", color: "#D0D0EC", borderRadius: 8 }} />
             <input value={endpoint} onChange={(e) => setEndpoint(e.target.value)} placeholder="https://example.com/mcp" style={{ padding: 10, background: "#0A0A18", border: "1px solid #29294A", color: "#D0D0EC", borderRadius: 8 }} />
             <label style={{ display: "grid", gap: 6, fontSize: 12, color: "#77779A" }}>
@@ -96,6 +99,23 @@ export default function IntegrationsPage() {
             </label>
             {authMode === "bearer" && (
               <input type="password" value={token} onChange={(e) => setToken(e.target.value)} placeholder="Bearer token (optional)" style={{ padding: 10, background: "#0A0A18", border: "1px solid #29294A", color: "#D0D0EC", borderRadius: 8 }} />
+            )}
+            {authMode === "oauth" && (
+              <>
+                <input value={oauthClientId} onChange={(e) => setOauthClientId(e.target.value)} placeholder="OAuth client ID (blank if server supports dynamic registration)" style={{ padding: 10, background: "#0A0A18", border: "1px solid #29294A", color: "#D0D0EC", borderRadius: 8 }} autoComplete="off" />
+                <input type="password" value={oauthClientSecret} onChange={(e) => setOauthClientSecret(e.target.value)} placeholder="OAuth client secret (if provider issues one)" style={{ padding: 10, background: "#0A0A18", border: "1px solid #29294A", color: "#D0D0EC", borderRadius: 8 }} autoComplete="new-password" />
+                <label style={{ display: "grid", gap: 6, fontSize: 12, color: "#77779A" }}>
+                  OAuth token endpoint authentication
+                  <select value={oauthTokenMethod} onChange={(e) => setOauthTokenMethod(e.target.value as "none" | "client_secret_post" | "client_secret_basic")} style={{ padding: 10, background: "#0A0A18", border: "1px solid #29294A", color: "#D0D0EC", borderRadius: 8 }}>
+                    <option value="client_secret_post">Client secret in POST body</option>
+                    <option value="client_secret_basic">HTTP Basic client authentication</option>
+                    <option value="none">Public client / no client secret</option>
+                  </select>
+                </label>
+                <p style={{ color: "#77779A", fontSize: 11, margin: 0 }}>
+                  OAuth credentials are encrypted at rest. Leave client ID blank only when the MCP authorization server supports dynamic registration. The redirect URI must be registered exactly with the provider.
+                </p>
+              </>
             )}
             <button onClick={() => void addMcp()} style={{ padding: "10px 14px", borderRadius: 8, border: "1px solid #315F72", background: "#10202A", color: "#AEEBFF", cursor: "pointer" }}>Add MCP connector</button>
           </div>
@@ -149,6 +169,33 @@ export default function IntegrationsPage() {
                   <div style={{ color: "#52526E", fontSize: 10, marginTop: 5 }}>
                     Registry: {String(item.registry_server)} · v{String(item.registry_version ?? "current")}
                   </div>
+                  {Array.isArray(item.remote_endpoints) && item.remote_endpoints.map((candidate, endpointIndex) => {
+                    if (!candidate || typeof candidate !== "object") return null;
+                    const option = candidate as Record<string, unknown>;
+                    const optionName = String(option.label ?? item.name);
+                    const optionEndpoint = String(option.endpoint ?? "");
+                    if (!optionEndpoint) return null;
+                    return (
+                      <button
+                        key={optionEndpoint}
+                        type="button"
+                        onClick={() => {
+                          setName(optionName);
+                          setEndpoint(optionEndpoint);
+                          setAuthMode(option.auth_mode === "bearer" ? "bearer" : "oauth");
+                          setToken("");
+                          setOauthClientId("");
+                          setOauthClientSecret("");
+                          setSelectedProfile(item);
+                          document.getElementById("mcp-connect-form")?.scrollIntoView({ behavior: "smooth", block: "center" });
+                          toast.success("Endpoint selected. Review auth settings and register to continue.");
+                        }}
+                        style={{ marginTop: 7, marginRight: 6, padding: "7px 10px", borderRadius: 7, border: "1px solid #315F72", background: "#10202A", color: "#AEEBFF", cursor: "pointer", fontSize: 10 }}
+                      >
+                        Configure {optionName}
+                      </button>
+                    );
+                  })}
                   <button
                     type="button"
                     onClick={() =>
