@@ -4,10 +4,11 @@ import ipaddress
 import json
 import uuid
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, cast
 from urllib.parse import urlparse
 
 from sqlalchemy import text
+from sqlalchemy.engine import CursorResult
 
 from app.config import get_settings
 from app.database import AsyncSessionLocal
@@ -336,7 +337,7 @@ async def _save_mcp_oauth_blob(
             {"payload": encrypted, "id": connector_id, "user_id": user_id},
         )
         await session.commit()
-        if result.rowcount != 1:
+        if cast(CursorResult[Any], result).rowcount != 1:
             raise ValueError("OAuth MCP connector not found or disabled.")
 
 
@@ -371,7 +372,7 @@ async def clear_mcp_oauth_credentials(user_id: str, connector_id: str) -> None:
             {"id": connector_id, "user_id": user_id},
         )
         await session.commit()
-        if result.rowcount != 1:
+        if cast(CursorResult[Any], result).rowcount != 1:
             raise ValueError("OAuth MCP connector not found.")
 
 
@@ -396,7 +397,7 @@ async def update_mcp_oauth_status(
             {"status": status, "id": connector_id, "user_id": user_id},
         )
         await session.commit()
-        if result.rowcount != 1:
+        if cast(CursorResult[Any], result).rowcount != 1:
             raise ValueError("OAuth MCP connector not found or disabled.")
 
 
@@ -414,7 +415,7 @@ async def delete_mcp_connector(user_id: str, connector_id: str) -> bool:
             {"id": connector_id, "user_id": user_id},
         )
         await session.commit()
-    return result.rowcount == 1
+    return cast(CursorResult[Any], result).rowcount == 1
 
 
 
@@ -509,7 +510,7 @@ async def finish_mcp_tool_audit(
             },
         )
         await session.commit()
-        if updated.rowcount != 1:
+        if cast(CursorResult[Any], updated).rowcount != 1:
             raise ValueError("MCP audit record not found or already finalized.")
 
 
