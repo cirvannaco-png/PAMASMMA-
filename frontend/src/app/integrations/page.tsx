@@ -13,6 +13,7 @@ export default function IntegrationsPage() {
   const { isAuthenticated, isRestoring } = useAuth();
   const [items, setItems] = useState<Array<Record<string, unknown>>>([]);
   const [mcp, setMcp] = useState<Array<Record<string, unknown>>>([]);
+  const [auditEntries, setAuditEntries] = useState<Array<Record<string, unknown>>>([]);
   const [healthStatuses, setHealthStatuses] = useState<Record<string, string>>({});
   const [recommended, setRecommended] = useState<Array<Record<string, unknown>>>([]);
   const [selectedProfile, setSelectedProfile] = useState<Record<string, unknown> | null>(null);
@@ -31,6 +32,8 @@ export default function IntegrationsPage() {
     setMcp(data.mcp);
     const catalog = await integrations.mcpRecommended();
     setRecommended(catalog.connections);
+    const audit = await integrations.mcpAudit(20).catch(() => ({ entries: [] as Array<Record<string, unknown>>, count: 0 }));
+    setAuditEntries(audit.entries);
   };
 
   useEffect(() => {
@@ -192,6 +195,36 @@ export default function IntegrationsPage() {
                 </div>
               );
             })}
+          </div>
+          <div style={{ marginTop: 22, borderTop: "1px solid #202040", paddingTop: 18 }}>
+            <h3 style={{ fontSize: 14, marginBottom: 6 }}>Recent MCP tool audit</h3>
+            <p style={{ color: "#77779A", fontSize: 12, marginBottom: 10 }}>
+              Records include operation metadata and content hashes only. Raw tool arguments and results are not stored in this audit view.
+            </p>
+            {auditEntries.length === 0 ? (
+              <div style={{ color: "#68688A", fontSize: 12 }}>No audited tool calls yet.</div>
+            ) : (
+              <div style={{ display: "grid", gap: 7 }}>
+                {auditEntries.slice(0, 20).map((entry) => {
+                  const status = String(entry.status ?? "unknown");
+                  const duration = typeof entry.duration_ms === "number" ? `${entry.duration_ms} ms` : "duration pending";
+                  return (
+                    <div key={String(entry.id)} style={{ padding: 10, background: "#070713", borderRadius: 8, border: "1px solid #18182F" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                        <strong style={{ fontSize: 12 }}>{String(entry.connector_name)} · {String(entry.tool_name)}</strong>
+                        <span style={{ color: status === "succeeded" ? "#55C8A0" : status === "failed" || status === "blocked" ? "#F0B4B4" : "#D5B46D", fontSize: 11 }}>{status}</span>
+                      </div>
+                      <div style={{ color: "#68688A", fontSize: 10, marginTop: 4 }}>
+                        {String(entry.created_at ?? "")} · {duration} · confirmed: {String(entry.confirmed ?? false)}
+                      </div>
+                      {entry.error_type && (
+                        <div style={{ color: "#D5B46D", fontSize: 10, marginTop: 4 }}>Error class: {String(entry.error_type)}</div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
           <div style={{ marginTop: 22, borderTop: "1px solid #202040", paddingTop: 18 }}>
             <h3 style={{ fontSize: 14, marginBottom: 6 }}>Recommended MCP connections</h3>
