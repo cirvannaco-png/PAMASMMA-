@@ -217,6 +217,11 @@ MCP_CAPABILITY_CATALOG: tuple[dict[str, object], ...] = (
 )
 
 
+def _has_role(item: dict[str, object], role: str) -> bool:
+    roles = item.get("roles")
+    return isinstance(roles, list) and role in roles
+
+
 def recommended_mcp_connections(
     role: str | None = None,
     priority: str | None = None,
@@ -224,7 +229,7 @@ def recommended_mcp_connections(
     """Return catalog entries matching optional role/priority filters."""
     entries = MCP_CAPABILITY_CATALOG
     if role:
-        entries = tuple(item for item in entries if role in item["roles"])
+        entries = tuple(item for item in entries if _has_role(item, role))
     if priority:
         entries = tuple(item for item in entries if item["priority"] == priority)
     return [dict(item) for item in entries]
