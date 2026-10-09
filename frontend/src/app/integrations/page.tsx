@@ -167,6 +167,9 @@ export default function IntegrationsPage() {
                 <div key={String(item.id)} style={{ padding: 11, background: "#070713", borderRadius: 8, border: "1px solid #18182F" }}>
                   <div style={{ fontWeight: 700, fontSize: 13 }}>{String(item.name)} <span style={{ color: "#68688A", fontSize: 10 }}>· {String(item.priority)}</span></div>
                   <div style={{ color: "#7E7E9E", fontSize: 11, marginTop: 4 }}>{String(item.reason)}</div>
+                  {typeof item.endpoint_status === "string" && (
+                    <div style={{ color: "#D5B46D", fontSize: 11, marginTop: 5 }}>{item.endpoint_status}</div>
+                  )}
                   <div style={{ color: "#52526E", fontSize: 10, marginTop: 5 }}>
                     Registry: {String(item.registry_server)}{item.registry_version ? ` · v${String(item.registry_version)}` : ""}
                   </div>
@@ -235,6 +238,16 @@ export default function IntegrationsPage() {
               <div style={{ color: "#55556E", fontSize: 10, marginTop: 5 }}>
                 Capabilities: {Array.isArray(selectedProfile.capabilities) ? selectedProfile.capabilities.join(", ") : String(selectedProfile.capabilities)}
               </div>
+              {selectedEndpointNotes && (
+                <div style={{ color: "#BBAEFF", fontSize: 11, lineHeight: 1.5, marginTop: 8 }}>
+                  {selectedEndpointNotes}
+                </div>
+              )}
+              {typeof selectedProfile.endpoint_status === "string" && (
+                <div style={{ color: "#D5B46D", fontSize: 11, lineHeight: 1.5, marginTop: 8 }}>
+                  {selectedProfile.endpoint_status}
+                </div>
+              )}
             </div>
           )}
           </div>
