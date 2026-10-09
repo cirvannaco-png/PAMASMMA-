@@ -5,7 +5,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import { integrations } from "@/lib/api";
+import { integrations, mcp as mcpApi } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function IntegrationsPage() {
@@ -15,6 +15,10 @@ export default function IntegrationsPage() {
   const [mcp, setMcp] = useState<Array<Record<string, unknown>>>([]);
   const [auditEntries, setAuditEntries] = useState<Array<Record<string, unknown>>>([]);
   const [healthStatuses, setHealthStatuses] = useState<Record<string, string>>({});
+  const [toolLists, setToolLists] = useState<Record<string, Array<Record<string, unknown>>>>({});
+  const [toolArguments, setToolArguments] = useState<Record<string, string>>({});
+  const [toolResults, setToolResults] = useState<Record<string, string>>({});
+  const [toolBusy, setToolBusy] = useState<Record<string, boolean>>({});
   const [recommended, setRecommended] = useState<Array<Record<string, unknown>>>([]);
   const [selectedProfile, setSelectedProfile] = useState<Record<string, unknown> | null>(null);
   const [selectedEndpointNotes, setSelectedEndpointNotes] = useState("");
@@ -67,6 +71,90 @@ export default function IntegrationsPage() {
     }
   };
 
+  const getToolKey = (connectorId: string, toolName: string) => `${connectorId}::${toolName}`;
+
+  const toggleMcpTools = async (connectorId: string) => {
+    if (Object.prototype.hasOwnProperty.call(toolLists, connectorId)) {
+      setToolLists((current) => {
+        const next = { ...current };
+        delete next[connectorId];
+        return next;
+      });
+      return;
+    }
+
+    const busyKey = `discover:${connectorId}`;
+    setToolBusy((current) => ({ ...current, [busyKey]: true }));
+    try {
+      const data = await integrations.mcpTools(connectorId);
+      setToolLists((current) => ({ ...current, [connectorId]: data.tools }));
+      setToolArguments((current) => {
+        const next = { ...current };
+        for (const tool of data.tools) {
+          if (typeof tool.name !== "string") continue;
+          const key = getToolKey(connectorId, tool.name);
+          if (!(key in next)) next[key] = "{}";
+        }
+        return next;
+      });
+      toast.success(`Discovered ${data.tools.length} MCP tools.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "MCP tool discovery failed.");
+    } finally {
+      setToolBusy((current) => ({ ...current, [busyKey]: false }));
+    }
+  };
+
+  const runMcpTool = async (connectorId: string, connectorName: string, toolName: string) => {
+    const key = getToolKey(connectorId, toolName);
+    let args: Record<string, unknown>;
+    try {
+      const parsed: unknown = JSON.parse(toolArguments[key] ?? "{}");
+      if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+        throw new Error("Tool arguments must be a JSON object.");
+      }
+      args = parsed as Record<string, unknown>;
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Enter valid JSON arguments.");
+      return;
+    }
+
+    const argumentPreview = JSON.stringify(args, null, 2);
+    const visiblePreview = argumentPreview.length > 1200
+      ? `${argumentPreview.slice(0, 1200)}\n… confirmation preview truncated`
+      : argumentPreview;
+    const approved = window.confirm(
+      `Review external MCP action\n\nConnector: ${connectorName}\nTool: ${toolName}\n\nArguments:\n${visiblePreview}\n\nRemote tool behavior is not guaranteed. This may modify external systems; treat the result as untrusted.\n\nRun this tool?`,
+    );
+    if (!approved) return;
+
+    setToolBusy((current) => ({ ...current, [key]: true }));
+    try {
+      const result = await mcpApi.call(connectorId, toolName, args, true);
+      const resultText = JSON.stringify(result, null, 2) ?? String(result);
+      setToolResults((current) => ({
+        ...current,
+        [key]: resultText.length > 20000
+          ? `${resultText.slice(0, 20000)}\n… display truncated at 20,000 characters`
+          : resultText,
+      }));
+      if (result.is_error === true) {
+        toast.error(`${toolName} returned an MCP error. Inspect the result.`);
+      } else {
+        toast.success(`MCP tool ${toolName} invoked.`);
+      }
+      void integrations.mcpAudit(20)
+        .then((audit) => setAuditEntries(audit.entries))
+        .catch(() => toast("Tool completed, but the audit view could not be refreshed."));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "MCP tool invocation failed.";
+      setToolResults((current) => ({ ...current, [key]: JSON.stringify({ error: message }, null, 2) }));
+      toast.error(message);
+    } finally {
+      setToolBusy((current) => ({ ...current, [key]: false }));
+    }
+  };
+
   return (
     <main style={{ minHeight: "100vh", background: "#04040D", color: "#D0D0EC", padding: 28 }}>
       <div style={{ maxWidth: 980, margin: "0 auto" }}>
@@ -91,7 +179,7 @@ export default function IntegrationsPage() {
 
         <section style={{ border: "1px solid #202040", borderRadius: 12, padding: 20 }}>
           <h2 style={{ fontSize: 16 }}>MCP application + AI connector fabric</h2>
-          <p style={{ color: "#77779A", fontSize: 13 }}>Register authorized Streamable HTTP MCP servers. PAMASMMA discovers their tools and keeps credentials encrypted.</p>
+          <p style={{ color: "#77779A", fontSize: 13 }}>Register authorized Streamable HTTP MCP servers. Discover their tool schemas, review JSON arguments, and approve each invocation before it runs. Results from external tools are displayed as untrusted output.</p>
           <div id="mcp-connect-form" style={{ display: "grid", gap: 8 }}>
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Connector name" style={{ padding: 10, background: "#0A0A18", border: "1px solid #29294A", color: "#D0D0EC", borderRadius: 8 }} />
             <input value={endpoint} onChange={(e) => setEndpoint(e.target.value)} placeholder="https://example.com/mcp" style={{ padding: 10, background: "#0A0A18", border: "1px solid #29294A", color: "#D0D0EC", borderRadius: 8 }} />
@@ -183,6 +271,70 @@ export default function IntegrationsPage() {
                       Health: {healthStatuses[connectorId]}
                     </div>
                   )}
+                  <div style={{ marginTop: 12, borderTop: "1px solid #18182F", paddingTop: 10 }}>
+                    <button
+                      type="button"
+                      disabled={Boolean(toolBusy[`discover:${connectorId}`] || (connectorAuthMode === "oauth" && authStatus !== "connected"))}
+                      onClick={() => void toggleMcpTools(connectorId)}
+                      style={{ padding: "7px 10px", borderRadius: 7, border: "1px solid #315F72", background: "#10202A", color: "#AEEBFF", cursor: "pointer", fontSize: 11, opacity: connectorAuthMode === "oauth" && authStatus !== "connected" ? 0.55 : 1 }}
+                    >
+                      {toolBusy[`discover:${connectorId}`] ? "Discovering tools…" : Object.prototype.hasOwnProperty.call(toolLists, connectorId) ? "Hide tools" : "Discover tools"}
+                    </button>
+                    {connectorAuthMode === "oauth" && authStatus !== "connected" && (
+                      <span style={{ marginLeft: 8, color: "#68688A", fontSize: 11 }}>Authorize this connector first.</span>
+                    )}
+                    {Object.prototype.hasOwnProperty.call(toolLists, connectorId) && (
+                      <div style={{ display: "grid", gap: 10, marginTop: 10 }}>
+                        {toolLists[connectorId].length === 0 ? (
+                          <div style={{ color: "#68688A", fontSize: 12 }}>This MCP server returned no tools.</div>
+                        ) : toolLists[connectorId].map((tool) => {
+                          const toolName = typeof tool.name === "string" ? tool.name : "unnamed-tool";
+                          const toolKey = getToolKey(connectorId, toolName);
+                          return (
+                            <div key={toolKey} style={{ background: "#070713", border: "1px solid #202040", borderRadius: 9, padding: 12 }}>
+                              <strong style={{ fontSize: 12 }}>{toolName}</strong>
+                              <p style={{ color: "#77779A", fontSize: 11, lineHeight: 1.5, margin: "5px 0 8px", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+                                {String(tool.description ?? "No description provided by this MCP server.")}
+                              </p>
+                              <details style={{ marginBottom: 8, color: "#A7A2D8", fontSize: 11 }}>
+                                <summary style={{ cursor: "pointer" }}>Input schema</summary>
+                                <pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", maxHeight: 220, overflow: "auto", background: "#04040D", padding: 8, borderRadius: 6 }}>
+                                  {JSON.stringify(tool.input_schema ?? {}, null, 2)}
+                                </pre>
+                              </details>
+                              <label style={{ display: "grid", gap: 5, color: "#A7A2D8", fontSize: 11 }}>
+                                Arguments (JSON object)
+                                <textarea
+                                  aria-label={`JSON arguments for ${toolName}`}
+                                  value={toolArguments[toolKey] ?? "{}"}
+                                  onChange={(event) => setToolArguments((current) => ({ ...current, [toolKey]: event.target.value }))}
+                                  spellCheck={false}
+                                  rows={5}
+                                  style={{ width: "100%", boxSizing: "border-box", resize: "vertical", padding: 9, background: "#04040D", border: "1px solid #29294A", color: "#D0D0EC", borderRadius: 6, fontFamily: "monospace", fontSize: 11 }}
+                                />
+                              </label>
+                              <button
+                                type="button"
+                                disabled={Boolean(toolBusy[toolKey])}
+                                onClick={() => void runMcpTool(connectorId, String(item.name ?? connectorId), toolName)}
+                                style={{ marginTop: 8, padding: "7px 10px", borderRadius: 7, border: "1px solid #5E4C28", background: "#211A0D", color: "#E7C98C", cursor: "pointer", fontSize: 11, opacity: toolBusy[toolKey] ? 0.6 : 1 }}
+                              >
+                                {toolBusy[toolKey] ? "Running…" : "Review & run"}
+                              </button>
+                              {toolResults[toolKey] && (
+                                <details open style={{ marginTop: 9, color: "#D5B46D", fontSize: 11 }}>
+                                  <summary style={{ cursor: "pointer" }}>Latest result · untrusted external output</summary>
+                                  <pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", maxHeight: 300, overflow: "auto", background: "#04040D", padding: 8, borderRadius: 6, color: "#D0D0EC" }}>
+                                    {toolResults[toolKey]}
+                                  </pre>
+                                </details>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                   {connectorAuthMode === "oauth" && authStatus === "connected" && (
                     <button
                       type="button"
