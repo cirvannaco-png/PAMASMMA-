@@ -50,6 +50,8 @@ class McpConnectorCreate(BaseModel):
             raise ValueError("OAuth client credentials require auth_mode='oauth'.")
         if self.auth_mode == "oauth" and self.bearer_token:
             raise ValueError("Bearer token and OAuth authentication cannot be combined.")
+        if self.oauth_client_secret and not self.oauth_client_id:
+            raise ValueError("An OAuth client secret requires an OAuth client ID.")
         if (
             self.oauth_token_endpoint_auth_method != "none"
             and self.oauth_client_id
