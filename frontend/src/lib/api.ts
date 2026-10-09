@@ -433,6 +433,8 @@ export const integrations = {
   mcpAdd: (body: { name: string; endpoint: string; auth_mode?: "bearer" | "oauth"; bearer_token?: string; oauth_client_id?: string; oauth_client_secret?: string; oauth_token_endpoint_auth_method?: "none" | "client_secret_post" | "client_secret_basic"; enabled?: boolean }) => apiFetch<Record<string, unknown>>("/integrations/mcp", { method: "POST", body: JSON.stringify(body) }),
   mcpOAuthStart: (connectorId: string) => apiFetch<{ status: string; authorization_url?: string; flow_id?: string }>(`/integrations/mcp/${encodeURIComponent(connectorId)}/oauth/start`, { method: "POST" }),
   mcpOAuthDisconnect: (connectorId: string) => apiFetch<{ status: string; connector_id: string }>(`/integrations/mcp/${encodeURIComponent(connectorId)}/oauth/disconnect`, { method: "POST" }),
+  mcpHealthCheck: (connectorId: string) => apiFetch<{ status: string; connector_id: string; tool_count?: number; error_type?: string }>(`/integrations/mcp/${encodeURIComponent(connectorId)}/health-check`, { method: "POST" }),
+  mcpRemove: (connectorId: string) => apiFetch<{ status: string; connector_id: string }>(`/integrations/mcp/${encodeURIComponent(connectorId)}`, { method: "DELETE" }),
   mcpTools: (connectorId: string) => apiFetch<{ tools: Array<Record<string, unknown>> }>(`/integrations/mcp/${encodeURIComponent(connectorId)}/tools`),
 };
 
