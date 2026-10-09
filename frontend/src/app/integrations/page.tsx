@@ -217,8 +217,8 @@ export default function IntegrationsPage() {
                       <div style={{ color: "#68688A", fontSize: 10, marginTop: 4 }}>
                         {String(entry.created_at ?? "")} · {duration} · confirmed: {String(entry.confirmed ?? false)}
                       </div>
-                      {entry.error_type && (
-                        <div style={{ color: "#D5B46D", fontSize: 10, marginTop: 4 }}>Error class: {String(entry.error_type)}</div>
+                      {typeof entry.error_type === "string" && entry.error_type.length > 0 && (
+                        <div style={{ color: "#D5B46D", fontSize: 10, marginTop: 4 }}>Error class: {entry.error_type}</div>
                       )}
                     </div>
                   );
