@@ -57,3 +57,27 @@ The following requested connections are represented as governed discovery profil
 Google Workspace already has a native PAMASMMA OAuth path for Gmail and Drive. The MCP profile is therefore treated as an expansion path for broader Workspace services, rather than an instruction to duplicate existing credential surfaces.
 
 The catalog intentionally separates **discoverable**, **connected**, and **enabled** states. No listed MCP server is automatically connected, trusted, or granted write access.
+
+
+## MCP OAuth lifecycle and egress policy
+
+PAMASMMA now offers two authentication modes per MCP connector:
+
+- **Bearer token** for an operator-supplied token or a public endpoint.
+- **MCP OAuth** through the official MCP Python SDK `OAuthClientProvider`. It uses protected-resource and authorization-server discovery, PKCE/state handling, authorization-code exchange, persisted client registration metadata, token refresh and issuer checks provided by the SDK.
+
+OAuth access/refresh token data and OAuth client registration information are encrypted at rest with PAMASMMA's existing secret-encryption boundary. Plain credentials are never returned by connector-list APIs. The transient authorization code, SDK state, issuer and connector/user association are stored in the Redis-backed single-use callback flow with a bounded expiry. In multi-instance production the API and OAuth flow workers must share the configured Redis-compatible store.
+
+Endpoints:
+
+- `POST /api/v1/integrations/mcp/{connector_id}/oauth/start` — initiate an OAuth flow and return an authorization URL.
+- `GET /api/v1/integrations/mcp/oauth/callback` — receive the authorization-server callback, validated against the SDK-generated state and issuer.
+- `POST /api/v1/integrations/mcp/{connector_id}/oauth/disconnect` — clear PAMASMMA's stored OAuth client data and tokens. This does not promise that the remote authorization server revokes its grant; use the provider's account-security page for remote grant revocation where available.
+
+Configure `MCP_OAUTH_REDIRECT_URI` to the exact public callback URL registered/advertised to the authorization server. Production must use HTTPS. The MCP Python SDK currently handles dynamic client registration when supported; MCP servers that require pre-registration or a provider-specific OAuth client configuration may need additional operator configuration.
+
+### Outbound MCP endpoint controls
+
+MCP registration and every MCP tool invocation validate the target endpoint. PAMASMMA requires HTTPS on port 443, rejects embedded URL credentials/fragments, and blocks localhost, internal hostnames, and private/loopback/link-local/reserved IP literals. **Production also requires a non-empty exact-host allowlist in `MCP_ALLOWED_HOSTS`.** Only add hosts that operators have reviewed. This is a deliberate production gate; leave an unknown endpoint disconnected rather than weakening egress restrictions.
+
+MCP tool invocation is fail-closed: tools explicitly annotated read-only can run without an extra confirmation, destructive/open-world tools require confirmation, and tools without trustworthy read-only metadata require explicit confirmation. Tool names are not treated as a sufficient security boundary by themselves.
