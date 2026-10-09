@@ -1,4 +1,5 @@
 """Persistence for external integrations using PAMASMMA's encrypted secret boundary."""
+import hashlib
 import ipaddress
 import json
 import uuid
@@ -414,3 +415,131 @@ async def delete_mcp_connector(user_id: str, connector_id: str) -> bool:
         )
         await session.commit()
     return result.rowcount == 1
+
+
+
+def _sha256_json(value: Any) -> str:
+    serialized = json.dumps(
+        value,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        default=str,
+    )
+    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+
+
+async def create_mcp_tool_audit(
+    user_id: str,
+    connector_id: str,
+    connector_name: str,
+    tool_name: str,
+    arguments: dict[str, Any],
+    confirmation_required: bool,
+    confirmed: bool,
+    status: str = "started",
+) -> str:
+    """Persist metadata and a digest, never raw tool arguments or results."""
+    if status not in {"started", "blocked"}:
+        raise ValueError("Initial MCP audit status must be started or blocked.")
+    audit_id = uuid.uuid4()
+    created_at = _now()
+    finished_at = created_at if status == "blocked" else None
+    assert AsyncSessionLocal is not None
+    async with AsyncSessionLocal() as session:
+        await session.execute(
+            text(
+                """
+                INSERT INTO pamasmma_mcp_tool_audit
+                (id,user_id,connector_id,connector_name,tool_name,status,
+                 confirmation_required,confirmed,arguments_sha256,created_at,finished_at)
+                VALUES
+                (:id,:user_id,:connector_id,:connector_name,:tool_name,:status,
+                 :confirmation_required,:confirmed,:arguments_sha256,:created_at,:finished_at)
+                """
+            ),
+            {
+                "id": audit_id,
+                "user_id": user_id,
+                "connector_id": uuid.UUID(str(connector_id)),
+                "connector_name": connector_name,
+                "tool_name": tool_name,
+                "status": status,
+                "confirmation_required": confirmation_required,
+                "confirmed": confirmed,
+                "arguments_sha256": _sha256_json(arguments),
+                "created_at": created_at,
+                "finished_at": finished_at,
+            },
+        )
+        await session.commit()
+    return str(audit_id)
+
+
+async def finish_mcp_tool_audit(
+    user_id: str,
+    audit_id: str,
+    status: str,
+    duration_ms: int,
+    result: Any = None,
+    error_type: str | None = None,
+) -> None:
+    if status not in {"succeeded", "failed"}:
+        raise ValueError("Final MCP audit status must be succeeded or failed.")
+    result_hash = _sha256_json(result) if result is not None else None
+    assert AsyncSessionLocal is not None
+    async with AsyncSessionLocal() as session:
+        updated = await session.execute(
+            text(
+                """
+                UPDATE pamasmma_mcp_tool_audit
+                SET status=:status,result_sha256=:result_sha256,duration_ms=:duration_ms,
+                    error_type=:error_type,finished_at=:finished_at
+                WHERE id=:id AND user_id=:user_id AND status='started'
+                """
+            ),
+            {
+                "id": uuid.UUID(audit_id),
+                "user_id": user_id,
+                "status": status,
+                "result_sha256": result_hash,
+                "duration_ms": max(0, duration_ms),
+                "error_type": error_type[:120] if error_type else None,
+                "finished_at": _now(),
+            },
+        )
+        await session.commit()
+        if updated.rowcount != 1:
+            raise ValueError("MCP audit record not found or already finalized.")
+
+
+async def list_mcp_tool_audit(
+    user_id: str,
+    limit: int = 50,
+    connector_id: str | None = None,
+) -> list[dict[str, Any]]:
+    bounded_limit = min(max(limit, 1), 200)
+    filters = "user_id=:user_id"
+    params: dict[str, Any] = {"user_id": user_id, "limit": bounded_limit}
+    if connector_id:
+        filters += " AND connector_id=:connector_id"
+        params["connector_id"] = uuid.UUID(connector_id)
+
+    assert AsyncSessionLocal is not None
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            text(
+                f"""
+                SELECT id::text AS id, connector_id::text AS connector_id,
+                       connector_name, tool_name, status, confirmation_required,
+                       confirmed, arguments_sha256, result_sha256, duration_ms,
+                       error_type, created_at, finished_at
+                FROM pamasmma_mcp_tool_audit
+                WHERE {filters}
+                ORDER BY created_at DESC
+                LIMIT :limit
+                """
+            ),
+            params,
+        )
+        return [dict(row) for row in result.mappings().all()]
