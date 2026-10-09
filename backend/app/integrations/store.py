@@ -372,3 +372,45 @@ async def clear_mcp_oauth_credentials(user_id: str, connector_id: str) -> None:
         await session.commit()
         if result.rowcount != 1:
             raise ValueError("OAuth MCP connector not found.")
+
+
+
+async def update_mcp_oauth_status(
+    user_id: str,
+    connector_id: str,
+    status: str,
+) -> None:
+    if status not in {"disconnected", "connected", "error"}:
+        raise ValueError("Unsupported MCP OAuth status.")
+    assert AsyncSessionLocal is not None
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            text(
+                """
+                UPDATE pamasmma_mcp_connectors
+                SET auth_status=:status, updated_at=now()
+                WHERE id=:id AND user_id=:user_id AND auth_mode='oauth' AND enabled=true
+                """
+            ),
+            {"status": status, "id": connector_id, "user_id": user_id},
+        )
+        await session.commit()
+        if result.rowcount != 1:
+            raise ValueError("OAuth MCP connector not found or disabled.")
+
+
+async def delete_mcp_connector(user_id: str, connector_id: str) -> bool:
+    """Delete one connector and its encrypted credentials for the owning user only."""
+    assert AsyncSessionLocal is not None
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            text(
+                """
+                DELETE FROM pamasmma_mcp_connectors
+                WHERE id=:id AND user_id=:user_id
+                """
+            ),
+            {"id": connector_id, "user_id": user_id},
+        )
+        await session.commit()
+    return result.rowcount == 1
