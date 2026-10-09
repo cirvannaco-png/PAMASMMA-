@@ -4,6 +4,7 @@ import pytest
 
 from app.integrations.google import GOOGLE_SCOPES, encode_raw_message
 from app.integrations.mcp import requires_confirmation
+from app.integrations.store import settings as integration_settings, validate_mcp_endpoint
 from app.integrations.mcp_catalog import get_mcp_connection_profile, recommended_mcp_connections
 
 
@@ -48,3 +49,41 @@ def test_mcp_catalog_profile_lookup():
     assert profile is not None
     assert profile["registry_server"] == "com.apify/apify-mcp-server"
     assert profile["connection_state"] == "discoverable"
+
+
+def test_mcp_confirmation_fails_closed_for_unknown_tools():
+    assert requires_confirmation("sync_workspace")
+    assert requires_confirmation("update_customer")
+    assert not requires_confirmation("search_documents")
+    assert not requires_confirmation(
+        "opaque_tool",
+        {"readOnlyHint": True, "destructiveHint": False, "openWorldHint": False},
+    )
+    assert requires_confirmation(
+        "nominally_read_only",
+        {"readOnlyHint": True, "destructiveHint": True},
+    )
+
+
+def test_mcp_endpoint_rejects_local_and_private_destinations():
+    with pytest.raises(ValueError, match="Local and internal"):
+        validate_mcp_endpoint("https://localhost/mcp")
+    with pytest.raises(ValueError, match="Private"):
+        validate_mcp_endpoint("https://127.0.0.1/mcp")
+    with pytest.raises(ValueError, match="HTTPS"):
+        validate_mcp_endpoint("http://mcp.example.com/mcp")
+
+
+def test_mcp_endpoint_requires_exact_host_allowlist_in_production(monkeypatch):
+    monkeypatch.setattr(integration_settings, "app_env", "production")
+    monkeypatch.setattr(integration_settings, "mcp_allowed_hosts", ["mcp.example.com"])
+    assert validate_mcp_endpoint("https://mcp.example.com/mcp") == "mcp.example.com"
+    with pytest.raises(ValueError, match="not in MCP_ALLOWED_HOSTS"):
+        validate_mcp_endpoint("https://other.example.com/mcp")
+
+
+def test_mcp_production_connections_fail_closed_without_allowlist(monkeypatch):
+    monkeypatch.setattr(integration_settings, "app_env", "production")
+    monkeypatch.setattr(integration_settings, "mcp_allowed_hosts", [])
+    with pytest.raises(ValueError, match="MCP_ALLOWED_HOSTS"):
+        validate_mcp_endpoint("https://mcp.example.com/mcp")
