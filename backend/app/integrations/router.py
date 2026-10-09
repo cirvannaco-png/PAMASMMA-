@@ -37,6 +37,8 @@ from app.integrations.mcp import (
     registry_search,
 )
 from app.integrations.mcp_catalog import get_mcp_connection_profile, recommended_mcp_connections
+from app.integrations.store import save_mcp_oauth_client_info
+from mcp.shared.auth import OAuthClientInformationFull
 from app.integrations.store import (
     google_access_token,
     list_integrations,
@@ -212,7 +214,7 @@ async def mcp_add(
     current_user: CurrentUser,
 ) -> dict:
     try:
-        return await save_mcp_connector(
+        connector = await save_mcp_connector(
             current_user["user_id"],
             body.name,
             str(body.endpoint),
@@ -220,6 +222,24 @@ async def mcp_add(
             body.enabled,
             body.auth_mode,
         )
+        if body.oauth_client_id:
+            client_info = OAuthClientInformationFull.model_validate(
+                {
+                    "client_id": body.oauth_client_id,
+                    "client_secret": body.oauth_client_secret,
+                    "client_name": body.name,
+                    "redirect_uris": [settings.mcp_oauth_redirect_uri],
+                    "token_endpoint_auth_method": body.oauth_token_endpoint_auth_method,
+                    "grant_types": ["authorization_code", "refresh_token"],
+                    "response_types": ["code"],
+                }
+            )
+            await save_mcp_oauth_client_info(
+                current_user["user_id"],
+                connector["id"],
+                client_info.model_dump(mode="json"),
+            )
+        return connector
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
 
