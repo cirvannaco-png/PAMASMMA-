@@ -37,7 +37,7 @@ from app.integrations.mcp import (
     registry_search,
 )
 from app.integrations.mcp_catalog import get_mcp_connection_profile, recommended_mcp_connections
-from app.integrations.store import save_mcp_oauth_client_info
+from app.integrations.store import delete_mcp_connector, save_mcp_oauth_client_info
 from mcp.shared.auth import OAuthClientInformationFull
 from app.integrations.store import (
     google_access_token,
@@ -332,6 +332,45 @@ async def mcp_oauth_disconnect(
         return {"status": "disconnected", "connector_id": connector_id}
     except ValueError as exc:
         raise HTTPException(404, str(exc)) from exc
+
+@router.post("/mcp/{connector_id}/health-check")
+async def mcp_health_check(
+    connector_id: str,
+    current_user: CurrentUser,
+) -> dict:
+    try:
+        tools = await discover_tools(current_user["user_id"], connector_id)
+        return {
+            "status": "healthy",
+            "connector_id": connector_id,
+            "tool_count": len(tools),
+        }
+    except PermissionError:
+        return {
+            "status": "authorization_required",
+            "connector_id": connector_id,
+        }
+    except ValueError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except Exception as exc:
+        # Never expose remote exception text or response bodies in the public API.
+        return {
+            "status": "unhealthy",
+            "connector_id": connector_id,
+            "error_type": type(exc).__name__,
+        }
+
+
+@router.delete("/mcp/{connector_id}")
+async def mcp_remove(
+    connector_id: str,
+    current_user: CurrentUser,
+) -> dict:
+    removed = await delete_mcp_connector(current_user["user_id"], connector_id)
+    if not removed:
+        raise HTTPException(404, "MCP connector not found.")
+    return {"status": "deleted", "connector_id": connector_id}
+
 
 @router.get("/mcp/{connector_id}/tools")
 async def mcp_tools(
