@@ -31,26 +31,35 @@ _OAUTH_KEY_PREFIX = "integration:mcp:oauth:"
 _oauth_tasks: dict[str, asyncio.Task[None]] = {}
 
 
-def requires_confirmation(tool_name: str) -> bool:
+def requires_confirmation(
+    tool_name: str,
+    annotations: dict[str, Any] | None = None,
+) -> bool:
+    """Fail closed for unknown/side-effecting tools; respect explicit MCP hints."""
+    metadata = annotations or {}
+    read_only = metadata.get("readOnlyHint", metadata.get("read_only_hint"))
+    destructive = metadata.get("destructiveHint", metadata.get("destructive_hint"))
+    open_world = metadata.get("openWorldHint", metadata.get("open_world_hint"))
+    if read_only is True and destructive is not True and open_world is not True:
+        return False
+    if read_only is False or destructive is True or open_world is True:
+        return True
+
     lowered = tool_name.lower()
-    return any(
-        token in lowered
-        for token in (
-            "delete",
-            "remove",
-            "write",
-            "create",
-            "update",
-            "send",
-            "publish",
-            "post",
-            "execute",
-            "run",
-            "deploy",
-            "purchase",
-            "transfer",
-        )
+    unsafe_tokens = (
+        "delete", "remove", "write", "create", "update", "send", "publish",
+        "post", "execute", "run", "deploy", "purchase", "transfer", "edit",
+        "modify", "invite", "grant", "revoke", "schedule", "upload", "merge",
+        "close", "comment", "reply", "submit", "trigger", "start",
     )
+    if any(token in lowered for token in unsafe_tokens):
+        return True
+
+    safe_prefixes = (
+        "get", "list", "search", "find", "read", "fetch", "query", "inspect",
+        "describe", "retrieve", "lookup", "whoami", "count", "check",
+    )
+    return not lowered.startswith(safe_prefixes)
 
 
 class _PersistentOAuthStorage:
@@ -234,15 +243,22 @@ async def call_tool(
         and not connector.get("oauth_tokens_enc")
     ):
         raise PermissionError("Authorize this MCP connector before using its tools.")
-    if requires_confirmation(tool_name) and not confirmed:
-        raise PermissionError(
-            "This MCP tool appears write-capable or high-impact. "
-            "Explicit confirmation is required."
-        )
-
     http_client, transport = await _client(connector, user_id)
     async with http_client:
         async with Client(transport) as mcp:
+            listed = await mcp.list_tools()
+            tool = next((candidate for candidate in listed.tools if candidate.name == tool_name), None)
+            if tool is None:
+                raise ValueError("MCP tool is not present in the connector's current tool list.")
+            raw_tool = tool.model_dump(mode="json", by_alias=True) if hasattr(tool, "model_dump") else {}
+            annotations = raw_tool.get("annotations") if isinstance(raw_tool, dict) else {}
+            if not isinstance(annotations, dict):
+                annotations = {}
+            if requires_confirmation(tool_name, annotations) and not confirmed:
+                raise PermissionError(
+                    "This MCP tool is not explicitly known to be read-only. "
+                    "Explicit confirmation is required."
+                )
             result = await mcp.call_tool(tool_name, arguments)
             return {
                 "content": [
