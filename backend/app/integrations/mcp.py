@@ -1,6 +1,5 @@
 """Governed MCP bridge with persisted MCP SDK OAuth client support."""
 import asyncio
-import json
 import logging
 import time
 from typing import Any, cast
