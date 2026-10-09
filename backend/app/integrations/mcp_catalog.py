@@ -5,6 +5,8 @@ registry membership as a trust decision. Users/operators still choose an endpoin
 credentials, scopes and whether the connection is permitted.
 """
 
+from __future__ import annotations
+
 from typing import Any
 
 
