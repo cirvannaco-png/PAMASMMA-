@@ -6,7 +6,6 @@ from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import RedirectResponse
-
 from mcp.shared.auth import OAuthClientInformationFull
 
 from app.auth.dependencies import get_current_user
