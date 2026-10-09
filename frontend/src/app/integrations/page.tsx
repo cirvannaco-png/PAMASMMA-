@@ -13,6 +13,7 @@ export default function IntegrationsPage() {
   const { isAuthenticated, isRestoring } = useAuth();
   const [items, setItems] = useState<Array<Record<string, unknown>>>([]);
   const [mcp, setMcp] = useState<Array<Record<string, unknown>>>([]);
+  const [healthStatuses, setHealthStatuses] = useState<Record<string, string>>({});
   const [recommended, setRecommended] = useState<Array<Record<string, unknown>>>([]);
   const [selectedProfile, setSelectedProfile] = useState<Record<string, unknown> | null>(null);
   const [selectedEndpointNotes, setSelectedEndpointNotes] = useState("");
@@ -143,6 +144,35 @@ export default function IntegrationsPage() {
                     >
                       Authorize connection
                     </button>
+                  )}
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginTop: 8 }}>
+                    <button
+                      type="button"
+                      onClick={() => void integrations.mcpHealthCheck(connectorId).then((result) => {
+                        setHealthStatuses((current) => ({ ...current, [connectorId]: result.status }));
+                        if (result.status === "healthy") toast.success(`MCP healthy · ${result.tool_count ?? 0} tools`);
+                        else if (result.status === "authorization_required") toast("Authorize this connector to continue.");
+                        else toast.error(`MCP health: ${result.status}`);
+                      }).catch((error) => toast.error(error instanceof Error ? error.message : "Health check failed."))}
+                      style={{ padding: "7px 10px", borderRadius: 7, border: "1px solid #25254A", background: "#0D0D1B", color: "#A7A2D8", cursor: "pointer", fontSize: 11 }}
+                    >
+                      Check connection
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!window.confirm(`Remove ${String(item.name)} and delete its saved credentials?`)) return;
+                        void integrations.mcpRemove(connectorId).then(() => load()).then(() => toast.success("MCP connector removed.")).catch((error) => toast.error(error instanceof Error ? error.message : "Could not remove connector."));
+                      }}
+                      style={{ padding: "7px 10px", borderRadius: 7, border: "1px solid #543939", background: "#211010", color: "#F0B4B4", cursor: "pointer", fontSize: 11 }}
+                    >
+                      Remove connector
+                    </button>
+                  </div>
+                  {healthStatuses[connectorId] && (
+                    <div style={{ color: healthStatuses[connectorId] === "healthy" ? "#55C8A0" : "#D5B46D", fontSize: 11, marginTop: 5 }}>
+                      Health: {healthStatuses[connectorId]}
+                    </div>
                   )}
                   {connectorAuthMode === "oauth" && authStatus === "connected" && (
                     <button
