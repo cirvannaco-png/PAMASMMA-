@@ -250,6 +250,12 @@ The current migration chain is linear:
 008_social_integrity
   ↓
 009_social_delivery_resilience
+  ↓
+010_integrations
+  ↓
+011_mcp_oauth
+  ↓
+012_mcp_tool_audit
 ```
 
 The cognitive migrations add durable decision records, beliefs, outcomes, world-model entities/relationships, and cognitive audit state. The knowledge migrations add provenance-aware training sources/chunks and active-source deduplication/chunk-order integrity.
@@ -281,6 +287,9 @@ Core settings include:
 | `WEBAUTHN_ORIGIN` | WebAuthn browser origin |
 | `ALLOWED_ORIGINS` | CORS allow-list |
 | `NEXT_PUBLIC_API_URL` | Frontend API base URL |
+| `MCP_ALLOWED_HOSTS` | Exact-host allowlist for outbound MCP endpoints; required for production MCP use |
+| `MCP_OAUTH_REDIRECT_URI` | Public HTTPS callback for MCP OAuth authorization codes |
+| `MCP_OAUTH_FLOW_TIMEOUT_SECONDS` | Maximum time allowed for an MCP OAuth authorization flow |
 
 ## Release status
 
@@ -315,3 +324,11 @@ PAMASMMA includes a governed Knowledge Training subsystem for importing books, n
 ## Social Growth
 
 PAMASMMA now includes a governed social execution layer at `/social`. It provides provider-neutral account connections, publishing and scheduling, engagement synchronization and replies, analytics adapters, campaign planning, an explicit campaign approval gate, and resilient scheduled delivery with bounded retries and worker leasing. Platform adapters remain isolated from the cognitive engine. See [docs/SOCIAL_GROWTH.md](docs/SOCIAL_GROWTH.md).
+
+## MCP Connection Catalog
+
+PAMASMMA includes a curated MCP capability catalog and UI discovery layer for high-value integrations spanning executive operations, personal assistance, marketing, customer support, content creation, knowledge and observability.
+
+Core candidates include GitHub, GitLab, Google Workspace expansion, Notion, Slack, Linear, Sentry, HubSpot, Figma, Canva, Google Analytics 4 and Google Search Console. Optional candidates include Jira, Grafana and Apify.
+
+The catalog does not auto-install or trust a server. MCP Registry entries are discovery metadata; endpoint selection, credentials, scopes and enablement remain operator-controlled.

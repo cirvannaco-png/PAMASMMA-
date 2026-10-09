@@ -44,3 +44,4 @@ python-docx==1.1.2
 python-multipart==0.0.20
 # Model Context Protocol
 mcp==2.0.0
+jsonschema==4.26.0

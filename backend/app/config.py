@@ -108,7 +108,10 @@ class Settings(BaseSettings):
     google_client_id: str | None = None
     google_client_secret: str | None = None
     google_redirect_uri: str | None = None
+    # MCP egress allowlist: exact hostnames approved for outbound tool execution.
     mcp_allowed_hosts: list[str] = []
+    mcp_oauth_redirect_uri: str = "http://localhost:8000/api/v1/integrations/mcp/oauth/callback"
+    mcp_oauth_flow_timeout_seconds: int = 300
 
     # Social Growth / Platform OAuth. Secrets are injected at deployment time.
     social_meta_client_id: str | None = None

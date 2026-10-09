@@ -413,11 +413,33 @@ export const social = {
 export const integrations = {
   googleStart: () => apiFetch<{ authorization_url: string; state: string }>("/integrations/google/start"),
   list: () => apiFetch<{ integrations: Array<Record<string, unknown>>; mcp: Array<Record<string, unknown>> }>("/integrations"),
+  mcpRecommended: (role?: string, priority?: "core" | "optional") => {
+    const params = new URLSearchParams();
+    if (role) params.set("role", role);
+    if (priority) params.set("priority", priority);
+    const query = params.toString();
+    return apiFetch<{ connections: Array<Record<string, unknown>> }>(
+      "/integrations/mcp/recommended" + (query ? "?" + query : ""),
+    );
+  },
+  mcpProfile: (connectionId: string) =>
+    apiFetch<{ connection: Record<string, unknown> }>(
+      "/integrations/mcp/catalog/" + encodeURIComponent(connectionId),
+    ),
   gmailMessages: (accountId: string, q?: string) => apiFetch<Record<string, unknown>>(`/integrations/google/${encodeURIComponent(accountId)}/gmail/messages${q ? `?q=${encodeURIComponent(q)}` : ""}`),
   gmailSend: (accountId: string, body: { to: string[]; subject: string; body: string; cc?: string[]; bcc?: string[] }) => apiFetch<Record<string, unknown>>(`/integrations/google/${encodeURIComponent(accountId)}/gmail/send`, { method: "POST", body: JSON.stringify(body) }),
   driveFiles: (accountId: string, q?: string) => apiFetch<Record<string, unknown>>(`/integrations/google/${encodeURIComponent(accountId)}/drive/files${q ? `?q=${encodeURIComponent(q)}` : ""}`),
   driveUpload: (accountId: string, body: { name: string; mime_type: string; content_base64: string; parent_id?: string }) => apiFetch<Record<string, unknown>>(`/integrations/google/${encodeURIComponent(accountId)}/drive/upload`, { method: "POST", body: JSON.stringify(body) }),
-  mcpAdd: (body: { name: string; endpoint: string; bearer_token?: string; enabled?: boolean }) => apiFetch<Record<string, unknown>>("/integrations/mcp", { method: "POST", body: JSON.stringify(body) }),
+  mcpAdd: (body: { name: string; endpoint: string; auth_mode?: "bearer" | "oauth"; bearer_token?: string; oauth_client_id?: string; oauth_client_secret?: string; oauth_token_endpoint_auth_method?: "none" | "client_secret_post" | "client_secret_basic"; enabled?: boolean }) => apiFetch<Record<string, unknown>>("/integrations/mcp", { method: "POST", body: JSON.stringify(body) }),
+  mcpOAuthStart: (connectorId: string) => apiFetch<{ status: string; authorization_url?: string; flow_id?: string }>(`/integrations/mcp/${encodeURIComponent(connectorId)}/oauth/start`, { method: "POST" }),
+  mcpOAuthDisconnect: (connectorId: string) => apiFetch<{ status: string; connector_id: string }>(`/integrations/mcp/${encodeURIComponent(connectorId)}/oauth/disconnect`, { method: "POST" }),
+  mcpHealthCheck: (connectorId: string) => apiFetch<{ status: string; connector_id: string; tool_count?: number; error_type?: string }>(`/integrations/mcp/${encodeURIComponent(connectorId)}/health-check`, { method: "POST" }),
+  mcpRemove: (connectorId: string) => apiFetch<{ status: string; connector_id: string }>(`/integrations/mcp/${encodeURIComponent(connectorId)}`, { method: "DELETE" }),
+  mcpAudit: (limit = 50, connectorId?: string) => {
+    const params = new URLSearchParams({ limit: String(limit) });
+    if (connectorId) params.set("connector_id", connectorId);
+    return apiFetch<{ entries: Array<Record<string, unknown>>; count: number }>(`/integrations/mcp/audit?${params.toString()}`);
+  },
   mcpTools: (connectorId: string) => apiFetch<{ tools: Array<Record<string, unknown>> }>(`/integrations/mcp/${encodeURIComponent(connectorId)}/tools`),
 };
 
