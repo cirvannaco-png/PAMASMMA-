@@ -139,3 +139,26 @@ def test_mcp_catalog_contains_remote_endpoints_and_flags_third_party_services():
     assert analytics is not None
     assert analytics["remote_endpoints"] == []
     assert "third-party" in analytics["verified_source"]
+
+
+
+def test_mcp_catalog_contains_all_requested_connections():
+    profiles = recommended_mcp_connections()
+    ids = {entry["id"] for entry in profiles}
+    expected = {
+        "google-workspace",
+        "notion",
+        "slack",
+        "linear",
+        "sentry",
+        "hubspot",
+        "figma",
+        "canva",
+        "google-analytics",
+        "google-search-console",
+        "jira",
+        "grafana",
+        "apify",
+    }
+    assert expected <= ids
+    assert all(entry.get("connection_state") == "discoverable" for entry in profiles)
