@@ -1,4 +1,6 @@
 """Persistence for external integrations using PAMASMMA's encrypted secret boundary."""
+import ipaddress
+import json
 import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -180,34 +182,70 @@ async def google_access_token(user_id: str, account_id: str) -> str:
     return new_access
 
 
+def validate_mcp_endpoint(endpoint: str) -> str:
+    """Validate remote MCP egress against transport and host policy."""
+    parsed = urlparse(endpoint)
+    host = (parsed.hostname or "").lower().rstrip(".")
+    if parsed.scheme != "https":
+        raise ValueError("MCP endpoints must use HTTPS.")
+    if not host or parsed.username or parsed.password or parsed.fragment:
+        raise ValueError("MCP endpoint must be an HTTPS URL without embedded credentials or fragments.")
+    if parsed.port not in (None, 443):
+        raise ValueError("MCP endpoint must use the standard HTTPS port 443.")
+
+    local_suffixes = (".localhost", ".local", ".internal", ".lan", ".home")
+    if host in {"localhost", "metadata.google.internal"} or host.endswith(local_suffixes):
+        raise ValueError("Local and internal MCP destinations are not permitted.")
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        address = None
+    if address and (
+        address.is_private
+        or address.is_loopback
+        or address.is_link_local
+        or address.is_multicast
+        or address.is_reserved
+        or address.is_unspecified
+    ):
+        raise ValueError("Private, loopback, link-local and reserved IP destinations are not permitted.")
+
+    allowed = {
+        item.strip().lower().rstrip(".")
+        for item in settings.mcp_allowed_hosts
+        if item.strip()
+    }
+    if settings.is_production and not allowed:
+        raise ValueError("MCP connections are disabled in production until MCP_ALLOWED_HOSTS is configured.")
+    if allowed and host not in allowed:
+        raise ValueError("MCP endpoint host is not in MCP_ALLOWED_HOSTS.")
+    return host
+
+
 async def save_mcp_connector(
     user_id: str,
     name: str,
     endpoint: str,
     bearer_token: str | None,
     enabled: bool,
+    auth_mode: str = "bearer",
 ) -> dict[str, Any]:
-    parsed = urlparse(endpoint)
-    if parsed.scheme != "https":
-        raise ValueError("MCP endpoints must use HTTPS in production.")
-
-    allowed = {
-        host.lower()
-        for host in settings.mcp_allowed_hosts
-        if host.strip()
-    }
-    if allowed and (parsed.hostname or "").lower() not in allowed:
-        raise ValueError("MCP endpoint host is not allowlisted.")
+    validate_mcp_endpoint(endpoint)
+    if auth_mode not in {"bearer", "oauth"}:
+        raise ValueError("MCP auth_mode must be 'bearer' or 'oauth'.")
+    if auth_mode == "oauth" and bearer_token:
+        raise ValueError("Do not supply a bearer token when auth_mode is 'oauth'.")
 
     assert AsyncSessionLocal is not None
     connector_id = uuid.uuid4()
+    auth_status = "disconnected" if auth_mode == "oauth" else "configured"
     async with AsyncSessionLocal() as session:
         await session.execute(
             text(
                 """
                 INSERT INTO pamasmma_mcp_connectors
-                (id,user_id,name,endpoint,bearer_token_enc,enabled)
-                VALUES (:id,:user_id,:name,:endpoint,:token,:enabled)
+                (id,user_id,name,endpoint,bearer_token_enc,enabled,auth_mode,auth_status)
+                VALUES (:id,:user_id,:name,:endpoint,:token,:enabled,:auth_mode,:auth_status)
                 """
             ),
             {
@@ -217,6 +255,8 @@ async def save_mcp_connector(
                 "endpoint": endpoint,
                 "token": encrypt_secret(bearer_token) if bearer_token else None,
                 "enabled": enabled,
+                "auth_mode": auth_mode,
+                "auth_status": auth_status,
             },
         )
         await session.commit()
@@ -226,6 +266,8 @@ async def save_mcp_connector(
         "name": name,
         "endpoint": endpoint,
         "enabled": enabled,
+        "auth_mode": auth_mode,
+        "auth_status": auth_status,
     }
 
 
@@ -235,7 +277,7 @@ async def list_mcp_connectors(user_id: str) -> list[dict[str, Any]]:
         result = await session.execute(
             text(
                 """
-                SELECT id::text AS id, name, endpoint, enabled,
+                SELECT id::text AS id, name, endpoint, enabled, auth_mode, auth_status,
                        created_at, updated_at
                 FROM pamasmma_mcp_connectors
                 WHERE user_id=:user_id
@@ -265,3 +307,68 @@ async def get_mcp_connector(
         )
         row = result.mappings().first()
     return dict(row) if row else None
+
+
+async def _save_mcp_oauth_blob(
+    user_id: str,
+    connector_id: str,
+    column: str,
+    value: dict[str, Any],
+) -> None:
+    columns = {
+        "tokens": "oauth_tokens_enc",
+        "client_info": "oauth_client_info_enc",
+    }
+    if column not in columns:
+        raise ValueError("Unsupported OAuth credential type.")
+    encrypted = encrypt_secret(json.dumps(value))
+    auth_status = ", auth_status='connected'" if column == "tokens" else ""
+    statement = (
+        f"UPDATE pamasmma_mcp_connectors SET {columns[column]}=:payload"
+        f"{auth_status}, updated_at=now() "
+        "WHERE id=:id AND user_id=:user_id AND enabled=true AND auth_mode='oauth'"
+    )
+    assert AsyncSessionLocal is not None
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            text(statement),
+            {"payload": encrypted, "id": connector_id, "user_id": user_id},
+        )
+        await session.commit()
+        if result.rowcount != 1:
+            raise ValueError("OAuth MCP connector not found or disabled.")
+
+
+async def save_mcp_oauth_tokens(
+    user_id: str,
+    connector_id: str,
+    value: dict[str, Any],
+) -> None:
+    await _save_mcp_oauth_blob(user_id, connector_id, "tokens", value)
+
+
+async def save_mcp_oauth_client_info(
+    user_id: str,
+    connector_id: str,
+    value: dict[str, Any],
+) -> None:
+    await _save_mcp_oauth_blob(user_id, connector_id, "client_info", value)
+
+
+async def clear_mcp_oauth_credentials(user_id: str, connector_id: str) -> None:
+    assert AsyncSessionLocal is not None
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            text(
+                """
+                UPDATE pamasmma_mcp_connectors
+                SET oauth_tokens_enc=NULL, oauth_client_info_enc=NULL,
+                    auth_status='disconnected', updated_at=now()
+                WHERE id=:id AND user_id=:user_id AND auth_mode='oauth'
+                """
+            ),
+            {"id": connector_id, "user_id": user_id},
+        )
+        await session.commit()
+        if result.rowcount != 1:
+            raise ValueError("OAuth MCP connector not found.")
