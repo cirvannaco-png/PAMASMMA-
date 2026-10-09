@@ -137,8 +137,14 @@ export default function IntegrationsPage() {
                     <button
                       type="button"
                       onClick={() => void integrations.mcpOAuthStart(connectorId).then((result) => {
-                        if (result.authorization_url) window.location.assign(result.authorization_url);
-                        else toast.success("MCP OAuth connection completed.");
+                        if (result.authorization_url) {
+                          window.location.assign(result.authorization_url);
+                        } else if (result.status === "connected") {
+                          toast.success("MCP OAuth connection completed.");
+                          void load();
+                        } else {
+                          toast.error(`MCP OAuth status: ${result.status}`);
+                        }
                       }).catch((error) => toast.error(error instanceof Error ? error.message : "MCP OAuth start failed."))}
                       style={{ marginTop: 8, padding: "7px 10px", borderRadius: 7, border: "1px solid #315F72", background: "#10202A", color: "#AEEBFF", cursor: "pointer", fontSize: 11 }}
                     >
