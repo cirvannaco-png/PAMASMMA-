@@ -425,8 +425,8 @@ async def begin_oauth_authorization(user_id: str, connector_id: str) -> dict[str
                 "authorization_url": ready["authorization_url"],
             }
         result = await cache_pop(f"{_OAUTH_KEY_PREFIX}result:{flow_id}")
-        if result:
-            return result
+        if isinstance(result, dict) and result:
+            return cast(dict[str, Any], result)
         await asyncio.sleep(0.2)
     raise TimeoutError("MCP server did not complete OAuth discovery in time.")
 
