@@ -63,6 +63,15 @@ def _frontend(query: str) -> str:
     return f"{origin}/dashboard?{query}"
 
 
+def _integrations_frontend(query: str) -> str:
+    origin = (
+        settings.allowed_origins[0].rstrip("/")
+        if settings.allowed_origins
+        else "http://localhost:3000"
+    )
+    return f"{origin}/integrations?{query}"
+
+
 @router.get("/google/start")
 async def google_start(current_user: CurrentUser) -> dict:
     state = secrets.token_urlsafe(32)
@@ -292,10 +301,10 @@ async def mcp_oauth_callback(
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
     if error:
-        return RedirectResponse(_frontend("mcp_oauth=denied"), 303)
+        return RedirectResponse(_integrations_frontend("mcp_oauth=denied"), 303)
     if not code:
-        return RedirectResponse(_frontend("mcp_oauth=failed"), 303)
-    return RedirectResponse(_frontend("mcp_oauth=callback_received"), 303)
+        return RedirectResponse(_integrations_frontend("mcp_oauth=failed"), 303)
+    return RedirectResponse(_integrations_frontend("mcp_oauth=callback_received"), 303)
 
 
 @router.post("/mcp/{connector_id}/oauth/start")
