@@ -130,7 +130,7 @@ MCP_CAPABILITY_CATALOG: tuple[dict[str, object], ...] = (
     },
     {
         "id": "grafana",
-        "remote_endpoints": [{"label": "Grafana Cloud MCP", "endpoint": "https://mcp.grafana.com/mcp", "auth_mode": "oauth", "notes": "For Grafana Cloud append /<your-stack>.grafana.net to the path, for example /mcp/acme.grafana.net. Self-hosted Grafana requires deploying the open-source MCP server on an approved HTTPS host."}],
+        "remote_endpoints": [{"label": "Grafana Cloud MCP", "endpoint": "https://mcp.grafana.com/mcp/YOUR-STACK.grafana.net", "auth_mode": "oauth", "notes": "Replace YOUR-STACK with the exact Grafana Cloud stack hostname suffix before connecting. Self-hosted Grafana requires deploying the open-source MCP server on an approved HTTPS host."}],
         "name": "Grafana",
         "registry_server": "io.github.grafana/mcp-grafana",
         "registry_version": "1.6.0",
