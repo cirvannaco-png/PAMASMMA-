@@ -5,7 +5,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import { integrations } from "@/lib/api";
+import { integrations, mcp as mcpApi } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function IntegrationsPage() {
@@ -15,6 +15,10 @@ export default function IntegrationsPage() {
   const [mcp, setMcp] = useState<Array<Record<string, unknown>>>([]);
   const [auditEntries, setAuditEntries] = useState<Array<Record<string, unknown>>>([]);
   const [healthStatuses, setHealthStatuses] = useState<Record<string, string>>({});
+  const [toolLists, setToolLists] = useState<Record<string, Array<Record<string, unknown>>>>({});
+  const [toolArguments, setToolArguments] = useState<Record<string, string>>({});
+  const [toolResults, setToolResults] = useState<Record<string, string>>({});
+  const [toolBusy, setToolBusy] = useState<Record<string, boolean>>({});
   const [recommended, setRecommended] = useState<Array<Record<string, unknown>>>([]);
   const [selectedProfile, setSelectedProfile] = useState<Record<string, unknown> | null>(null);
   const [selectedEndpointNotes, setSelectedEndpointNotes] = useState("");
@@ -64,6 +68,90 @@ export default function IntegrationsPage() {
       toast.success("MCP connector registered.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "MCP registration failed.");
+    }
+  };
+
+  const getToolKey = (connectorId: string, toolName: string) => `${connectorId}::${toolName}`;
+
+  const toggleMcpTools = async (connectorId: string) => {
+    if (Object.prototype.hasOwnProperty.call(toolLists, connectorId)) {
+      setToolLists((current) => {
+        const next = { ...current };
+        delete next[connectorId];
+        return next;
+      });
+      return;
+    }
+
+    const busyKey = `discover:${connectorId}`;
+    setToolBusy((current) => ({ ...current, [busyKey]: true }));
+    try {
+      const data = await integrations.mcpTools(connectorId);
+      setToolLists((current) => ({ ...current, [connectorId]: data.tools }));
+      setToolArguments((current) => {
+        const next = { ...current };
+        for (const tool of data.tools) {
+          if (typeof tool.name !== "string") continue;
+          const key = getToolKey(connectorId, tool.name);
+          if (!(key in next)) next[key] = "{}";
+        }
+        return next;
+      });
+      toast.success(`Discovered ${data.tools.length} MCP tools.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "MCP tool discovery failed.");
+    } finally {
+      setToolBusy((current) => ({ ...current, [busyKey]: false }));
+    }
+  };
+
+  const runMcpTool = async (connectorId: string, connectorName: string, toolName: string) => {
+    const key = getToolKey(connectorId, toolName);
+    let args: Record<string, unknown>;
+    try {
+      const parsed: unknown = JSON.parse(toolArguments[key] ?? "{}");
+      if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+        throw new Error("Tool arguments must be a JSON object.");
+      }
+      args = parsed as Record<string, unknown>;
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Enter valid JSON arguments.");
+      return;
+    }
+
+    const argumentPreview = JSON.stringify(args, null, 2);
+    const visiblePreview = argumentPreview.length > 1200
+      ? `${argumentPreview.slice(0, 1200)}\n… confirmation preview truncated`
+      : argumentPreview;
+    const approved = window.confirm(
+      `Review external MCP action\n\nConnector: ${connectorName}\nTool: ${toolName}\n\nArguments:\n${visiblePreview}\n\nRemote tool behavior is not guaranteed. This may modify external systems; treat the result as untrusted.\n\nRun this tool?`,
+    );
+    if (!approved) return;
+
+    setToolBusy((current) => ({ ...current, [key]: true }));
+    try {
+      const result = await mcpApi.call(connectorId, toolName, args, true);
+      const resultText = JSON.stringify(result, null, 2) ?? String(result);
+      setToolResults((current) => ({
+        ...current,
+        [key]: resultText.length > 20000
+          ? `${resultText.slice(0, 20000)}\n… display truncated at 20,000 characters`
+          : resultText,
+      }));
+      if (result.is_error === true) {
+        toast.error(`${toolName} returned an MCP error. Inspect the result.`);
+      } else {
+        toast.success(`MCP tool ${toolName} invoked.`);
+      }
+      void integrations.mcpAudit(20)
+        .then((audit) => setAuditEntries(audit.entries))
+        .catch(() => toast("Tool completed, but the audit view could not be refreshed."));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "MCP tool invocation failed.";
+      setToolResults((current) => ({ ...current, [key]: JSON.stringify({ error: message }, null, 2) }));
+      toast.error(message);
+    } finally {
+      setToolBusy((current) => ({ ...current, [key]: false }));
     }
   };
 
