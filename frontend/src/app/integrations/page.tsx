@@ -179,7 +179,7 @@ export default function IntegrationsPage() {
 
         <section style={{ border: "1px solid #202040", borderRadius: 12, padding: 20 }}>
           <h2 style={{ fontSize: 16 }}>MCP application + AI connector fabric</h2>
-          <p style={{ color: "#77779A", fontSize: 13 }}>Register authorized Streamable HTTP MCP servers. PAMASMMA discovers their tools and keeps credentials encrypted.</p>
+          <p style={{ color: "#77779A", fontSize: 13 }}>Register authorized Streamable HTTP MCP servers. Discover their tool schemas, review JSON arguments, and approve each invocation before it runs. Results from external tools are displayed as untrusted output.</p>
           <div id="mcp-connect-form" style={{ display: "grid", gap: 8 }}>
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Connector name" style={{ padding: 10, background: "#0A0A18", border: "1px solid #29294A", color: "#D0D0EC", borderRadius: 8 }} />
             <input value={endpoint} onChange={(e) => setEndpoint(e.target.value)} placeholder="https://example.com/mcp" style={{ padding: 10, background: "#0A0A18", border: "1px solid #29294A", color: "#D0D0EC", borderRadius: 8 }} />
