@@ -164,6 +164,17 @@ def _oauth_client(
     )
 
 
+async def _validate_mcp_request_target(request: Any) -> None:
+    """Apply the same egress policy to every MCP SDK HTTP request.
+
+    OAuth protected-resource metadata can advertise a distinct authorization
+    server. Validate each request target, not just the initial MCP endpoint, so
+    discovery and token exchange cannot silently bypass the production host
+    allowlist.
+    """
+    validate_mcp_endpoint(str(request.url))
+
+
 async def _client(
     connector: dict[str, Any],
     user_id: str,
@@ -185,6 +196,7 @@ async def _client(
         auth=auth,
         timeout=httpx2.Timeout(30, read=300),
         follow_redirects=False,
+        event_hooks={"request": [_validate_mcp_request_target]},
     )
     transport = streamable_http_client(
         connector["endpoint"],
