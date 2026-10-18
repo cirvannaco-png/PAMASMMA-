@@ -1,7 +1,8 @@
 """
 PAMASMMA v4.2 — Memory fabric storage and retrieval.
 Local deterministic embeddings are a compatibility fallback; OpenAI embeddings
-remain available for higher semantic fidelity.
+remain available for higher semantic fidelity. Hugging Face is opt-in and must
+only be enabled after a complete, model-consistent reindex.
 """
 import json
 import logging
@@ -40,6 +41,13 @@ async def embed_text(content: str) -> list[float]:
             return response.data[0].embedding
         finally:
             await client.close()
+
+    if provider == "huggingface":
+        # Imported lazily so the default local/OpenAI paths have no dependency
+        # on Hugging Face configuration or network availability.
+        from app.embeddings.huggingface import embed_text_huggingface
+
+        return await embed_text_huggingface(content)
 
     raise ValueError(f"Unsupported EMBEDDING_PROVIDER: {settings.embedding_provider!r}")
 
@@ -256,9 +264,7 @@ async def retrieve_memory_items(
                     ),
                     importance=float(metadata.get("importance", 0.5)),
                     reliability=float(metadata.get("reliability", 0.5)),
-                    outcome_relevance=float(
-                        metadata.get("outcome_relevance", 0.5)
-                    ),
+                    outcome_relevance=float(metadata.get("outcome_relevance", 0.5)),
                     contextual_fit=round(contextual_fit, 4),
                     score=round(score, 4),
                     created_at=created_at,
@@ -306,7 +312,7 @@ def _cosine_similarity(
         x * y for x, y in zip(a, b, strict=False)
     )
     norm_a = sum(x * x for x in a) ** 0.5
-    norm_b = sum(y * y for y in b) ** 0.5
+    norm_b = sum(x * x for x in b) ** 0.5
     if not norm_a or not norm_b:
         return 0.0
     return float(
@@ -359,8 +365,7 @@ async def purge_expired_memories(
     if not settings.is_persistent:
         before = len(memory_store.memories)
         memory_store.memories[:] = [
-            item
-            for item in memory_store.memories
+            item for item in memory_store.memories
             if item["created_at"] >= cutoff
         ]
         return before - len(memory_store.memories)
