@@ -46,3 +46,15 @@ def test_endpoint_requires_https_off_localhost(monkeypatch):
 def test_endpoint_allows_local_development(monkeypatch):
     monkeypatch.setenv("HF_EMBEDDING_API_URL", "http://localhost:8080/embed")
     assert _endpoint() == "http://localhost:8080/embed"
+
+
+def test_endpoint_rejects_non_http_scheme_on_localhost(monkeypatch):
+    monkeypatch.setenv("HF_EMBEDDING_API_URL", "ftp://localhost:8080/embed")
+    with pytest.raises(RuntimeError, match="absolute HTTP\\(S\\) URL"):
+        _endpoint()
+
+
+def test_endpoint_rejects_embedded_credentials(monkeypatch):
+    monkeypatch.setenv("HF_EMBEDDING_API_URL", "https://user:password@example.com/embed")
+    with pytest.raises(RuntimeError, match="credentials or a fragment"):
+        _endpoint()
