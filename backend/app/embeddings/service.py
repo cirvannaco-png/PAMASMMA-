@@ -312,7 +312,7 @@ def _cosine_similarity(
         x * y for x, y in zip(a, b, strict=False)
     )
     norm_a = sum(x * x for x in a) ** 0.5
-    norm_b = sum(x * x for x in b) ** 0.5
+    norm_b = sum(y * y for y in b) ** 0.5
     if not norm_a or not norm_b:
         return 0.0
     return float(
