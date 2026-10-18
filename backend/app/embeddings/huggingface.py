@@ -26,10 +26,12 @@ def _endpoint() -> str:
     if not value:
         raise RuntimeError("HF_EMBEDDING_API_URL is required for Hugging Face embeddings.")
     parsed = urlparse(value)
+    if parsed.scheme not in {"https", "http"} or not parsed.hostname or not parsed.netloc:
+        raise RuntimeError("HF_EMBEDDING_API_URL must be an absolute HTTP(S) URL.")
+    if parsed.username or parsed.password or parsed.fragment:
+        raise RuntimeError("HF_EMBEDDING_API_URL must not contain credentials or a fragment.")
     if parsed.scheme != "https" and parsed.hostname not in {"localhost", "127.0.0.1", "::1"}:
         raise RuntimeError("HF_EMBEDDING_API_URL must use HTTPS outside localhost.")
-    if not parsed.netloc:
-        raise RuntimeError("HF_EMBEDDING_API_URL must be an absolute URL.")
     return value
 
 
