@@ -1,8 +1,6 @@
-import math
-
 import pytest
 
-from app.embeddings.huggingface import _normalize_vector, _endpoint
+from app.embeddings.huggingface import _endpoint, _normalize_vector
 
 
 def test_normalize_vector_pads_to_database_dimension():
@@ -19,7 +17,10 @@ def test_normalize_vector_accepts_single_item_batch():
     assert vector[0] == pytest.approx(1.0)
 
 
-@pytest.mark.parametrize("value", [[], [0.0, 0.0], [float("nan")], [float("inf")], [[1.0], [2.0]], ["bad"]])
+@pytest.mark.parametrize(
+    "value",
+    [[], [0.0, 0.0], [float("nan")], [float("inf")], [[1.0], [2.0]], ["bad"]],
+)
 def test_normalize_vector_rejects_invalid_vectors(value):
     with pytest.raises(ValueError):
         _normalize_vector(value)
