@@ -55,7 +55,7 @@ class ProviderRouter:
         if (
             sensitivity == Sensitivity.SENSITIVE
             and not settings.intelligence_cloud_for_sensitive
-            and configured not in {"kernel", "local", "ollama"}
+            and configured not in {"kernel", "local"}
         ):
             return ProviderSelection("kernel", KernelProvider())
 
