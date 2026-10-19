@@ -5,6 +5,7 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 COPY package.json ./
 RUN npm install --include=dev
+RUN npm audit --omit=dev --audit-level=high
 COPY . .
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
