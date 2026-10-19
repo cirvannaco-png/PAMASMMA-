@@ -1,6 +1,5 @@
 """Multi-model routing, sensitive-data guardrails, and provider failover tests."""
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
 
 import pytest
 from pydantic import SecretStr
@@ -64,8 +63,10 @@ def test_pool_routes_complex_and_strategic_tasks_to_deep_models_first(monkeypatc
 def test_pool_deduplicates_and_ignores_blank_model_ids(monkeypatch):
     monkeypatch.setattr(
         "app.intelligence.provider_router.get_settings",
-        lambda: pool_settings(model_pool_fast="fast-a, ,fast-a,fast-b",
-                              model_pool_deep="deep-a,fast-a"),
+        lambda: pool_settings(
+            model_pool_fast="fast-a, ,fast-a,fast-b",
+            model_pool_deep="deep-a,fast-a",
+        ),
     )
     monkeypatch.setattr(
         ProviderRouter,
@@ -91,12 +92,20 @@ def test_sensitive_requests_never_select_remote_provider_by_default(
     monkeypatch.setattr(
         ProviderRouter,
         "_instantiate_pool",
-        staticmethod(lambda _model: pytest.fail("sensitive request instantiated pool model")),
+        staticmethod(
+            lambda _model: pytest.fail(
+                "sensitive request instantiated pool model"
+            )
+        ),
     )
     monkeypatch.setattr(
         ProviderRouter,
         "_instantiate",
-        staticmethod(lambda _name: pytest.fail("sensitive request instantiated remote provider")),
+        staticmethod(
+            lambda _name: pytest.fail(
+                "sensitive request instantiated remote provider"
+            )
+        ),
     )
     selection = ProviderRouter().select(
         TaskComplexity.STRATEGIC, Sensitivity.SENSITIVE
@@ -220,7 +229,10 @@ def test_pool_openai_client_uses_target_model_timeout_and_disables_internal_retr
 
     from app.intelligence.providers.openai_compatible import OpenAICompatibleProvider
 
-    provider = OpenAICompatibleProvider(model="deepseek-ai/DeepSeek-R1:fastest", max_retries=0)
+    provider = OpenAICompatibleProvider(
+        model="deepseek-ai/DeepSeek-R1:fastest",
+        max_retries=0,
+    )
     assert provider.model == "deepseek-ai/DeepSeek-R1:fastest"
     assert captured["base_url"] == "https://router.huggingface.co/v1/"
     assert captured["timeout"] == 7
