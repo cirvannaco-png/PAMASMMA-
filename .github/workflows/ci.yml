@@ -34,7 +34,7 @@ jobs:
       - name: Lint (ruff)
         run: |
           pip install ruff==0.16.10
-          ruff check app/ tests/
+          ruff check app/ tests/ ../deploy_space.py
       - name: Type check (mypy)
         run: |
           pip install mypy types-redis
@@ -150,8 +150,9 @@ jobs:
   docker:
     name: Docker Build Check
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     needs: [backend, durable-backend, frontend]
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
       - name: Build backend image
@@ -159,6 +160,13 @@ jobs:
       - name: Build frontend image
         run: |
           docker build \
-            --build-arg NEXT_PUBLIC_API_URL=https://pamasmma-api.onrender.com/api/v1 \
+            --build-arg NEXT_PUBLIC_API_URL=https://pamasmma-api-staging.onrender.com/api/v1 \
             -t pamasmma-web:ci \
+            ./frontend
+      - name: Build Hugging Face Space frontend image
+        run: |
+          docker build \
+            --build-arg NEXT_PUBLIC_API_URL=https://pamasmma-api-staging.onrender.com/api/v1 \
+            -f hf-space/Dockerfile \
+            -t pamasmma-hf-space:ci \
             ./frontend
