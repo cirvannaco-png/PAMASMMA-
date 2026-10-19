@@ -280,3 +280,62 @@ async def test_non_pool_remote_failure_still_falls_back_to_kernel():
     )
     assert routed.name == "kernel"
     assert response.strip()
+
+@pytest.mark.asyncio
+async def test_pool_timeout_fails_over_to_next_model():
+    from app.intelligence.provider_router import ProviderSelection
+
+    class TimedOutProvider:
+        async def generate(self, system_prompt, messages, max_tokens):
+            raise TimeoutError("provider request timed out")
+
+    fallback = NamedProvider("fast-backup", response="fallback answer")
+    selection = ProviderSelection(
+        "pool:deep-primary",
+        TimedOutProvider(),
+        (ProviderSelection("pool:fast-backup", fallback),),
+    )
+    routed, response = await ProviderRouter().generate(
+        selection, "system", [{"role": "user", "content": "test"}], 64
+    )
+    assert routed.name == "pool:fast-backup"
+    assert response == "fallback answer"
+    assert fallback.calls == 1
+
+
+@pytest.mark.asyncio
+async def test_openai_compatible_adapter_handles_chat_response():
+    from app.intelligence.providers.openai_compatible import OpenAICompatibleProvider
+
+    captured = {}
+
+    class FakeCompletions:
+        async def create(self, **kwargs):
+            captured.update(kwargs)
+            return SimpleNamespace(
+                choices=[
+                    SimpleNamespace(
+                        message=SimpleNamespace(content="model-generated answer")
+                    )
+                ]
+            )
+
+    provider = OpenAICompatibleProvider.__new__(OpenAICompatibleProvider)
+    provider.model = "provider/model-fast"
+    provider.client = SimpleNamespace(
+        chat=SimpleNamespace(completions=FakeCompletions())
+    )
+    response = await provider.generate(
+        "You are a test assistant.",
+        [{"role": "user", "content": "Say hello."}],
+        96,
+    )
+
+    assert response == "model-generated answer"
+    assert captured["model"] == "provider/model-fast"
+    assert captured["max_tokens"] == 96
+    assert captured["messages"] == [
+        {"role": "system", "content": "You are a test assistant."},
+        {"role": "user", "content": "Say hello."},
+    ]
+
