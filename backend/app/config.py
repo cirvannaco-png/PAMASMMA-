@@ -218,7 +218,13 @@ class Settings(BaseSettings):
                 raise ValueError(
                     "MODEL_API_KEY is required when MODEL_PROVIDER=pool."
                 )
-            if not (self.model_pool_fast.strip() or self.model_pool_deep.strip()):
+            configured_models = [
+                model.strip()
+                for raw_list in (self.model_pool_fast, self.model_pool_deep)
+                for model in raw_list.split(",")
+                if model.strip()
+            ]
+            if not configured_models:
                 raise ValueError(
                     "MODEL_POOL_FAST or MODEL_POOL_DEEP must list at least one model "
                     "when MODEL_PROVIDER=pool."
