@@ -78,14 +78,25 @@ def test_pool_deduplicates_and_ignores_blank_model_ids(monkeypatch):
     ]
 
 
-def test_sensitive_requests_never_select_remote_pool_by_default(monkeypatch):
+@pytest.mark.parametrize(
+    "provider_name", ["pool", "anthropic", "openai-compatible", "hybrid", "ollama"]
+)
+def test_sensitive_requests_never_select_remote_provider_by_default(
+    monkeypatch, provider_name
+):
     monkeypatch.setattr(
-        "app.intelligence.provider_router.get_settings", lambda: pool_settings()
+        "app.intelligence.provider_router.get_settings",
+        lambda: pool_settings(model_provider=provider_name),
     )
     monkeypatch.setattr(
         ProviderRouter,
         "_instantiate_pool",
-        staticmethod(lambda _model: pytest.fail("sensitive request instantiated remote model")),
+        staticmethod(lambda _model: pytest.fail("sensitive request instantiated pool model")),
+    )
+    monkeypatch.setattr(
+        ProviderRouter,
+        "_instantiate",
+        staticmethod(lambda _name: pytest.fail("sensitive request instantiated remote provider")),
     )
     selection = ProviderRouter().select(
         TaskComplexity.STRATEGIC, Sensitivity.SENSITIVE
