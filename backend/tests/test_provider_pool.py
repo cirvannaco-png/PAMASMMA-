@@ -79,6 +79,30 @@ def test_pool_deduplicates_and_ignores_blank_model_ids(monkeypatch):
     ]
 
 
+def test_provider_clients_are_reused_between_select_calls(monkeypatch):
+    monkeypatch.setattr(
+        "app.intelligence.provider_router.get_settings", lambda: pool_settings()
+    )
+    created = []
+
+    def factory(model):
+        provider = NamedProvider(model)
+        created.append(provider)
+        return provider
+
+    monkeypatch.setattr(
+        ProviderRouter, "_instantiate_pool", staticmethod(factory)
+    )
+    router = ProviderRouter()
+    first = router.select(TaskComplexity.ROUTINE, Sensitivity.STANDARD)
+    second = router.select(TaskComplexity.ROUTINE, Sensitivity.STANDARD)
+
+    assert first.provider is second.provider
+    assert first.fallbacks[0].provider is second.fallbacks[0].provider
+    assert first.fallbacks[1].provider is second.fallbacks[1].provider
+    assert len(created) == 3
+
+
 @pytest.mark.parametrize(
     "provider_name", ["pool", "anthropic", "openai-compatible", "hybrid", "ollama"]
 )
