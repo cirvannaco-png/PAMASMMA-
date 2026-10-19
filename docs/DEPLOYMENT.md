@@ -43,6 +43,27 @@ ALLOWED_ORIGINS=["https://<production web domain>"]
 Anthropic and OpenAI credentials are optional provider integrations. They are not
 required when the kernel and local embeddings are selected.
 
+### Optional Hugging Face multi-model pool
+
+Use this only when remote inference is approved for the deployment. PAMASMMA selects
+the deep pool first for complex/strategic tasks and the fast pool first for routine
+tasks. Within each pool, model IDs are attempted in order; a remote failure advances
+to the next configured model and finally the local Intelligence Kernel.
+
+```text
+MODEL_PROVIDER=pool
+MODEL_API_BASE_URL=https://router.huggingface.co/v1
+MODEL_API_KEY=<fine-grained HF token with Inference Providers permission>
+MODEL_POOL_FAST=<model-id-1>,<model-id-2>
+MODEL_POOL_DEEP=<model-id-3>,<model-id-4>
+INTELLIGENCE_CLOUD_FOR_SENSITIVE=false
+```
+
+Keep `INTELLIGENCE_CLOUD_FOR_SENSITIVE=false` unless there is a documented,
+consented reason to send sensitive inputs to remote providers. Never commit model
+provider tokens. Use model IDs actually enabled for the account and append supported
+Hugging Face routing policies such as `:fastest` where appropriate.
+
 ### Ephemeral validation
 
 Use this mode for demonstrations, CI, and staging:
