@@ -40,6 +40,11 @@ def _split_models(raw: str | None) -> list[str]:
 
 
 class ProviderRouter:
+    def __init__(self) -> None:
+        # Reuse provider clients across requests instead of opening a new HTTP
+        # connection pool for every cognitive invocation.
+        self._provider_cache: dict[str, Provider] = {}
+
     def select(
         self,
         complexity: TaskComplexity,
@@ -91,7 +96,11 @@ class ProviderRouter:
         built: list[ProviderSelection] = []
         for name, factory in candidates:
             try:
-                built.append(ProviderSelection(name, factory()))
+                provider = self._provider_cache.get(name)
+                if provider is None:
+                    provider = factory()
+                    self._provider_cache[name] = provider
+                built.append(ProviderSelection(name, provider))
             except Exception:
                 # A missing SDK/configuration for one provider must not block
                 # the next provider in the deterministic priority order.
