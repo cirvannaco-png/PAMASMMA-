@@ -63,16 +63,24 @@ class ProviderRouter:
         if configured == "pool":
             fast = _split_models(getattr(settings, "model_pool_fast", ""))
             deep = _split_models(getattr(settings, "model_pool_deep", ""))
-            ordered = [*deep, *fast] if heavy else [*fast, *deep]
+            preferred_order = [*deep, *fast] if heavy else [*fast, *deep]
+            ordered: list[str] = []
+            seen: set[str] = set()
+            for model in preferred_order:
+                if model not in seen:
+                    seen.add(model)
+                    ordered.append(model)
             candidates = [
                 (f"pool:{model}", partial(self._instantiate_pool, model))
                 for model in ordered
             ]
         elif configured == "hybrid":
+            # Preserve the established hybrid preference: strategic requests
+            # try Anthropic first; routine requests use the compatible provider.
             names = (
                 ["anthropic", "openai-compatible"]
                 if heavy
-                else ["openai-compatible", "anthropic"]
+                else ["openai-compatible"]
             )
             candidates = [(name, partial(self._instantiate, name)) for name in names]
         elif configured in {"kernel", "local"}:
