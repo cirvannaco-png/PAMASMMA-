@@ -50,6 +50,9 @@ def main() -> int:
         repo_id=args.space, repo_type="space", space_sdk="docker",
         private=args.private, exist_ok=True,
     )
+    # Space variables are exposed to Docker builds as build args and at runtime.
+    # Next.js inlines NEXT_PUBLIC_API_URL at build time, so this variable must
+    # exist before the upload triggers the Space build.
     api.add_space_variable(args.space, "NEXT_PUBLIC_API_URL", args.api_url)
 
     with tempfile.TemporaryDirectory() as tmp:
