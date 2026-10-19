@@ -2,7 +2,7 @@ name: PAMASMMA CI
 
 on:
   push:
-    branches: [main, develop, fix/production-hardening, feature/website-completion]
+    branches: [main, develop, fix/production-hardening, feature/website-completion, hf-pamasmma-deployment-fix]
   pull_request:
     branches: [main]
 
@@ -151,7 +151,7 @@ jobs:
     name: Staging API, CORS, frontend and auth smoke
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/hf-pamasmma-deployment-fix'
     steps:
       - name: Check API liveness and readiness
         env:
@@ -208,7 +208,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     needs: [backend, durable-backend, frontend]
-    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/hf-pamasmma-deployment-fix'
     steps:
       - uses: actions/checkout@v4
       - name: Build backend image
