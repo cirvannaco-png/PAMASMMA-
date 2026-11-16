@@ -2,7 +2,7 @@ name: PAMASMMA CI
 
 on:
   push:
-    branches: [main, develop, fix/production-hardening, feature/website-completion]
+    branches: [main, develop, fix/production-hardening, feature/website-completion, hf-pamasmma-deployment-fix]
   pull_request:
     branches: [main]
 
@@ -34,7 +34,7 @@ jobs:
       - name: Lint (ruff)
         run: |
           pip install ruff==0.16.10
-          ruff check app/ tests/
+          ruff check app/ tests/ ../deploy_space.py
       - name: Type check (mypy)
         run: |
           pip install mypy types-redis
@@ -147,11 +147,63 @@ jobs:
           NEXT_PUBLIC_API_URL: https://pamasmma-api.onrender.com/api/v1
         run: npm run build
 
+  staging-smoke:
+    name: Staging API, CORS, frontend and auth smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/hf-pamasmma-deployment-fix'
+    steps:
+      - name: Check API liveness and readiness
+        env:
+          API_BASE: https://pamasmma-api-staging.onrender.com
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 12 --retry-delay 5 --retry-max-time 150 --retry-all-errors --connect-timeout 10 --max-time 30 "$API_BASE/health" -o /tmp/health.json
+          python - <<'PY'
+          import json
+          with open('/tmp/health.json', encoding='utf-8') as f:
+              data = json.load(f)
+          assert data.get('status') == 'healthy', data
+          assert data.get('persistence') == 'memory', data
+          assert data.get('intelligence') == 'kernel', data
+          print('API liveness healthy; staging is explicitly ephemeral/kernel mode.')
+          PY
+          curl --fail --silent --show-error --retry 12 --retry-delay 5 --retry-max-time 150 --retry-all-errors --connect-timeout 10 --max-time 30 "$API_BASE/health/ready" -o /tmp/readiness.json
+          python - <<'PY'
+          import json
+          with open('/tmp/readiness.json', encoding='utf-8') as f:
+              data = json.load(f)
+          assert data.get('status') == 'ready', data
+          print('API readiness endpoint returns ready.')
+          PY
+
+      - name: Verify frontend and API CORS contract
+        env:
+          API_BASE: https://pamasmma-api-staging.onrender.com
+          WEB_ORIGIN: https://pamasmma-web-staging.onrender.com
+          WEB_URL: https://pamasmma-web-staging.onrender.com
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 8 --retry-delay 5 --retry-max-time 120 --retry-all-errors --connect-timeout 10 --max-time 30 "$WEB_URL/" -o /tmp/home.html
+          grep -q '<html' /tmp/home.html
+          curl --silent --show-error --connect-timeout 10 --max-time 30 -D /tmp/cors-headers -o /tmp/cors-body -X OPTIONS "$API_BASE/api/v1/auth/totp/setup" -H "Origin: $WEB_ORIGIN" -H 'Access-Control-Request-Method: POST' -H 'Access-Control-Request-Headers: content-type,x-bootstrap-token'
+          grep -Fiq "access-control-allow-origin: $WEB_ORIGIN" /tmp/cors-headers
+          echo 'Frontend responds and API CORS preflight admits the exact staging origin.'
+
+      - name: Verify founder bootstrap endpoint rejects an invalid credential
+        env:
+          API_BASE: https://pamasmma-api-staging.onrender.com
+        run: |
+          set -euo pipefail
+          code=$(curl --silent --show-error --connect-timeout 10 --max-time 30 -o /tmp/auth-response.json -w '%{http_code}' -X POST "$API_BASE/api/v1/auth/totp/setup" -H 'Content-Type: application/json' -H 'X-Bootstrap-Token: deliberately-invalid-ci-credential' --data '{"user_id":"kelson-mwangi-cirvanna","username":"kelson@cirvanna.co"}')
+          test "$code" = '401'
+          echo 'Founder bootstrap endpoint rejects an invalid token (HTTP 401).'
   docker:
     name: Docker Build Check
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     needs: [backend, durable-backend, frontend]
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/hf-pamasmma-deployment-fix'
     steps:
       - uses: actions/checkout@v4
       - name: Build backend image
@@ -159,6 +211,13 @@ jobs:
       - name: Build frontend image
         run: |
           docker build \
-            --build-arg NEXT_PUBLIC_API_URL=https://pamasmma-api.onrender.com/api/v1 \
+            --build-arg NEXT_PUBLIC_API_URL=https://pamasmma-api-staging.onrender.com/api/v1 \
             -t pamasmma-web:ci \
+            ./frontend
+      - name: Build Hugging Face Space frontend image
+        run: |
+          docker build \
+            --build-arg NEXT_PUBLIC_API_URL=https://pamasmma-api-staging.onrender.com/api/v1 \
+            -f hf-space/Dockerfile \
+            -t pamasmma-hf-space:ci \
             ./frontend

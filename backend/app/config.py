@@ -46,6 +46,10 @@ class Settings(BaseSettings):
     model_api_base_url: str | None = None
     model_api_key: SecretStr | None = None
     model_timeout_seconds: int = 60
+    # Comma-separated OpenAI-compatible model IDs, ordered by preference.
+    # Used only for MODEL_PROVIDER=pool; remote calls require an inference key.
+    model_pool_fast: str = ""
+    model_pool_deep: str = ""
 
     anthropic_api_key: str | None = None
     anthropic_model: str = "claude-sonnet-4-6"
@@ -204,8 +208,27 @@ class Settings(BaseSettings):
             raise ValueError("OPENAI_API_KEY is required when EMBEDDING_PROVIDER=openai.")
         if self.model_provider == "anthropic" and not self.anthropic_api_key:
             raise ValueError("ANTHROPIC_API_KEY is required when MODEL_PROVIDER=anthropic.")
-        if self.model_provider == "openai-compatible" and not self.model_api_base_url:
-            raise ValueError("MODEL_API_BASE_URL is required for openai-compatible provider.")
+        if self.model_provider.strip().lower() == "pool":
+            if not self.model_api_base_url:
+                raise ValueError("MODEL_API_BASE_URL is required when MODEL_PROVIDER=pool.")
+            if (
+                self.model_api_key is None
+                or not self.model_api_key.get_secret_value().strip()
+            ):
+                raise ValueError(
+                    "MODEL_API_KEY is required when MODEL_PROVIDER=pool."
+                )
+            configured_models = [
+                model.strip()
+                for raw_list in (self.model_pool_fast, self.model_pool_deep)
+                for model in raw_list.split(",")
+                if model.strip()
+            ]
+            if not configured_models:
+                raise ValueError(
+                    "MODEL_POOL_FAST or MODEL_POOL_DEEP must list at least one model "
+                    "when MODEL_PROVIDER=pool."
+                )
         return self
 
 

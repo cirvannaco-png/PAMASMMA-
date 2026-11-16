@@ -43,6 +43,27 @@ ALLOWED_ORIGINS=["https://<production web domain>"]
 Anthropic and OpenAI credentials are optional provider integrations. They are not
 required when the kernel and local embeddings are selected.
 
+### Optional Hugging Face multi-model pool
+
+Use this only when remote inference is approved for the deployment. PAMASMMA selects
+the deep pool first for complex/strategic tasks and the fast pool first for routine
+tasks. Within each pool, model IDs are attempted in order; a remote failure advances
+to the next configured model and finally the local Intelligence Kernel.
+
+```text
+MODEL_PROVIDER=pool
+MODEL_API_BASE_URL=https://router.huggingface.co/v1
+MODEL_API_KEY=<fine-grained HF token with Inference Providers permission>
+MODEL_POOL_FAST=<model-id-1>,<model-id-2>
+MODEL_POOL_DEEP=<model-id-3>,<model-id-4>
+INTELLIGENCE_CLOUD_FOR_SENSITIVE=false
+```
+
+Keep `INTELLIGENCE_CLOUD_FOR_SENSITIVE=false` unless there is a documented,
+consented reason to send sensitive inputs to remote providers. Never commit model
+provider tokens. Use model IDs actually enabled for the account and append supported
+Hugging Face routing policies such as `:fastest` where appropriate.
+
 ### Ephemeral validation
 
 Use this mode for demonstrations, CI, and staging:
@@ -170,7 +191,20 @@ After deployment:
 9. Verify token refresh and logout.
 10. Verify persistent memory/action-log behavior in durable mode.
 
-## 7. Staging validation completed
+## 7. Hugging Face frontend Space
+
+The repository contains a separate Docker Space deployment under `hf-space/`.
+Run `deploy_space.py` from the repository root with a Hugging Face token that has
+repository write access and the intended Space ID. Set `NEXT_PUBLIC_API_URL` to the
+API origin appropriate for that environment **before the Space build**; Next.js
+inlines public environment variables into the browser bundle at build time.
+
+The connected Hugging Face identity currently has read-only repository scopes, and
+the previously checked PAMASMMA Space IDs were not found. Do not treat a Space as
+deployed until a writable target is confirmed, its Docker build is successful, and
+the browser can reach the API with the correct CORS/WebAuthn settings.
+
+## 8. Staging validation completed
 
 A Render staging deployment of the PAMASMMA branch has been exercised with:
 
@@ -184,7 +218,7 @@ A Render staging deployment of the PAMASMMA branch has been exercised with:
 The API and web staging services reached `live` state and the application startup
 completed successfully.
 
-## 8. Current infrastructure constraint
+## 9. Current infrastructure constraint
 
 The current Render workspace already has one active free PostgreSQL instance owned
 by another project. PAMASMMA must not reuse that database.
@@ -197,7 +231,7 @@ durable production.
 Do not bypass this requirement by sharing another repository's database or by
 pretending memory-mode persistence is durable.
 
-## 9. Rollback
+## 10. Rollback
 
 Rollback the Render service to the last known-good deployment after preserving
 application logs and identifying the triggering commit.
@@ -205,7 +239,7 @@ application logs and identifying the triggering commit.
 For database changes, use an explicit backward-compatible migration strategy.
 Do not rely on application startup to reverse schema changes.
 
-## 10. Repository boundary
+## 11. Repository boundary
 
 PAMASMMA owns the assistant platform and its cognitive infrastructure.
 

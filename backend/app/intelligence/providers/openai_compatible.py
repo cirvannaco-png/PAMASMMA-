@@ -8,15 +8,17 @@ from app.config import get_settings
 
 
 class OpenAICompatibleProvider:
-    def __init__(self) -> None:
+    def __init__(self, model: str | None = None, max_retries: int = 2) -> None:
         settings = get_settings()
         if not settings.model_api_base_url:
             raise RuntimeError("MODEL_API_BASE_URL is not configured.")
         self.client = AsyncOpenAI(
             api_key=(settings.model_api_key.get_secret_value() if settings.model_api_key else "local"),
             base_url=settings.model_api_base_url.rstrip("/") + "/",
+            timeout=settings.model_timeout_seconds,
+            max_retries=max_retries,
         )
-        self.model = settings.model_name
+        self.model = model or settings.model_name
 
     async def generate(self, system_prompt: str, messages: list[dict], max_tokens: int) -> str:
         response = await self.client.chat.completions.create(

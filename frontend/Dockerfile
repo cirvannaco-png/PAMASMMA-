@@ -8,7 +8,7 @@ ENV NODE_ENV=production
 # ── Deps ─────────────────────────────────────────────────────────────────────
 # ── Builder ───────────────────────────────────────────────────────────────────
 FROM base AS builder
-COPY package.json package-lock.json* ./
+COPY package.json ./
 RUN npm install --include=dev
 RUN npm audit --omit=dev --audit-level=high
 COPY . .
