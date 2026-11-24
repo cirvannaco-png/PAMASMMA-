@@ -11,6 +11,11 @@ import { useAuth } from "@/hooks/useAuth";
 
 type TranscriptSegment = { endMs: number; text: string };
 
+function nextJarvisEventId(sequence: { current: number }, prefix: string): string {
+  sequence.current += 1;
+  return `jarvis-${prefix}-${sequence.current}`;
+}
+
 async function waitForIceGathering(peer: RTCPeerConnection, timeoutMs = 15000): Promise<void> {
   if (peer.iceGatheringState === "complete") return;
   await new Promise<void>((resolve, reject) => {
@@ -50,6 +55,7 @@ export default function JarvisPage() {
   const transcriptSegmentsRef = useRef<TranscriptSegment[]>([]);
   const handledDelegationsRef = useRef<Set<string>>(new Set());
   const closeTimeoutRef = useRef<number | null>(null);
+  const eventSequenceRef = useRef(0);
 
   const cleanupVoice = () => {
     if (closeTimeoutRef.current !== null) {
@@ -76,7 +82,7 @@ export default function JarvisPage() {
       setVoiceStatus("Closing voice session…");
       channel.send(JSON.stringify({
         type: "session.close",
-        event_id: `jarvis-close-${Date.now()}`,
+        event_id: nextJarvisEventId(eventSequenceRef, "close"),
       }));
       closeTimeoutRef.current = window.setTimeout(cleanupVoice, 5000);
     } else {
@@ -112,7 +118,7 @@ export default function JarvisPage() {
   useEffect(() => () => {
     const channel = channelRef.current;
     if (channel?.readyState === "open") {
-      channel.send(JSON.stringify({ type: "session.close", event_id: `jarvis-unmount-${Date.now()}` }));
+      channel.send(JSON.stringify({ type: "session.close", event_id: nextJarvisEventId(eventSequenceRef, "unmount") }));
     }
     channel?.close();
     peerRef.current?.close();
@@ -182,7 +188,7 @@ export default function JarvisPage() {
       if (channel.readyState === "open") {
         channel.send(JSON.stringify({
           type: "session.commentary.append",
-          event_id: `jarvis-result-${Date.now()}`,
+          event_id: nextJarvisEventId(eventSequenceRef, "result"),
           delegation_id: delegationId,
           content: result.spoken_response.slice(0, 1400),
         }));
@@ -193,7 +199,7 @@ export default function JarvisPage() {
       if (channel.readyState === "open") {
         channel.send(JSON.stringify({
           type: "session.commentary.append",
-          event_id: `jarvis-error-${Date.now()}`,
+          event_id: nextJarvisEventId(eventSequenceRef, "error"),
           delegation_id: delegationId,
           content: "I could not reach PAMASMMA's reasoning service just now. Please repeat your request.",
         }));
@@ -486,7 +492,7 @@ export default function JarvisPage() {
               <div className="mx-auto grid h-20 w-20 place-items-center rounded-full border border-[#78613A] bg-[#19150F] text-3xl text-[#D4AF37] shadow-[0_0_60px_rgba(212,175,55,0.12)]">⬡</div>
               <p className="mt-6 font-mono text-[10px] tracking-[0.3em] text-[#D4AF37]">JARVIS · PAMASMMA</p>
               <h3 className="mt-3 text-2xl font-light text-[#F0F0F8]">At your service.</h3>
-              <p className="mx-auto mt-3 max-w-md text-sm leading-7 text-[#8585A8]">I can help you reason, plan, analyze and coordinate your PAMASMMA work. Speak naturally or type; substantive voice requests are delegated to PAMASMMA's CognitiveEngine.</p>
+              <p className="mx-auto mt-3 max-w-md text-sm leading-7 text-[#8585A8]">I can help you reason, plan, analyze and coordinate your PAMASMMA work. Speak naturally or type; substantive voice requests are delegated to PAMASMMA&apos;s CognitiveEngine.</p>
             </div>
           ) : (
             <div className="mx-auto flex max-w-4xl flex-col gap-5">
