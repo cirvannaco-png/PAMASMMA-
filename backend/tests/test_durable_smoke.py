@@ -7,7 +7,7 @@ import uuid
 
 import pyotp
 import pytest
-from sqlalchemy import text
+from sqlalchemy import select, text
 
 pytestmark = pytest.mark.asyncio
 
@@ -59,7 +59,7 @@ async def test_durable_postgres_valkey_auth_and_kernel() -> None:
         assert await connection.scalar(text("SELECT 1")) == 1
         assert await connection.scalar(
             text("SELECT version_num FROM alembic_version")
-         ) == "013"
+         ) == "014"
         assert await connection.scalar(
             text("SELECT extversion FROM pg_extension WHERE extname = 'vector'")
         ) is not None
@@ -95,6 +95,9 @@ async def test_durable_postgres_valkey_auth_and_kernel() -> None:
         "pamasmma_mcp_tool_audit",
         "pamasmma_jarvis_conversations",
         "pamasmma_jarvis_messages",
+        "pamasmma_jarvis_voice_sessions",
+        "pamasmma_jarvis_voice_delegations",
+        "pamasmma_jarvis_voice_usage",
     }.issubset(tables)
 
     from app.jarvis.service import (
@@ -168,6 +171,42 @@ async def test_durable_postgres_valkey_auth_and_kernel() -> None:
         )
         assert voice_assistant_message is not None
         assert voice_assistant_message["modality"] == "voice"
+
+        from app.jarvis.service import (
+            DelegationConflict,
+            claim_voice_delegation,
+            close_voice_session,
+            finish_voice_delegation,
+            register_voice_session,
+        )
+        from app.models.jarvis import JarvisVoiceUsage
+
+        voice_session = await register_voice_session(
+            session, owner_id, conversation_id, "provider-session-" + uuid.uuid4().hex, "gpt-live-1.1"
+        )
+        claimed, cached = await claim_voice_delegation(
+            session, owner_id, conversation_id, "durable-delegation-key", "unique transcript"
+        )
+        assert claimed == "claimed" and cached is None
+        response_cache = {"assistant_message": {"content": "idempotent"}}
+        await finish_voice_delegation(
+            session, owner_id, conversation_id, "durable-delegation-key", response_cache
+        )
+        replay_status, replay = await claim_voice_delegation(
+            session, owner_id, conversation_id, "durable-delegation-key", "unique transcript"
+        )
+        assert replay_status == "completed" and replay == response_cache
+        with pytest.raises(DelegationConflict):
+            await claim_voice_delegation(
+                session, owner_id, conversation_id, "durable-delegation-key", "changed transcript"
+            )
+        usage = await session.scalar(
+            select(JarvisVoiceUsage).where(JarvisVoiceUsage.voice_session_id == voice_session.id)
+        )
+        assert usage is not None and usage.status == "awaiting_provider"
+        assert await close_voice_session(
+            session, owner_id, conversation_id, voice_session.provider_session_id
+        )
 
         _, all_messages = await get_conversation(session, owner_id, conversation_id)
         assert [message.modality for message in all_messages] == ["text", "text", "voice", "voice"]
