@@ -170,6 +170,9 @@ class CognitiveEngine:
         recent_outcomes = await list_outcomes(
             user_id,
             limit=20,
+            primary_system_id=(
+                system.system_id if system.system_id == "JARVIS" else None
+            ),
         )
         confidence = self.confidence_engine.calibrate(
             confidence,
