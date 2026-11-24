@@ -116,7 +116,7 @@ export default function JarvisPage() {
       setConversations((previous) =>
         previous.map((item) =>
           item.id === conversationId
-            ? { ...item, last_message_at: new Date().toISOString(), updated_at: new Date().toISOString() }
+            ? { ...item, title: item.title === "New conversation" ? content.slice(0, 80) : item.title, last_message_at: new Date().toISOString(), updated_at: new Date().toISOString() }
             : item,
         ),
       );
