@@ -148,6 +148,29 @@ async def test_durable_postgres_valkey_auth_and_kernel() -> None:
         )
         assert stored_conversation.id == conversation_id
         assert [message.role for message in stored_messages] == ["user", "assistant"]
+
+        voice_turn_id, voice_history, voice_user_message = await begin_turn(
+            session,
+            owner_id,
+            conversation_id,
+            "Check this voice transcript.",
+            modality="voice",
+            delegation_id="item_voice_durable_test",
+        )
+        assert voice_user_message["role"] == "user"
+        voice_assistant_message = await finish_turn(
+            session,
+            owner_id,
+            conversation_id,
+            voice_turn_id,
+            "Voice response persisted.",
+            modality="voice",
+        )
+        assert voice_assistant_message is not None
+        assert voice_assistant_message["modality"] == "voice"
+
+        _, all_messages = await get_conversation(session, owner_id, conversation_id)
+        assert [message.modality for message in all_messages] == ["text", "text", "voice", "voice"]
         await session.execute(
             text("DELETE FROM pamasmma_jarvis_conversations WHERE id = CAST(:id AS uuid)"),
             {"id": str(conversation_id)},
