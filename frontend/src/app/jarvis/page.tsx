@@ -254,11 +254,11 @@ export default function JarvisPage() {
         setVoiceStatus("Listening · microphone active");
       };
       dataChannel.onclose = () => {
-        setVoiceConnected(false);
-        setVoiceStatus("Voice connection closed");
+        cleanupVoice();
       };
       dataChannel.onerror = () => {
         setVoiceStatus("Voice data channel error");
+        cleanupVoice();
       };
       dataChannel.onmessage = (messageEvent) => {
         let event: Record<string, unknown>;
