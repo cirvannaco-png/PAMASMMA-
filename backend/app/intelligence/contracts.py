@@ -107,6 +107,7 @@ class Relationship(BaseModel):
 
 class CognitiveContext(BaseModel):
     user_id: str
+    memory_scope_id: str | None = None
     primary_system_id: str
     query: str
     recent_messages: list[dict]
