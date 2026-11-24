@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 import time
 import uuid
+from datetime import UTC, datetime
 from typing import Annotated, Literal
 
 import httpx
@@ -184,13 +185,21 @@ async def create_jarvis_voice_session(
 ) -> dict:
     database = _require_database(db)
     try:
-        _, messages = await get_conversation(
+        conversation, messages = await get_conversation(
             database,
             current_user["user_id"],
             conversation_id,
         )
     except ConversationNotFound:
         raise HTTPException(status_code=404, detail="Conversation not found.") from None
+
+    if conversation.status != "active":
+        raise HTTPException(status_code=409, detail="Archived conversations cannot start voice sessions.")
+    if conversation.active_turn_id is not None and (
+        conversation.active_turn_expires_at is None
+        or conversation.active_turn_expires_at > datetime.now(UTC)
+    ):
+        raise HTTPException(status_code=409, detail="Finish the active JARVIS turn before starting voice.")
 
     settings = get_settings()
     if not settings.openai_api_key:
