@@ -19,14 +19,21 @@ from app.intelligence.engine import CognitiveEngine
 from app.jarvis.scope import jarvis_memory_scope
 from app.jarvis.service import (
     ConversationNotFound,
+    DelegationAlreadyInProgress,
+    DelegationConflict,
     TurnAlreadyInProgress,
     begin_turn,
+    claim_voice_delegation,
+    close_voice_session,
     conversation_payload,
     create_conversation,
     fail_turn,
     finish_turn,
+    finish_turn_with_voice_delegation,
+    finish_voice_delegation,
     get_conversation,
     list_conversations,
+    register_voice_session,
 )
 from app.jarvis.system import JarvisSystem
 
@@ -78,6 +85,18 @@ class VoiceSessionRequest(BaseModel):
         value = value.strip()
         if not value:
             raise ValueError("SDP offer cannot be blank.")
+        return value
+
+
+class VoiceSessionCloseRequest(BaseModel):
+    session_id: str = Field(min_length=1, max_length=255)
+
+    @field_validator("session_id")
+    @classmethod
+    def normalize_session_id(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("Voice session ID cannot be blank.")
         return value
 
 
@@ -298,12 +317,46 @@ async def create_jarvis_voice_session(
             detail="The voice provider returned an incomplete session response.",
         ) from None
 
+    try:
+        await register_voice_session(
+            database,
+            current_user["user_id"],
+            conversation_id,
+            session_id,
+            "gpt-live-1.1",
+        )
+    except Exception:
+        log.exception("JARVIS voice session registry write failed")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Voice session could not be safely registered. The provider session was not exposed to the client.",
+        ) from None
+
     return {
         "session_id": session_id,
         "sdp": answer_sdp,
         "model": "gpt-live-1.1",
         "voice": "vesper",
     }
+
+
+@router.post("/conversations/{conversation_id}/voice-sessions/close")
+async def close_jarvis_voice_session(
+    conversation_id: uuid.UUID,
+    body: VoiceSessionCloseRequest,
+    current_user: CurrentUser,
+    db: DbSession,
+) -> dict:
+    database = _require_database(db)
+    closed = await close_voice_session(
+        database,
+        current_user["user_id"],
+        conversation_id,
+        body.session_id,
+    )
+    if not closed:
+        raise HTTPException(status_code=404, detail="Voice session not found.")
+    return {"status": "closed", "usage_status": "awaiting_provider"}
 
 
 @router.post("/conversations/{conversation_id}/voice-delegations")
@@ -339,6 +392,34 @@ async def submit_jarvis_turn(
 ) -> dict:
     database = _require_database(db)
     user_id = current_user["user_id"]
+    delegation_claimed = False
+    if body.channel == "voice" and body.delegation_id:
+        try:
+            claim_status, cached_response = await claim_voice_delegation(
+                database,
+                user_id,
+                conversation_id,
+                body.delegation_id,
+                body.content,
+            )
+            if claim_status == "completed" and cached_response is not None:
+                return cached_response
+            delegation_claimed = True
+        except ConversationNotFound:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="No active JARVIS voice session is registered for this conversation.",
+            ) from None
+        except DelegationAlreadyInProgress:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="This voice delegation is already being processed.",
+            ) from None
+        except DelegationConflict:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="This delegation ID was already used with a different transcript.",
+            ) from None
     try:
         turn_id, history, user_message = await begin_turn(
             database,
@@ -349,8 +430,12 @@ async def submit_jarvis_turn(
             delegation_id=body.delegation_id,
         )
     except ConversationNotFound:
+        if delegation_claimed and body.delegation_id:
+            await finish_voice_delegation(database, user_id, conversation_id, body.delegation_id)
         raise HTTPException(status_code=404, detail="Conversation not found.") from None
     except TurnAlreadyInProgress:
+        if delegation_claimed and body.delegation_id:
+            await finish_voice_delegation(database, user_id, conversation_id, body.delegation_id)
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="JARVIS is already processing a turn in this conversation.",
@@ -374,14 +459,35 @@ async def submit_jarvis_turn(
             latency_ms=(time.perf_counter() - started) * 1000,
             trace=trace,
         )
-        assistant_message = await finish_turn(
-            database,
-            user_id,
-            conversation_id,
-            turn_id,
-            result.response,
-            modality=body.channel,
-        )
+        decision_payload = result.decision.model_dump(mode="json")
+        if delegation_claimed and body.delegation_id:
+            committed = await finish_turn_with_voice_delegation(
+                database,
+                user_id,
+                conversation_id,
+                turn_id,
+                result.response,
+                body.delegation_id,
+                user_message,
+                trace,
+                decision_payload,
+            )
+            if committed is None:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="The voice turn lease or delegation claim expired; the response was not committed.",
+                )
+            assistant_message, committed_response = committed
+        else:
+            assistant_message = await finish_turn(
+                database,
+                user_id,
+                conversation_id,
+                turn_id,
+                result.response,
+                modality=body.channel,
+            )
+            committed_response = None
         if assistant_message is None:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -389,20 +495,26 @@ async def submit_jarvis_turn(
             )
     except HTTPException:
         await fail_turn(database, user_id, conversation_id, turn_id)
+        if delegation_claimed and body.delegation_id:
+            await finish_voice_delegation(database, user_id, conversation_id, body.delegation_id)
         raise
     except Exception:
         await fail_turn(database, user_id, conversation_id, turn_id)
+        if delegation_claimed and body.delegation_id:
+            await finish_voice_delegation(database, user_id, conversation_id, body.delegation_id)
         log.exception("JARVIS turn failed", extra={"user_id": user_id, "conversation_id": str(conversation_id)})
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="JARVIS could not complete this turn. Your message is saved; you can retry.",
         ) from None
 
+    if committed_response is not None:
+        return committed_response
     return {
         "conversation_id": str(conversation_id),
         "turn_id": str(turn_id),
         "user_message": user_message,
         "assistant_message": assistant_message,
         "cognition": trace,
-        "decision": result.decision.model_dump(mode="json"),
+        "decision": decision_payload,
     }
