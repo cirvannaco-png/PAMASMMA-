@@ -101,6 +101,8 @@ async def begin_turn(
     user_id: str,
     conversation_id: uuid.UUID,
     content: str,
+    modality: str = "text",
+    delegation_id: str | None = None,
 ) -> tuple[uuid.UUID, list[dict], dict]:
     """Acquire a database-backed conversation lease and persist the user turn."""
     result = await db.execute(
@@ -141,8 +143,11 @@ async def begin_turn(
         sequence=int(current_sequence or 0) + 1,
         role="user",
         content=content,
-        modality="text",
-        metadata_={"turn_id": str(turn_id)},
+        modality=modality,
+        metadata_={
+            "turn_id": str(turn_id),
+            "delegation_id": delegation_id,
+        },
     )
     db.add(user_message)
     conversation.last_message_at = now
@@ -170,6 +175,7 @@ async def finish_turn(
     conversation_id: uuid.UUID,
     turn_id: uuid.UUID,
     response: str,
+    modality: str = "text",
 ) -> dict | None:
     result = await db.execute(
         select(JarvisConversation)
@@ -195,7 +201,7 @@ async def finish_turn(
         sequence=int(current_sequence or 0) + 1,
         role="assistant",
         content=response,
-        modality="text",
+        modality=modality,
         metadata_={"turn_id": str(turn_id)},
     )
     db.add(assistant_message)
