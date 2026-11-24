@@ -53,12 +53,14 @@ class CognitiveEngine:
         system,
         messages: list[dict],
         user_id: str,
+        memory_scope_id: str | None = None,
     ) -> CognitiveResult:
         # OBSERVE -> INTERPRET -> CONTEXTUALIZE -> RETRIEVE MEMORY
         context = await self._prepare_context(
             system,
             messages,
             user_id,
+            memory_scope_id,
         )
 
         # FORM HYPOTHESES -> PLAN -> DELIBERATE
@@ -190,7 +192,7 @@ class CognitiveEngine:
             context
         ):
             await upsert_belief(
-                user_id,
+                memory_scope_id or user_id,
                 belief.model_dump(mode="json"),
             )
 
@@ -247,15 +249,18 @@ class CognitiveEngine:
         system,
         messages: list[dict],
         user_id: str,
+        memory_scope_id: str | None = None,
     ) -> CognitiveContext:
         context = ContextAssembler.assemble(
             messages,
             user_id,
             system.system_id,
         )
+        context.memory_scope_id = memory_scope_id
+        scoped_user_id = memory_scope_id or user_id
 
         existing_beliefs = await list_beliefs(
-            user_id
+            scoped_user_id
         )
         new_beliefs = (
             self.belief_resolver.extract_user_beliefs(
@@ -276,13 +281,13 @@ class CognitiveEngine:
 
         context.memories = await retrieve_memory_items(
             context.query,
-            user_id,
+            scoped_user_id,
             system.system_id,
             settings.intelligence_memory_limit,
         )
         from app.knowledge.service import retrieve_knowledge_items
         knowledge = await retrieve_knowledge_items(
-            context.query, user_id, settings.intelligence_memory_limit
+            context.query, scoped_user_id, settings.intelligence_memory_limit
         )
         context.memories = (context.memories + knowledge)[:settings.intelligence_memory_limit * 2]
         await self.world_model.observe(context)
