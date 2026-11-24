@@ -531,6 +531,12 @@ export const jarvis = {
       { method: "POST", body: JSON.stringify({ sdp }) },
     ),
 
+  closeVoiceSession: (conversationId: string, sessionId: string) =>
+    apiFetch<{ status: string; usage_status: string }>(
+      `/jarvis/conversations/${encodeURIComponent(conversationId)}/voice-sessions/close`,
+      { method: "POST", body: JSON.stringify({ session_id: sessionId }) },
+    ),
+
   completeVoiceDelegation: (conversationId: string, delegationId: string, transcript: string) =>
     apiFetch<JarvisVoiceDelegationResponse>(
       `/jarvis/conversations/${encodeURIComponent(conversationId)}/voice-delegations`,
