@@ -201,12 +201,11 @@ async def create_jarvis_voice_session(
 
     history = []
     for message in messages[-12:]:
-        content_type = "input_text" if message.role == "user" else "output_text"
         history.append(
             {
                 "type": "message",
                 "role": message.role,
-                "content": [{"type": content_type, "text": message.content[-900:]}],
+                "content": [{"type": "input_text", "text": message.content[-900:]}],
             }
         )
 
@@ -225,7 +224,10 @@ async def create_jarvis_voice_session(
                 "clearly, naturally, and concisely."
             ),
             "audio": {"output": {"voice": "vesper"}},
-            "delegation": {"type": "client"},
+            "delegation": {
+                "type": "client",
+                "acknowledgement_delay_ms": 800,
+            },
             "input": history,
             "store": False,
         },
