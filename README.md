@@ -261,7 +261,7 @@ The current migration chain is linear:
 013_jarvis_conversations
 ```
 
-The cognitive migrations add durable decision records, beliefs, outcomes, world-model entities/relationships, and cognitive audit state. The knowledge migrations add provenance-aware training sources/chunks and active-source deduplication/chunk-order integrity. Migration 013 adds owner-scoped JARVIS conversations, ordered text messages, and database-backed turn leases.
+The cognitive migrations add durable decision records, beliefs, outcomes, world-model entities/relationships, and cognitive audit state. The knowledge migrations add provenance-aware training sources/chunks and active-source deduplication/chunk-order integrity. Migration 013 adds owner-scoped JARVIS conversations, ordered text/voice transcript messages, and database-backed turn leases.
 
 ## Environment variables
 
@@ -321,7 +321,7 @@ v4.2 cognitive architecture includes:
 
 ### JARVIS Core — implementation in progress
 
-The JARVIS implementation is being developed as PAMASMMA's dedicated assistant experience, reusing the existing CognitiveEngine rather than creating a competing reasoning stack. The current feature branch adds authenticated, PostgreSQL-backed text conversations, a JARVIS-specific memory namespace, turn concurrency protection, and an Android-responsive text workspace. Voice, multimodal perception, governed tool execution, approvals, and proactive autonomy remain later implementation phases. The JARVIS runtime has no Midas-touch2 integration and no external action tools in this phase. Do not classify this work as production-ready until the PR's backend, frontend, and durable-infrastructure CI gates pass and deployment migrations are verified.
+The JARVIS implementation is being developed as PAMASMMA's dedicated assistant experience, reusing the existing CognitiveEngine rather than creating a competing reasoning stack. The current feature branch adds authenticated, PostgreSQL-backed conversations, a JARVIS-specific memory namespace, turn concurrency protection, an Android-responsive workspace, and GPT-Live WebRTC voice with client delegation to PAMASMMA's CognitiveEngine. Voice requires the existing OPENAI_API_KEY backend secret, HTTPS, and explicit microphone permission; raw audio storage is disabled and PAMASMMA persists the transcript and assistant response. The initial voice path still needs server-side session registration, delegated-turn idempotency, provider usage accounting, and physical Android QA before production. Multimodal uploads, governed tool execution, approvals, and proactive autonomy remain later phases. The JARVIS runtime has no Midas-touch2 integration and no external action tools in this phase. Do not classify this work as production-ready until the PR's backend, frontend, and durable-infrastructure CI gates pass and deployment migrations are verified.
 
 The application code, durable migration path, scheduled-delivery resilience, and CI gates are production-hardened. Final launch still depends on external infrastructure provisioning and platform-side credentials/approvals: isolated durable PostgreSQL + Redis-compatible storage, real OAuth app credentials, redirect URIs, verified domains where required, platform scopes/app review, and ad-account permissions. Those controls cannot be bypassed by application code.
 
