@@ -300,6 +300,12 @@ export default function JarvisPage() {
           }
 
           setVoiceStatus("Working · " + transcript.slice(0, 44));
+          dataChannel.send(JSON.stringify({
+            type: "session.commentary.append",
+            event_id: `jarvis-progress-${Date.now()}`,
+            delegation_id: delegationId,
+            content: "I’m checking that now.",
+          }));
           void sendDelegatedTurn(conversationId as string, delegationId, transcript, dataChannel);
           return;
         }
