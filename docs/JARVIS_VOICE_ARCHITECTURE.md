@@ -15,7 +15,7 @@ This preserves one reasoning and evidence-governance authority across text and v
 2. The browser requests microphone permission and creates a WebRTC peer connection plus the `oai-events` data channel.
 3. The browser creates an SDP offer and sends it to `POST /api/v1/jarvis/conversations/{conversation_id}/voice-sessions`.
 4. The PAMASMMA backend verifies conversation ownership and sends the offer to `POST /v1/live/sessions` using the server-side `OPENAI_API_KEY`.
-5. The Live session is configured with `gpt-live-1.1`, client delegation, `vesper` voice, bounded recent text history and `store: false`.
+5. The Live session is configured with `gpt-live-1.1`, client delegation, `vesper` voice, bounded recent text history and `store: false`. The backend sends a stable privacy-preserving JARVIS user hash in `OpenAI-Safety-Identifier` and restricts the untrusted browser data channel to transcript/delegation events, commentary append and session close.
 6. The backend returns only the Live session ID and SDP answer. The API key never reaches the browser.
 
 ## Client delegation lifecycle
@@ -27,7 +27,7 @@ This preserves one reasoning and evidence-governance authority across text and v
 5. The CognitiveEngine's decision, scoped memory/beliefs/world model and evidence governance remain authoritative.
 6. PAMASMMA persists the assistant response with modality `voice` and returns it to the browser.
 7. The browser sends `session.commentary.append` with the matching delegation ID so GPT-Live can speak the backend result.
-8. On user stop, the browser sends `session.close`, waits briefly for finalization, then releases the peer connection and microphone tracks.
+8. On user stop, the browser sends `session.close`, waits for `session.closed` where possible, then releases the peer connection and microphone tracks. If the data channel closes before the final event, usage is unconfirmed.
 
 ## Privacy and security
 
