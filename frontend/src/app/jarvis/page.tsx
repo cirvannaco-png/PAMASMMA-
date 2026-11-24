@@ -56,8 +56,23 @@ export default function JarvisPage() {
   const handledDelegationsRef = useRef<Set<string>>(new Set());
   const closeTimeoutRef = useRef<number | null>(null);
   const eventSequenceRef = useRef(0);
+  const voiceSessionIdRef = useRef<string | null>(null);
+  const voiceConversationIdRef = useRef<string | null>(null);
+
+  const notifyVoiceSessionClosed = () => {
+    const sessionId = voiceSessionIdRef.current;
+    const conversationId = voiceConversationIdRef.current;
+    voiceSessionIdRef.current = null;
+    voiceConversationIdRef.current = null;
+    if (sessionId && conversationId) {
+      void jarvis.closeVoiceSession(conversationId, sessionId).catch(() => {
+        setVoiceStatus("Voice ended; server session will expire automatically");
+      });
+    }
+  };
 
   const cleanupVoice = () => {
+    notifyVoiceSessionClosed();
     if (closeTimeoutRef.current !== null) {
       window.clearTimeout(closeTimeoutRef.current);
       closeTimeoutRef.current = null;
@@ -120,6 +135,7 @@ export default function JarvisPage() {
     if (channel?.readyState === "open") {
       channel.send(JSON.stringify({ type: "session.close", event_id: nextJarvisEventId(eventSequenceRef, "unmount") }));
     }
+    notifyVoiceSessionClosed();
     channel?.close();
     peerRef.current?.close();
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -342,6 +358,8 @@ export default function JarvisPage() {
       if (!localSdp) throw new Error("Could not create the WebRTC offer.");
 
       const liveSession = await jarvis.createVoiceSession(conversationId, localSdp);
+      voiceSessionIdRef.current = liveSession.session_id;
+      voiceConversationIdRef.current = conversationId;
       await peer.setRemoteDescription({ type: "answer", sdp: liveSession.sdp });
       setVoiceStatus("Connecting to JARVIS voice…");
     } catch (error) {
