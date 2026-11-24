@@ -468,7 +468,7 @@ export interface JarvisMessage {
   sequence: number;
   role: "user" | "assistant";
   content: string;
-  modality: "text";
+  modality: "text" | "voice";
   created_at: string | null;
 }
 
