@@ -40,7 +40,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["conversation_id"], ["pamasmma_jarvis_conversations.id"], ondelete="CASCADE", name="fk_jarvis_message_conversation"),
         sa.UniqueConstraint("conversation_id", "sequence", name="uq_jarvis_message_sequence"),
         sa.CheckConstraint("role IN ('user', 'assistant')", name="ck_jarvis_message_role"),
-        sa.CheckConstraint("modality IN ('text')", name="ck_jarvis_message_modality"),
+        sa.CheckConstraint("modality IN ('text', 'voice')", name="ck_jarvis_message_modality"),
     )
     op.create_index("ix_pamasmma_jarvis_messages_conversation_id", "pamasmma_jarvis_messages", ["conversation_id"])
     op.create_index("ix_pamasmma_jarvis_messages_user_id", "pamasmma_jarvis_messages", ["user_id"])
