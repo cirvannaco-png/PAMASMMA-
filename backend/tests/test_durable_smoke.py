@@ -7,7 +7,7 @@ import uuid
 
 import pyotp
 import pytest
-from sqlalchemy import text
+from sqlalchemy import select, text
 
 pytestmark = pytest.mark.asyncio
 
@@ -59,7 +59,7 @@ async def test_durable_postgres_valkey_auth_and_kernel() -> None:
         assert await connection.scalar(text("SELECT 1")) == 1
         assert await connection.scalar(
             text("SELECT version_num FROM alembic_version")
-         ) == "012"
+         ) == "014"
         assert await connection.scalar(
             text("SELECT extversion FROM pg_extension WHERE extname = 'vector'")
         ) is not None
@@ -93,4 +93,125 @@ async def test_durable_postgres_valkey_auth_and_kernel() -> None:
         "pamasmma_social_campaigns",
         "pamasmma_mcp_connectors",
         "pamasmma_mcp_tool_audit",
+        "pamasmma_jarvis_conversations",
+        "pamasmma_jarvis_messages",
+        "pamasmma_jarvis_voice_sessions",
+        "pamasmma_jarvis_voice_delegations",
+        "pamasmma_jarvis_voice_usage",
     }.issubset(tables)
+
+    from app.jarvis.service import (
+        TurnAlreadyInProgress,
+        begin_turn,
+        create_conversation,
+        finish_turn,
+        get_conversation,
+    )
+
+    async with AsyncSessionLocal() as session:
+        conversation = await create_conversation(
+            session,
+            user_id="durable-jarvis-" + uuid.uuid4().hex,
+            title="Durable JARVIS smoke test",
+        )
+        owner_id = conversation.user_id
+        conversation_id = conversation.id
+        turn_id, history, user_message = await begin_turn(
+            session,
+            owner_id,
+            conversation_id,
+            "Test durable JARVIS conversation persistence.",
+        )
+        assert user_message["role"] == "user"
+        assert history[-1]["content"] == "Test durable JARVIS conversation persistence."
+
+        with pytest.raises(TurnAlreadyInProgress):
+            await begin_turn(
+                session,
+                owner_id,
+                conversation_id,
+                "This concurrent turn must be rejected.",
+            )
+        await session.rollback()
+
+        assistant_message = await finish_turn(
+            session,
+            owner_id,
+            conversation_id,
+            turn_id,
+            "Durable assistant response.",
+        )
+        assert assistant_message is not None
+        assert assistant_message["role"] == "assistant"
+
+        stored_conversation, stored_messages = await get_conversation(
+            session,
+            owner_id,
+            conversation_id,
+        )
+        assert stored_conversation.id == conversation_id
+        assert [message.role for message in stored_messages] == ["user", "assistant"]
+
+        voice_turn_id, _voice_history, voice_user_message = await begin_turn(
+            session,
+            owner_id,
+            conversation_id,
+            "Check this voice transcript.",
+            modality="voice",
+            delegation_id="item_voice_durable_test",
+        )
+        assert voice_user_message["role"] == "user"
+        voice_assistant_message = await finish_turn(
+            session,
+            owner_id,
+            conversation_id,
+            voice_turn_id,
+            "Voice response persisted.",
+            modality="voice",
+        )
+        assert voice_assistant_message is not None
+        assert voice_assistant_message["modality"] == "voice"
+
+        from app.jarvis.service import (
+            DelegationConflict,
+            claim_voice_delegation,
+            close_voice_session,
+            finish_voice_delegation,
+            register_voice_session,
+        )
+        from app.models.jarvis import JarvisVoiceUsage
+
+        voice_session = await register_voice_session(
+            session, owner_id, conversation_id, "provider-session-" + uuid.uuid4().hex, "gpt-live-1.1"
+        )
+        claimed, cached = await claim_voice_delegation(
+            session, owner_id, conversation_id, "durable-delegation-key", "unique transcript"
+        )
+        assert claimed == "claimed" and cached is None
+        response_cache = {"assistant_message": {"content": "idempotent"}}
+        await finish_voice_delegation(
+            session, owner_id, conversation_id, "durable-delegation-key", response_cache
+        )
+        replay_status, replay = await claim_voice_delegation(
+            session, owner_id, conversation_id, "durable-delegation-key", "unique transcript"
+        )
+        assert replay_status == "completed" and replay == response_cache
+        with pytest.raises(DelegationConflict):
+            await claim_voice_delegation(
+                session, owner_id, conversation_id, "durable-delegation-key", "changed transcript"
+            )
+        usage = await session.scalar(
+            select(JarvisVoiceUsage).where(JarvisVoiceUsage.voice_session_id == voice_session.id)
+        )
+        assert usage is not None and usage.status == "awaiting_provider"
+        assert await close_voice_session(
+            session, owner_id, conversation_id, voice_session.provider_session_id
+        )
+
+        _, all_messages = await get_conversation(session, owner_id, conversation_id)
+        assert [message.modality for message in all_messages] == ["text", "text", "voice", "voice"]
+        await session.execute(
+            text("DELETE FROM pamasmma_jarvis_conversations WHERE id = CAST(:id AS uuid)"),
+            {"id": str(conversation_id)},
+        )
+        await session.commit()

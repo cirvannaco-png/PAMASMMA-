@@ -442,16 +442,54 @@ async def list_world_entities(user_id: str, names: list[str] | None = None, limi
     return rows
 
 
-async def list_outcomes(user_id: str, limit: int = 50) -> list[dict[str, Any]]:
+async def list_outcomes(
+    user_id: str,
+    limit: int = 50,
+    primary_system_id: str | None = None,
+) -> list[dict[str, Any]]:
     if not settings.is_persistent:
-        rows=[x for x in memory_store.outcomes if x["user_id"]==user_id]
-        rows.sort(key=lambda x:x.get("created_at") or _now(), reverse=True)
+        rows = [item for item in memory_store.outcomes if item["user_id"] == user_id]
+        if primary_system_id:
+            decision_ids = {
+                item["id"]
+                for item in memory_store.decisions
+                if item.get("user_id") == user_id
+                and item.get("primary_system_id") == primary_system_id
+            }
+            rows = [item for item in rows if item.get("decision_id") in decision_ids]
+        rows.sort(key=lambda item: item.get("created_at") or _now(), reverse=True)
         return rows[:limit]
 
     assert AsyncSessionLocal is not None
     async with AsyncSessionLocal() as session:
-        result=await session.execute(
-            text("SELECT * FROM pamasmma_outcomes WHERE user_id=:user_id ORDER BY created_at DESC LIMIT :limit"),
-            {"user_id":user_id,"limit":limit},
-        )
+        if primary_system_id:
+            statement = text(
+                """
+                SELECT outcome.*
+                FROM pamasmma_outcomes AS outcome
+                JOIN pamasmma_decisions AS decision
+                  ON decision.id = outcome.decision_id
+                WHERE outcome.user_id = :user_id
+                  AND decision.primary_system_id = :primary_system_id
+                ORDER BY outcome.created_at DESC
+                LIMIT :limit
+                """
+            )
+            parameters = {
+                "user_id": user_id,
+                "primary_system_id": primary_system_id,
+                "limit": limit,
+            }
+        else:
+            statement = text(
+                """
+                SELECT *
+                FROM pamasmma_outcomes
+                WHERE user_id = :user_id
+                ORDER BY created_at DESC
+                LIMIT :limit
+                """
+            )
+            parameters = {"user_id": user_id, "limit": limit}
+        result = await session.execute(statement, parameters)
         return [dict(row) for row in result.mappings().all()]

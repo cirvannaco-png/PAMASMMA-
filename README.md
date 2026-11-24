@@ -135,6 +135,7 @@ backend/
     embeddings/
     events/
     intelligence/
+    jarvis/
     middleware/
     models/
     routers/
@@ -256,9 +257,13 @@ The current migration chain is linear:
 011_mcp_oauth
   ↓
 012_mcp_tool_audit
+  ↓
+013_jarvis_conversations
+  ↓
+014_jarvis_voice_registry
 ```
 
-The cognitive migrations add durable decision records, beliefs, outcomes, world-model entities/relationships, and cognitive audit state. The knowledge migrations add provenance-aware training sources/chunks and active-source deduplication/chunk-order integrity.
+The cognitive migrations add durable decision records, beliefs, outcomes, world-model entities/relationships, and cognitive audit state. The knowledge migrations add provenance-aware training sources/chunks and active-source deduplication/chunk-order integrity. Migration 013 adds owner-scoped JARVIS conversations, ordered text/voice transcript messages, and database-backed turn leases. Migration 014 adds durable provider voice-session registration, server-side delegation idempotency records, and a provider-usage ledger that explicitly remains pending until trusted provider usage data is captured.
 
 ## Environment variables
 
@@ -315,6 +320,10 @@ v4.2 cognitive architecture includes:
 - structured cognitive traces and decision telemetry
 - runtime provider failover
 - explicit evidence and uncertainty governance
+
+### JARVIS Core — implementation in progress
+
+The JARVIS implementation is being developed as PAMASMMA's dedicated assistant experience, reusing the existing CognitiveEngine rather than creating a competing reasoning stack. The current feature branch adds authenticated, PostgreSQL-backed conversations, a JARVIS-specific memory namespace, turn concurrency protection, an Android-responsive workspace, and GPT-Live WebRTC voice with client delegation to PAMASMMA's CognitiveEngine. Voice requires the existing OPENAI_API_KEY backend secret, HTTPS, and explicit microphone permission; raw audio storage is disabled and PAMASMMA persists the transcript and assistant response. Migration 014 now registers provider sessions server-side, enforces durable delegation idempotency (including transcript-hash conflict detection and cached replay), atomically commits completed voice responses with their idempotency records, and records a usage-ledger row per session. Provider usage/cost capture is not yet complete: rows remain `awaiting_provider` until a trusted provider-side usage source is integrated. Physical Android QA and independent review remain release gates. Multimodal uploads, governed tool execution, approvals, and proactive autonomy remain later phases. The JARVIS runtime has no Midas-touch2 integration and no external action tools in this phase. Do not classify this work as production-ready until the PR's backend, frontend, and durable-infrastructure CI gates pass and deployment migrations are verified.
 
 The application code, durable migration path, scheduled-delivery resilience, and CI gates are production-hardened. Final launch still depends on external infrastructure provisioning and platform-side credentials/approvals: isolated durable PostgreSQL + Redis-compatible storage, real OAuth app credentials, redirect URIs, verified domains where required, platform scopes/app review, and ad-account permissions. Those controls cannot be bypassed by application code.
 

@@ -20,6 +20,7 @@ settings = get_settings()
 ROUTE_LIMITS = [
     ("/api/v1/auth", settings.rate_limit_auth_per_minute),
     ("/api/v1/cognitive", settings.rate_limit_cognitive_per_minute),
+    ("/api/v1/jarvis", settings.rate_limit_cognitive_per_minute),
     ("/api/v1", settings.rate_limit_api_per_minute),
 ]
 
