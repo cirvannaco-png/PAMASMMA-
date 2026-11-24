@@ -11,9 +11,10 @@ from app.intelligence.persistence import (
 
 class WorldModel:
     async def observe(self, context: CognitiveContext) -> None:
+        scoped_user_id = context.memory_scope_id or context.user_id
         for entity in context.entities:
             await upsert_world_entity(
-                user_id=context.user_id,
+                user_id=scoped_user_id,
                 name=entity.name,
                 entity_type=entity.entity_type,
                 attributes={
@@ -33,4 +34,5 @@ class WorldModel:
 
     async def hydrate(self, context: CognitiveContext) -> list[dict]:
         names = [entity.name for entity in context.entities]
-        return await list_world_entities(context.user_id, names=names or None, limit=30)
+        scoped_user_id = context.memory_scope_id or context.user_id
+        return await list_world_entities(scoped_user_id, names=names or None, limit=30)
