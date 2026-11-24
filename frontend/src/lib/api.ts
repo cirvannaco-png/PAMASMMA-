@@ -453,3 +453,61 @@ export const mcp = {
       body: JSON.stringify({ tool_name: toolName, arguments: arguments_, confirmed }),
     }),
 };
+
+export interface JarvisConversation {
+  id: string;
+  title: string;
+  status: "active" | "archived";
+  created_at: string | null;
+  updated_at: string | null;
+  last_message_at: string | null;
+}
+
+export interface JarvisMessage {
+  id: string;
+  sequence: number;
+  role: "user" | "assistant";
+  content: string;
+  modality: "text";
+  created_at: string | null;
+}
+
+export interface JarvisTurnResponse {
+  conversation_id: string;
+  turn_id: string;
+  user_message: JarvisMessage;
+  assistant_message: JarvisMessage;
+  cognition: {
+    provider: string;
+    confidence: number;
+    evidence_status: string;
+    verification: { score: number; issues: Array<{severity:string;category:string;message:string}> };
+    routed_systems: string[];
+    [key: string]: unknown;
+  };
+  decision: Record<string, unknown>;
+}
+
+export const jarvis = {
+  createConversation: (title = "New conversation") =>
+    apiFetch<{ conversation: JarvisConversation }>("/jarvis/conversations", {
+      method: "POST",
+      body: JSON.stringify({ title }),
+    }),
+
+  listConversations: (limit = 30) =>
+    apiFetch<{ conversations: JarvisConversation[]; count: number }>(
+      `/jarvis/conversations?limit=${limit}`,
+    ),
+
+  getConversation: (conversationId: string) =>
+    apiFetch<{ conversation: JarvisConversation; messages: JarvisMessage[] }>(
+      `/jarvis/conversations/${encodeURIComponent(conversationId)}`,
+    ),
+
+  sendTurn: (conversationId: string, content: string) =>
+    apiFetch<JarvisTurnResponse>(
+      `/jarvis/conversations/${encodeURIComponent(conversationId)}/turns`,
+      { method: "POST", body: JSON.stringify({ content }) },
+    ),
+};
