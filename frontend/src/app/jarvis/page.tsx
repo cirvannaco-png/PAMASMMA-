@@ -284,7 +284,7 @@ export default function JarvisPage() {
           handledDelegationsRef.current.add(delegationId);
 
           const offsetMs = typeof event.offset_ms === "number" ? event.offset_ms : Number.POSITIVE_INFINITY;
-          const eligible = transcriptSegmentsRef.current.filter((segment) => segment.endMs <= offsetMs);
+          const eligible = transcriptSegmentsRef.current.filter((segment) => !Number.isFinite(segment.endMs) || segment.endMs <= offsetMs);
           const transcript = eligible.map((segment) => segment.text).join("").trim();
           transcriptSegmentsRef.current = transcriptSegmentsRef.current.filter((segment) => segment.endMs > offsetMs);
 
