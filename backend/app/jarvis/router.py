@@ -86,6 +86,14 @@ class VoiceDelegationRequest(BaseModel):
     delegation_id: str = Field(min_length=1, max_length=128)
     transcript: str = Field(min_length=1, max_length=12000)
 
+    @field_validator("delegation_id")
+    @classmethod
+    def normalize_delegation_id(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("Delegation ID cannot be blank.")
+        return value
+
     @field_validator("transcript")
     @classmethod
     def normalize_transcript(cls, value: str) -> str:
