@@ -45,7 +45,7 @@ class JarvisMessage(Base):
     __table_args__ = (
         UniqueConstraint("conversation_id", "sequence", name="uq_jarvis_message_sequence"),
         CheckConstraint("role IN ('user', 'assistant')", name="ck_jarvis_message_role"),
-        CheckConstraint("modality IN ('text')", name="ck_jarvis_message_modality"),
+        CheckConstraint("modality IN ('text', 'voice')", name="ck_jarvis_message_modality"),
         Index("ix_jarvis_messages_owner_created", "user_id", "created_at"),
     )
 
