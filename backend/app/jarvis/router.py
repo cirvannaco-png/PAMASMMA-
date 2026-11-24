@@ -231,11 +231,11 @@ async def create_jarvis_voice_session(
                         "session.close",
                     ],
                     "allowed_server_events": [
-                        "session.started",
-                        "session.closed",
-                        "session.input_transcript.delta",
-                        "session.delegation.created",
-                        "error",
+                        {"type": "session.started"},
+                        {"type": "session.closed"},
+                        {"type": "session.input_transcript.delta"},
+                        {"type": "session.delegation.created"},
+                        {"type": "error"},
                     ],
                 }
             },
