@@ -1,0 +1,32 @@
+"""Regression tests for JARVIS identity and memory isolation."""
+from app.intelligence.context import ContextAssembler
+from app.jarvis.scope import jarvis_memory_scope
+from app.jarvis.system import JarvisSystem
+
+
+def test_jarvis_memory_scope_is_stable_and_user_isolated():
+    first = jarvis_memory_scope("founder-user")
+    assert first == jarvis_memory_scope("founder-user")
+    assert first != jarvis_memory_scope("another-user")
+    assert first.startswith("jarvis:")
+    assert len(first) < 100
+
+
+def test_jarvis_system_is_pamasmma_scoped_and_has_no_action_claims():
+    system = JarvisSystem(jarvis_memory_scope("founder-user"))
+    assert system.system_id == "JARVIS"
+    assert "PAMASMMA" in system.system_name
+    assert "no action tools" in system.directive.lower()
+    assert "Midas-touch2" in system.directive
+
+
+def test_cognitive_context_accepts_a_separate_memory_namespace():
+    context = ContextAssembler.assemble(
+        [{"role": "user", "content": "Plan the next PAMASMMA milestone."}],
+        user_id="founder-user",
+        primary_system_id="JARVIS",
+    )
+    context.memory_scope_id = jarvis_memory_scope("founder-user")
+    assert context.user_id == "founder-user"
+    assert context.memory_scope_id != context.user_id
+    assert context.primary_system_id == "JARVIS"
