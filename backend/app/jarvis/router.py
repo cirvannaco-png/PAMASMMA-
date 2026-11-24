@@ -69,7 +69,6 @@ class TurnRequest(BaseModel):
         return value
 
 
-
 class VoiceSessionRequest(BaseModel):
     sdp: str = Field(min_length=1, max_length=65536)
 
@@ -174,7 +173,6 @@ async def get_jarvis_conversation(
             for item in messages
         ],
     }
-
 
 
 @router.post("/conversations/{conversation_id}/voice-sessions")
