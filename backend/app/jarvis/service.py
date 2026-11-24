@@ -117,12 +117,14 @@ async def begin_turn(
         raise ConversationNotFound
 
     now = datetime.now(UTC)
-    if (
-        conversation.active_turn_id is not None
-        and conversation.active_turn_expires_at is not None
-        and conversation.active_turn_expires_at > now
+    if conversation.active_turn_id is not None and (
+        conversation.active_turn_expires_at is None
+        or conversation.active_turn_expires_at > now
     ):
         raise TurnAlreadyInProgress
+
+    if conversation.title == "New conversation":
+        conversation.title = " ".join(content.split())[:80] or "New conversation"
 
     turn_id = uuid.uuid4()
     conversation.active_turn_id = turn_id
