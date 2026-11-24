@@ -4,13 +4,16 @@ from __future__ import annotations
 import logging
 import time
 import uuid
-from typing import Annotated
+from typing import Annotated, Literal
+
+import httpx
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import get_current_user
+from app.config import get_settings
 from app.database import get_db
 from app.intelligence.engine import CognitiveEngine
 from app.jarvis.scope import jarvis_memory_scope
@@ -47,6 +50,15 @@ class CreateConversationRequest(BaseModel):
 
 class TurnRequest(BaseModel):
     content: str = Field(min_length=1, max_length=12000)
+    channel: Literal["text", "voice"] = "text"
+    delegation_id: str | None = Field(default=None, min_length=1, max_length=128)
+
+    @field_validator("delegation_id")
+    @classmethod
+    def validate_delegation_id(cls, value: str | None) -> str | None:
+        if value is not None and not value.strip():
+            raise ValueError("Delegation ID cannot be blank.")
+        return value.strip() if value else None
 
     @field_validator("content")
     @classmethod
@@ -56,6 +68,31 @@ class TurnRequest(BaseModel):
             raise ValueError("Message content cannot be blank.")
         return value
 
+
+
+class VoiceSessionRequest(BaseModel):
+    sdp: str = Field(min_length=1, max_length=65536)
+
+    @field_validator("sdp")
+    @classmethod
+    def normalize_sdp(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("SDP offer cannot be blank.")
+        return value
+
+
+class VoiceDelegationRequest(BaseModel):
+    delegation_id: str = Field(min_length=1, max_length=128)
+    transcript: str = Field(min_length=1, max_length=12000)
+
+    @field_validator("transcript")
+    @classmethod
+    def normalize_transcript(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("Voice transcript cannot be blank.")
+        return value
 
 def _require_database(db: AsyncSession | None) -> AsyncSession:
     if db is None:
@@ -130,6 +167,134 @@ async def get_jarvis_conversation(
     }
 
 
+
+@router.post("/conversations/{conversation_id}/voice-sessions")
+async def create_jarvis_voice_session(
+    conversation_id: uuid.UUID,
+    body: VoiceSessionRequest,
+    current_user: CurrentUser,
+    db: DbSession,
+) -> dict:
+    database = _require_database(db)
+    try:
+        _, messages = await get_conversation(
+            database,
+            current_user["user_id"],
+            conversation_id,
+        )
+    except ConversationNotFound:
+        raise HTTPException(status_code=404, detail="Conversation not found.") from None
+
+    settings = get_settings()
+    if not settings.openai_api_key:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Voice is not configured. Add OPENAI_API_KEY to the PAMASMMA backend secrets.",
+        )
+
+    history = []
+    for message in messages[-12:]:
+        content_type = "input_text" if message.role == "user" else "output_text"
+        history.append(
+            {
+                "type": "message",
+                "role": message.role,
+                "content": [{"type": content_type, "text": message.content}],
+            }
+        )
+
+    session_payload = {
+        "session": {
+            "model": "gpt-live-1.1",
+            "instructions": (
+                "You are JARVIS, the spoken conversation interface for PAMASMMA. "
+                "You are not the reasoning or execution authority; PAMASMMA's authenticated "
+                "backend CognitiveEngine is. For every substantive question, analysis request, "
+                "recommendation, or task, create a client delegation immediately. Do not answer "
+                "substantive requests from your own general knowledge. You may respond briefly "
+                "to greetings and simple acknowledgements. Never claim an action was completed. "
+                "Only PAMASMMA capabilities are in scope. If the backend result is unclear, ask "
+                "the user a clarifying question rather than inventing details. Speak calmly, "
+                "clearly, naturally, and concisely."
+            ),
+            "audio": {"output": {"voice": "vesper"}},
+            "delegation": {"type": "client"},
+            "input": history,
+            "store": False,
+        },
+        "transport": {"type": "webrtc", "sdp": body.sdp},
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(30.0)) as client:
+            response = await client.post(
+                "https://api.openai.com/v1/live/sessions",
+                headers={
+                    "Authorization": f"Bearer {settings.openai_api_key}",
+                    "Content-Type": "application/json",
+                },
+                json=session_payload,
+            )
+    except httpx.HTTPError:
+        log.exception("JARVIS Live session transport failed")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Could not establish the JARVIS voice session.",
+        ) from None
+
+    if response.status_code >= 400:
+        log.warning(
+            "JARVIS Live session rejected",
+            extra={"status_code": response.status_code},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="The voice provider rejected the JARVIS session request.",
+        )
+
+    try:
+        live_result = response.json()
+        session_id = live_result["session"]["id"]
+        answer_sdp = live_result["transport"]["sdp"]
+    except (KeyError, TypeError, ValueError):
+        log.exception("JARVIS Live session response was incomplete")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="The voice provider returned an incomplete session response.",
+        ) from None
+
+    return {
+        "session_id": session_id,
+        "sdp": answer_sdp,
+        "model": "gpt-live-1.1",
+        "voice": "vesper",
+    }
+
+
+@router.post("/conversations/{conversation_id}/voice-delegations")
+async def complete_jarvis_voice_delegation(
+    conversation_id: uuid.UUID,
+    body: VoiceDelegationRequest,
+    current_user: CurrentUser,
+    db: DbSession,
+) -> dict:
+    result = await submit_jarvis_turn(
+        conversation_id,
+        TurnRequest(
+            content=body.transcript,
+            channel="voice",
+            delegation_id=body.delegation_id,
+        ),
+        current_user,
+        db,
+    )
+    return {
+        "delegation_id": body.delegation_id,
+        "spoken_response": result["assistant_message"]["content"],
+        "turn": result,
+    }
+
+
 @router.post("/conversations/{conversation_id}/turns")
 async def submit_jarvis_turn(
     conversation_id: uuid.UUID,
@@ -145,6 +310,8 @@ async def submit_jarvis_turn(
             user_id,
             conversation_id,
             body.content,
+            modality=body.channel,
+            delegation_id=body.delegation_id,
         )
     except ConversationNotFound:
         raise HTTPException(status_code=404, detail="Conversation not found.") from None
@@ -155,7 +322,7 @@ async def submit_jarvis_turn(
         ) from None
 
     scope_id = jarvis_memory_scope(user_id)
-    system = JarvisSystem(memory_scope_id=scope_id)
+    system = JarvisSystem(memory_scope_id=scope_id, channel=body.channel)
     started = time.perf_counter()
     try:
         result = await CognitiveEngine().run(
@@ -178,6 +345,7 @@ async def submit_jarvis_turn(
             conversation_id,
             turn_id,
             result.response,
+            modality=body.channel,
         )
         if assistant_message is None:
             raise HTTPException(
