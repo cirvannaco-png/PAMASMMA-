@@ -488,6 +488,20 @@ export interface JarvisTurnResponse {
   decision: Record<string, unknown>;
 }
 
+
+export interface JarvisVoiceSession {
+  session_id: string;
+  sdp: string;
+  model: string;
+  voice: string;
+}
+
+export interface JarvisVoiceDelegationResponse {
+  delegation_id: string;
+  spoken_response: string;
+  turn: JarvisTurnResponse;
+}
+
 export const jarvis = {
   createConversation: (title = "New conversation") =>
     apiFetch<{ conversation: JarvisConversation }>("/jarvis/conversations", {
@@ -509,5 +523,20 @@ export const jarvis = {
     apiFetch<JarvisTurnResponse>(
       `/jarvis/conversations/${encodeURIComponent(conversationId)}/turns`,
       { method: "POST", body: JSON.stringify({ content }) },
+    ),
+
+  createVoiceSession: (conversationId: string, sdp: string) =>
+    apiFetch<JarvisVoiceSession>(
+      `/jarvis/conversations/${encodeURIComponent(conversationId)}/voice-sessions`,
+      { method: "POST", body: JSON.stringify({ sdp }) },
+    ),
+
+  completeVoiceDelegation: (conversationId: string, delegationId: string, transcript: string) =>
+    apiFetch<JarvisVoiceDelegationResponse>(
+      `/jarvis/conversations/${encodeURIComponent(conversationId)}/voice-delegations`,
+      {
+        method: "POST",
+        body: JSON.stringify({ delegation_id: delegationId, transcript }),
+      },
     ),
 };
