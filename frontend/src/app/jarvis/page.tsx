@@ -184,7 +184,7 @@ export default function JarvisPage() {
           type: "session.commentary.append",
           event_id: `jarvis-result-${Date.now()}`,
           delegation_id: delegationId,
-          content: result.spoken_response.slice(0, 1800),
+          content: result.spoken_response.slice(0, 1400),
         }));
       }
       setVoiceStatus("Listening");
@@ -471,7 +471,7 @@ export default function JarvisPage() {
           </div>
           <div className="text-right">
             <p className="font-mono text-[9px] tracking-widest text-[#71CDA2]">CORE ONLINE</p>
-            <p className="mt-1 text-[9px] text-[#66668D]">{voiceConnected ? voiceStatus.toUpperCase() : "TEXT MODE · VOICE READY WHEN API KEY IS SET"}</p>
+            <p className="mt-1 text-[9px] text-[#66668D]">{voiceConnected ? voiceStatus.toUpperCase() : "TEXT MODE · VOICE READY · RAW AUDIO NOT STORED"}</p>
           </div>
         </header>
 
