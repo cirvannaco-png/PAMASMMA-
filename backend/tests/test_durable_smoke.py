@@ -149,7 +149,7 @@ async def test_durable_postgres_valkey_auth_and_kernel() -> None:
         assert stored_conversation.id == conversation_id
         assert [message.role for message in stored_messages] == ["user", "assistant"]
 
-        voice_turn_id, voice_history, voice_user_message = await begin_turn(
+        voice_turn_id, _voice_history, voice_user_message = await begin_turn(
             session,
             owner_id,
             conversation_id,
