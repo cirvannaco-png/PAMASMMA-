@@ -1,4 +1,8 @@
-"""Regression tests for JARVIS identity and memory isolation."""
+"""Regression tests for JARVIS identity, memory isolation and persistence policy."""
+import pytest
+from httpx import AsyncClient
+
+from app.auth.dependencies import get_current_user
 from app.intelligence.context import ContextAssembler
 from app.jarvis.scope import jarvis_memory_scope
 from app.jarvis.system import JarvisSystem
@@ -30,12 +34,6 @@ def test_cognitive_context_accepts_a_separate_memory_namespace():
     assert context.user_id == "founder-user"
     assert context.memory_scope_id != context.user_id
     assert context.primary_system_id == "JARVIS"
-
-
-import pytest
-from httpx import AsyncClient
-
-from app.auth.dependencies import get_current_user
 
 
 @pytest.mark.asyncio
