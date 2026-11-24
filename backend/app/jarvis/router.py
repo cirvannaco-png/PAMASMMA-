@@ -8,7 +8,6 @@ from datetime import UTC, datetime
 from typing import Annotated, Literal
 
 import httpx
-
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
