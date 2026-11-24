@@ -30,3 +30,28 @@ def test_cognitive_context_accepts_a_separate_memory_namespace():
     assert context.user_id == "founder-user"
     assert context.memory_scope_id != context.user_id
     assert context.primary_system_id == "JARVIS"
+
+
+import pytest
+from httpx import AsyncClient
+
+from app.auth.dependencies import get_current_user
+
+
+@pytest.mark.asyncio
+async def test_jarvis_fails_closed_when_persistence_is_ephemeral(app, client: AsyncClient):
+    app.dependency_overrides[get_current_user] = lambda: {
+        "user_id": "jarvis-test-user",
+        "session_id": "jarvis-test-session",
+        "session": {"user_id": "jarvis-test-user"},
+    }
+    try:
+        response = await client.post(
+            "/api/v1/jarvis/conversations",
+            json={"title": "Ephemeral must not be accepted"},
+        )
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+
+    assert response.status_code == 503
+    assert "durable PostgreSQL" in response.json()["detail"]
