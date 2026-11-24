@@ -19,6 +19,7 @@ from app.events.handlers import (
     handle_scheduler_event,
 )
 from app.integrations.router import router as integrations_router
+from app.jarvis.router import router as jarvis_router
 from app.knowledge.router import router as knowledge_router
 from app.middleware.logging import LoggingMiddleware
 from app.middleware.rate_limit import RateLimitMiddleware
@@ -130,6 +131,7 @@ def create_app() -> FastAPI:
     app.include_router(knowledge_router, prefix="/api/v1")
     app.include_router(social_router, prefix="/api/v1")
     app.include_router(integrations_router, prefix="/api/v1")
+    app.include_router(jarvis_router, prefix="/api/v1")
     return app
 
 
