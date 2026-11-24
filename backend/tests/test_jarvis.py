@@ -100,6 +100,11 @@ async def test_live_voice_session_is_server_authenticated_and_event_scoped(monke
         )
 
     monkeypatch.setattr(jarvis_router, "get_conversation", fake_get_conversation)
+    async def fake_register_voice_session(db, user_id, conversation_id, provider_session_id, model):
+        captured["registered_session"] = provider_session_id
+        return SimpleNamespace(provider_session_id=provider_session_id)
+
+    monkeypatch.setattr(jarvis_router, "register_voice_session", fake_register_voice_session)
     monkeypatch.setattr(
         jarvis_router,
         "get_settings",
@@ -116,6 +121,7 @@ async def test_live_voice_session_is_server_authenticated_and_event_scoped(monke
 
     assert result["session_id"] == "live_test_session"
     assert result["sdp"] == "answer-sdp"
+    assert captured["registered_session"] == "live_test_session"
     assert captured["url"] == "https://api.openai.com/v1/live/sessions"
     assert captured["headers"]["Authorization"] == "Bearer server-only-test-key"
     assert captured["headers"]["OpenAI-Safety-Identifier"].startswith("jarvis:")
@@ -132,3 +138,33 @@ async def test_live_voice_session_is_server_authenticated_and_event_scoped(monke
         "type": "session.delegation.created"
     } in session["client"]["data_channel"]["allowed_server_events"]
     assert "server-only-test-key" not in str(result)
+
+
+@pytest.mark.asyncio
+async def test_completed_voice_delegation_returns_durable_cached_result(monkeypatch):
+    cached = {
+        "conversation_id": str(uuid4()),
+        "turn_id": str(uuid4()),
+        "assistant_message": {"content": "Previously completed response."},
+    }
+
+    async def fake_claim(db, user_id, conversation_id, delegation_id, transcript):
+        return "completed", cached
+
+    async def unexpected_engine(*args, **kwargs):
+        raise AssertionError("A completed delegation must not run cognition again.")
+
+    monkeypatch.setattr(jarvis_router, "claim_voice_delegation", fake_claim)
+    monkeypatch.setattr(jarvis_router, "CognitiveEngine", unexpected_engine)
+
+    result = await jarvis_router.submit_jarvis_turn(
+        uuid4(),
+        jarvis_router.TurnRequest(
+            content="repeat me",
+            channel="voice",
+            delegation_id="stable-delegation-1",
+        ),
+        {"user_id": "voice-idempotency-user"},
+        cast(AsyncSession, object()),
+    )
+    assert result == cached
