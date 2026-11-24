@@ -94,6 +94,7 @@ class VoiceDelegationRequest(BaseModel):
             raise ValueError("Voice transcript cannot be blank.")
         return value
 
+
 def _require_database(db: AsyncSession | None) -> AsyncSession:
     if db is None:
         raise HTTPException(
