@@ -134,7 +134,7 @@ class CognitiveEngine:
             world_state,
             role=(
                 "executive"
-                if system.system_id == "S1"
+                if system.system_id in {"S1", "JARVIS"}
                 else "domain"
             ),
             specialist_text=specialist_text,
