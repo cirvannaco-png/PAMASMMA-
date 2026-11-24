@@ -232,7 +232,6 @@ export default function JarvisPage() {
       peerRef.current = peer;
       const remoteAudio = new Audio();
       remoteAudio.autoplay = true;
-      remoteAudio.playsInline = true;
       audioRef.current = remoteAudio;
       peer.ontrack = (event) => {
         if (event.streams[0]) {
