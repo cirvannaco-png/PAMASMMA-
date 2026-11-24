@@ -476,7 +476,7 @@ export default function JarvisPage() {
           </div>
           <div className="text-right">
             <p className="font-mono text-[9px] tracking-widest text-[#71CDA2]">CORE ONLINE</p>
-            <p className="mt-1 text-[9px] text-[#66668D]">{voiceConnected ? voiceStatus.toUpperCase() : "TEXT MODE · VOICE READY · RAW AUDIO NOT STORED"}</p>
+            <p className="mt-1 text-[9px] text-[#66668D]">{voiceConnected ? voiceStatus.toUpperCase() : "TEXT MODE · VOICE REQUIRES BACKEND API KEY"}</p>
           </div>
         </header>
 
@@ -536,7 +536,7 @@ export default function JarvisPage() {
               type="button"
               onClick={() => voiceConnected ? stopVoice() : void startVoice()}
               disabled={voiceStarting || sending}
-              title={voiceConnected ? "Close voice session" : "Start a private voice conversation"}
+              title={voiceConnected ? "Close voice session" : "Start a voice conversation"}
               aria-label={voiceConnected ? "Stop voice conversation" : "Start voice conversation"}
               className={`grid h-[54px] min-w-[72px] shrink-0 place-items-center rounded-xl border px-3 text-[10px] font-semibold tracking-wider transition disabled:opacity-40 ${voiceConnected ? "border-[#8D3C45] bg-[#32161B] text-[#F0B6BE]" : "border-[#66502A] bg-[#211B12] text-[#E7C56B] hover:bg-[#302515]"}`}
             >
