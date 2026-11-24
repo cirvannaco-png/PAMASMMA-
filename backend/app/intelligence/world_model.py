@@ -25,7 +25,7 @@ class WorldModel:
             )
         for relationship in context.relationships:
             await upsert_relationship(
-                user_id=context.user_id,
+                user_id=scoped_user_id,
                 subject=relationship.subject,
                 relation=relationship.relation,
                 object_name=relationship.object,
