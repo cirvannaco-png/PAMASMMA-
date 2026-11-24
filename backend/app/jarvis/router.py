@@ -200,7 +200,7 @@ async def create_jarvis_voice_session(
             {
                 "type": "message",
                 "role": message.role,
-                "content": [{"type": content_type, "text": message.content}],
+                "content": [{"type": content_type, "text": message.content[-900:]}],
             }
         )
 
