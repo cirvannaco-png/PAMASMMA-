@@ -112,10 +112,11 @@ async def test_durable_postgres_valkey_auth_and_kernel() -> None:
             title="Durable JARVIS smoke test",
         )
         owner_id = conversation.user_id
+        conversation_id = conversation.id
         turn_id, history, user_message = await begin_turn(
             session,
             owner_id,
-            conversation.id,
+            conversation_id,
             "Test durable JARVIS conversation persistence.",
         )
         assert user_message["role"] == "user"
@@ -125,7 +126,7 @@ async def test_durable_postgres_valkey_auth_and_kernel() -> None:
             await begin_turn(
                 session,
                 owner_id,
-                conversation.id,
+                conversation_id,
                 "This concurrent turn must be rejected.",
             )
         await session.rollback()
@@ -133,7 +134,7 @@ async def test_durable_postgres_valkey_auth_and_kernel() -> None:
         assistant_message = await finish_turn(
             session,
             owner_id,
-            conversation.id,
+            conversation_id,
             turn_id,
             "Durable assistant response.",
         )
@@ -143,12 +144,12 @@ async def test_durable_postgres_valkey_auth_and_kernel() -> None:
         stored_conversation, stored_messages = await get_conversation(
             session,
             owner_id,
-            conversation.id,
+            conversation_id,
         )
-        assert stored_conversation.id == conversation.id
+        assert stored_conversation.id == conversation_id
         assert [message.role for message in stored_messages] == ["user", "assistant"]
         await session.execute(
             text("DELETE FROM pamasmma_jarvis_conversations WHERE id = CAST(:id AS uuid)"),
-            {"id": str(conversation.id)},
+            {"id": str(conversation_id)},
         )
         await session.commit()
