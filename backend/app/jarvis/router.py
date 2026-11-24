@@ -224,6 +224,21 @@ async def create_jarvis_voice_session(
                 "clearly, naturally, and concisely."
             ),
             "audio": {"output": {"voice": "vesper"}},
+            "client": {
+                "data_channel": {
+                    "allowed_client_events": [
+                        "session.commentary.append",
+                        "session.close",
+                    ],
+                    "allowed_server_events": [
+                        "session.started",
+                        "session.closed",
+                        "session.input_transcript.delta",
+                        "session.delegation.created",
+                        "error",
+                    ],
+                }
+            },
             "delegation": {
                 "type": "client",
                 "acknowledgement_delay_ms": 800,
@@ -241,6 +256,9 @@ async def create_jarvis_voice_session(
                 headers={
                     "Authorization": f"Bearer {settings.openai_api_key}",
                     "Content-Type": "application/json",
+                    "OpenAI-Safety-Identifier": jarvis_memory_scope(
+                        current_user["user_id"]
+                    ),
                 },
                 json=session_payload,
             )
