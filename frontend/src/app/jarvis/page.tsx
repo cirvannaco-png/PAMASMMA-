@@ -1,12 +1,33 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 
 import { jarvis } from "@/lib/api";
 import type { JarvisConversation, JarvisMessage } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
+
+type TranscriptSegment = { endMs: number; text: string };
+
+async function waitForIceGathering(peer: RTCPeerConnection, timeoutMs = 15000): Promise<void> {
+  if (peer.iceGatheringState === "complete") return;
+  await new Promise<void>((resolve, reject) => {
+    const timeout = window.setTimeout(() => {
+      peer.removeEventListener("icegatheringstatechange", onChange);
+      reject(new Error("Timed out preparing the secure voice connection."));
+    }, timeoutMs);
+    const onChange = () => {
+      if (peer.iceGatheringState === "complete") {
+        window.clearTimeout(timeout);
+        peer.removeEventListener("icegatheringstatechange", onChange);
+        resolve();
+      }
+    };
+    peer.addEventListener("icegatheringstatechange", onChange);
+  });
+}
 
 export default function JarvisPage() {
   const router = useRouter();
@@ -17,7 +38,51 @@ export default function JarvisPage() {
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [voiceStarting, setVoiceStarting] = useState(false);
+  const [voiceConnected, setVoiceConnected] = useState(false);
+  const [voiceStatus, setVoiceStatus] = useState("Voice off");
   const [cognition, setCognition] = useState<{provider?:string;confidence?:number;evidence_status?:string}|null>(null);
+
+  const peerRef = useRef<RTCPeerConnection | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const channelRef = useRef<RTCDataChannel | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const transcriptSegmentsRef = useRef<TranscriptSegment[]>([]);
+  const handledDelegationsRef = useRef<Set<string>>(new Set());
+  const closeTimeoutRef = useRef<number | null>(null);
+
+  const cleanupVoice = () => {
+    if (closeTimeoutRef.current !== null) {
+      window.clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+    channelRef.current?.close();
+    peerRef.current?.close();
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    if (audioRef.current) audioRef.current.srcObject = null;
+    channelRef.current = null;
+    peerRef.current = null;
+    streamRef.current = null;
+    audioRef.current = null;
+    transcriptSegmentsRef.current = [];
+    setVoiceConnected(false);
+    setVoiceStarting(false);
+    setVoiceStatus("Voice off");
+  };
+
+  const stopVoice = () => {
+    const channel = channelRef.current;
+    if (channel?.readyState === "open") {
+      setVoiceStatus("Closing voice session…");
+      channel.send(JSON.stringify({
+        type: "session.close",
+        event_id: `jarvis-close-${Date.now()}`,
+      }));
+      closeTimeoutRef.current = window.setTimeout(cleanupVoice, 5000);
+    } else {
+      cleanupVoice();
+    }
+  };
 
   useEffect(() => {
     if (isRestoring) return;
@@ -44,10 +109,21 @@ export default function JarvisPage() {
     };
   }, [isAuthenticated, isRestoring, router]);
 
+  useEffect(() => () => {
+    const channel = channelRef.current;
+    if (channel?.readyState === "open") {
+      channel.send(JSON.stringify({ type: "session.close", event_id: `jarvis-unmount-${Date.now()}` }));
+    }
+    channel?.close();
+    peerRef.current?.close();
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+  }, []);
+
   const selected = conversations.find((item) => item.id === selectedId) ?? null;
 
   const openConversation = async (conversationId: string) => {
     if (sending) return;
+    if (voiceConnected || voiceStarting) stopVoice();
     setSelectedId(conversationId);
     setMessages([]);
     setCognition(null);
@@ -64,6 +140,7 @@ export default function JarvisPage() {
 
   const newConversation = async () => {
     if (sending) return;
+    if (voiceConnected || voiceStarting) stopVoice();
     try {
       const result = await jarvis.createConversation();
       setConversations((previous) => [result.conversation, ...previous]);
@@ -75,10 +152,199 @@ export default function JarvisPage() {
     }
   };
 
+  const sendDelegatedTurn = async (
+    conversationId: string,
+    delegationId: string,
+    transcript: string,
+    channel: RTCDataChannel,
+  ) => {
+    try {
+      const result = await jarvis.completeVoiceDelegation(conversationId, delegationId, transcript);
+      setMessages((previous) => [...previous, result.turn.user_message, result.turn.assistant_message]);
+      setCognition({
+        provider: result.turn.cognition.provider,
+        confidence: result.turn.cognition.confidence,
+        evidence_status: result.turn.cognition.evidence_status,
+      });
+      const now = new Date().toISOString();
+      setConversations((previous) =>
+        previous.map((item) =>
+          item.id === conversationId
+            ? {
+                ...item,
+                title: item.title === "New conversation" ? transcript.slice(0, 80) : item.title,
+                last_message_at: now,
+                updated_at: now,
+              }
+            : item,
+        ),
+      );
+      if (channel.readyState === "open") {
+        channel.send(JSON.stringify({
+          type: "session.commentary.append",
+          event_id: `jarvis-result-${Date.now()}`,
+          delegation_id: delegationId,
+          content: result.spoken_response.slice(0, 1800),
+        }));
+      }
+      setVoiceStatus("Listening");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "JARVIS could not process the voice request.");
+      if (channel.readyState === "open") {
+        channel.send(JSON.stringify({
+          type: "session.commentary.append",
+          event_id: `jarvis-error-${Date.now()}`,
+          delegation_id: delegationId,
+          content: "I could not reach PAMASMMA's reasoning service just now. Please repeat your request.",
+        }));
+      }
+      setVoiceStatus("Listening");
+    }
+  };
+
+  const startVoice = async () => {
+    if (voiceStarting || voiceConnected || sending) return;
+    setVoiceStarting(true);
+    setVoiceStatus("Requesting microphone permission…");
+    let conversationId = selectedId;
+
+    try {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error("Microphone access requires a supported browser and a secure HTTPS connection.");
+      }
+      if (!conversationId) {
+        const created = await jarvis.createConversation();
+        conversationId = created.conversation.id;
+        setSelectedId(conversationId);
+        setConversations((previous) => [created.conversation, ...previous]);
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
+      streamRef.current = stream;
+
+      const peer = new RTCPeerConnection();
+      peerRef.current = peer;
+      const remoteAudio = new Audio();
+      remoteAudio.autoplay = true;
+      remoteAudio.playsInline = true;
+      audioRef.current = remoteAudio;
+      peer.ontrack = (event) => {
+        if (event.streams[0]) {
+          remoteAudio.srcObject = event.streams[0];
+          void remoteAudio.play().catch(() => {
+            setVoiceStatus("Tap the page once to enable speaker playback.");
+          });
+        }
+      };
+      stream.getTracks().forEach((track) => peer.addTrack(track, stream));
+
+      const dataChannel = peer.createDataChannel("oai-events");
+      channelRef.current = dataChannel;
+      transcriptSegmentsRef.current = [];
+      handledDelegationsRef.current = new Set();
+
+      dataChannel.onopen = () => {
+        setVoiceConnected(true);
+        setVoiceStarting(false);
+        setVoiceStatus("Listening · microphone active");
+      };
+      dataChannel.onclose = () => {
+        setVoiceConnected(false);
+        setVoiceStatus("Voice connection closed");
+      };
+      dataChannel.onerror = () => {
+        setVoiceStatus("Voice data channel error");
+      };
+      dataChannel.onmessage = (messageEvent) => {
+        let event: Record<string, unknown>;
+        try {
+          event = JSON.parse(String(messageEvent.data)) as Record<string, unknown>;
+        } catch {
+          return;
+        }
+
+        if (event.type === "session.input_transcript.delta" && typeof event.delta === "string") {
+          transcriptSegmentsRef.current.push({
+            endMs: typeof event.end_ms === "number" ? event.end_ms : Number.POSITIVE_INFINITY,
+            text: event.delta,
+          });
+          return;
+        }
+
+        if (event.type === "session.delegation.created") {
+          const delegation = event.delegation as { id?: string; target?: string } | undefined;
+          const delegationId = delegation?.id;
+          if (!delegationId || delegation.target !== "client" || handledDelegationsRef.current.has(delegationId)) return;
+          handledDelegationsRef.current.add(delegationId);
+
+          const offsetMs = typeof event.offset_ms === "number" ? event.offset_ms : Number.POSITIVE_INFINITY;
+          const eligible = transcriptSegmentsRef.current.filter((segment) => segment.endMs <= offsetMs);
+          const transcript = eligible.map((segment) => segment.text).join("").trim();
+          transcriptSegmentsRef.current = transcriptSegmentsRef.current.filter((segment) => segment.endMs > offsetMs);
+
+          if (!transcript) {
+            if (dataChannel.readyState === "open") {
+              dataChannel.send(JSON.stringify({
+                type: "session.commentary.append",
+                event_id: `jarvis-empty-${Date.now()}`,
+                delegation_id: delegationId,
+                content: "I did not receive a clear transcript. Please say that again.",
+              }));
+            }
+            return;
+          }
+
+          setVoiceStatus("Working · " + transcript.slice(0, 44));
+          void sendDelegatedTurn(conversationId as string, delegationId, transcript, dataChannel);
+          return;
+        }
+
+        if (event.type === "session.closed") {
+          cleanupVoice();
+          return;
+        }
+
+        if (event.type === "error") {
+          const detail = event.error as { message?: string } | undefined;
+          setVoiceStatus(detail?.message ?? "Voice session reported an error");
+        }
+      };
+
+      peer.onconnectionstatechange = () => {
+        if (peer.connectionState === "failed" || peer.connectionState === "closed") {
+          setVoiceStatus("Voice connection lost");
+          cleanupVoice();
+        }
+      };
+
+      setVoiceStatus("Negotiating secure audio…");
+      const offer = await peer.createOffer();
+      await peer.setLocalDescription(offer);
+      await waitForIceGathering(peer);
+      const localSdp = peer.localDescription?.sdp;
+      if (!localSdp) throw new Error("Could not create the WebRTC offer.");
+
+      const liveSession = await jarvis.createVoiceSession(conversationId, localSdp);
+      await peer.setRemoteDescription({ type: "answer", sdp: liveSession.sdp });
+      setVoiceStatus("Connecting to JARVIS voice…");
+    } catch (error) {
+      cleanupVoice();
+      toast.error(error instanceof Error ? error.message : "Could not start JARVIS voice.");
+    } finally {
+      setVoiceStarting(false);
+    }
+  };
+
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const content = draft.trim();
-    if (!content || sending) return;
+    if (!content || sending || voiceConnected || voiceStarting) return;
 
     setSending(true);
     setDraft("");
@@ -113,10 +379,16 @@ export default function JarvisPage() {
         confidence: result.cognition.confidence,
         evidence_status: result.cognition.evidence_status,
       });
+      const now = new Date().toISOString();
       setConversations((previous) =>
         previous.map((item) =>
           item.id === conversationId
-            ? { ...item, title: item.title === "New conversation" ? content.slice(0, 80) : item.title, last_message_at: new Date().toISOString(), updated_at: new Date().toISOString() }
+            ? {
+                ...item,
+                title: item.title === "New conversation" ? content.slice(0, 80) : item.title,
+                last_message_at: now,
+                updated_at: now,
+              }
             : item,
         ),
       );
@@ -155,7 +427,7 @@ export default function JarvisPage() {
           <button
             type="button"
             onClick={() => void newConversation()}
-            disabled={sending}
+            disabled={sending || voiceConnected || voiceStarting}
             className="w-full rounded-lg border border-[#66502A] bg-[#211B12] px-3 py-3 text-left text-xs font-semibold tracking-wide text-[#E7C56B] transition hover:bg-[#302515] disabled:opacity-40"
           >
             <span className="max-md:hidden">＋ NEW CONVERSATION</span>
@@ -173,7 +445,7 @@ export default function JarvisPage() {
               key={conversation.id}
               type="button"
               onClick={() => void openConversation(conversation.id)}
-              disabled={sending}
+              disabled={sending || voiceConnected || voiceStarting}
               aria-current={selectedId === conversation.id ? "page" : undefined}
               title={conversation.title}
               className={`mb-1 w-full rounded-lg px-3 py-3 text-left text-xs transition disabled:opacity-50 ${selectedId === conversation.id ? "border border-[#57452A] bg-[#19150F] text-[#E9D49B]" : "border border-transparent text-[#9696B8] hover:bg-[#101027]"}`}
@@ -199,7 +471,7 @@ export default function JarvisPage() {
           </div>
           <div className="text-right">
             <p className="font-mono text-[9px] tracking-widest text-[#71CDA2]">CORE ONLINE</p>
-            <p className="mt-1 text-[9px] text-[#66668D]">TEXT MODE · VOICE IN PHASE 2</p>
+            <p className="mt-1 text-[9px] text-[#66668D]">{voiceConnected ? voiceStatus.toUpperCase() : "TEXT MODE · VOICE READY WHEN API KEY IS SET"}</p>
           </div>
         </header>
 
@@ -209,7 +481,7 @@ export default function JarvisPage() {
               <div className="mx-auto grid h-20 w-20 place-items-center rounded-full border border-[#78613A] bg-[#19150F] text-3xl text-[#D4AF37] shadow-[0_0_60px_rgba(212,175,55,0.12)]">⬡</div>
               <p className="mt-6 font-mono text-[10px] tracking-[0.3em] text-[#D4AF37]">JARVIS · PAMASMMA</p>
               <h3 className="mt-3 text-2xl font-light text-[#F0F0F8]">At your service.</h3>
-              <p className="mx-auto mt-3 max-w-md text-sm leading-7 text-[#8585A8]">I can help you reason, plan, analyze and coordinate your PAMASMMA work. My current core is text-based; voice and governed actions are being built in subsequent phases.</p>
+              <p className="mx-auto mt-3 max-w-md text-sm leading-7 text-[#8585A8]">I can help you reason, plan, analyze and coordinate your PAMASMMA work. Speak naturally or type; substantive voice requests are delegated to PAMASMMA's CognitiveEngine.</p>
             </div>
           ) : (
             <div className="mx-auto flex max-w-4xl flex-col gap-5">
@@ -217,6 +489,7 @@ export default function JarvisPage() {
                 <div key={message.id} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
                   <div className={`max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-7 whitespace-pre-wrap ${message.role === "user" ? "rounded-br-sm bg-[#292044] text-[#F0EAFE]" : "rounded-bl-sm border border-[#29243A] bg-[#0B0B20] text-[#D0D0EC]"}`}>
                     {message.content}
+                    {message.modality === "voice" && <span className="ml-2 font-mono text-[8px] text-[#77779A]">VOICE</span>}
                   </div>
                 </div>
               ))}
@@ -249,27 +522,30 @@ export default function JarvisPage() {
               }}
               rows={2}
               maxLength={12000}
-              placeholder="Talk to JARVIS about PAMASMMA…"
+              placeholder={voiceConnected ? "Voice conversation active…" : "Talk to JARVIS about PAMASMMA…"}
               aria-label="Message JARVIS"
-              disabled={sending}
+              disabled={sending || voiceConnected || voiceStarting}
               className="min-h-[54px] flex-1 resize-y rounded-xl border border-[#292943] bg-[#0C0C22] px-4 py-3 text-sm leading-6 text-[#E0E0F0] outline-none placeholder:text-[#55557C] focus:border-[#8C7040] disabled:opacity-50"
             />
             <button
               type="button"
-              disabled
-              title="Voice interaction is scheduled for Phase 2."
-              aria-label="Voice interaction coming in Phase 2"
-              className="grid h-[54px] w-[48px] shrink-0 place-items-center rounded-xl border border-[#292943] bg-[#101027] text-lg text-[#55557C]"
-            >◖</button>
+              onClick={() => voiceConnected ? stopVoice() : void startVoice()}
+              disabled={voiceStarting || sending}
+              title={voiceConnected ? "Close voice session" : "Start a private voice conversation"}
+              aria-label={voiceConnected ? "Stop voice conversation" : "Start voice conversation"}
+              className={`grid h-[54px] min-w-[72px] shrink-0 place-items-center rounded-xl border px-3 text-[10px] font-semibold tracking-wider transition disabled:opacity-40 ${voiceConnected ? "border-[#8D3C45] bg-[#32161B] text-[#F0B6BE]" : "border-[#66502A] bg-[#211B12] text-[#E7C56B] hover:bg-[#302515]"}`}
+            >
+              {voiceStarting ? "…" : voiceConnected ? "STOP" : "MIC"}
+            </button>
             <button
               type="submit"
-              disabled={sending || !draft.trim()}
+              disabled={sending || !draft.trim() || voiceConnected || voiceStarting}
               className="h-[54px] rounded-xl border border-[#78613A] bg-[#302515] px-5 text-xs font-semibold tracking-wider text-[#E9D49B] transition hover:bg-[#40321C] disabled:cursor-not-allowed disabled:opacity-40"
             >
               {sending ? "…" : "SEND"}
             </button>
           </div>
-          <p className="mx-auto mt-2 max-w-4xl font-mono text-[8px] tracking-wider text-[#4F4F73]">ENTER TO SEND · SHIFT + ENTER FOR NEW LINE · CONVERSATIONS SAVED TO PAMASMMA</p>
+          <p className="mx-auto mt-2 max-w-4xl font-mono text-[8px] tracking-wider text-[#4F4F73]">{voiceConnected ? voiceStatus.toUpperCase() : "ENTER TO SEND · SHIFT + ENTER FOR NEW LINE · CONVERSATIONS SAVED TO PAMASMMA"}</p>
         </form>
       </section>
     </main>
