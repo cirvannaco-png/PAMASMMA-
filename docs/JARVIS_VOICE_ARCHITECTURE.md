@@ -16,18 +16,18 @@ This preserves one reasoning and evidence-governance authority across text and v
 3. The browser creates an SDP offer and sends it to `POST /api/v1/jarvis/conversations/{conversation_id}/voice-sessions`.
 4. The PAMASMMA backend verifies conversation ownership and sends the offer to `POST /v1/live/sessions` using the server-side `OPENAI_API_KEY`.
 5. The Live session is configured with `gpt-live-1.1`, client delegation, `vesper` voice, bounded recent text history and `store: false`. The backend sends a stable privacy-preserving JARVIS user hash in `OpenAI-Safety-Identifier` and restricts the untrusted browser data channel to transcript/delegation events, commentary append and session close.
-6. The backend returns only the Live session ID and SDP answer. The API key never reaches the browser.
+6. Before exposing the SDP answer, the backend registers the provider session ID, owner, conversation, model, status and a one-hour server-side expiry in PostgreSQL. A matching usage-ledger row is created in `awaiting_provider` state. If registration fails, the SDP answer is not exposed to the browser. The API key never reaches the browser.
 
 ## Client delegation lifecycle
 
 1. Browser receives `session.input_transcript.delta` events and retains timestamped transcript fragments in memory.
 2. On `session.delegation.created`, the browser uses the delegation offset to assemble the matching utterance.
 3. The browser sends the delegation ID and transcript to the authenticated PAMASMMA voice-delegation endpoint.
-4. PAMASMMA verifies conversation ownership, acquires the same database-backed turn lease used by text, stores the user message with modality `voice`, and invokes the JARVIS adapter over the existing CognitiveEngine.
+4. PAMASMMA verifies conversation ownership and requires an active, unexpired server-registered voice session. It claims the delegation ID in PostgreSQL before cognitive work, hashing the transcript rather than retaining a second copy. A duplicate with the same transcript returns the cached completed response; reuse with a different transcript is rejected; concurrent processing is rejected. Stale processing claims can be recovered after the five-minute lease window. The same database-backed turn lease used by text protects the conversation.
 5. The CognitiveEngine's decision, scoped memory/beliefs/world model and evidence governance remain authoritative.
-6. PAMASMMA persists the assistant response with modality `voice` and returns it to the browser.
+6. PAMASMMA persists the assistant response with modality `voice`. The assistant message and completed delegation response cache are committed in one database transaction, so a completed retry cannot run cognition a second time.
 7. The browser sends `session.commentary.append` with the matching delegation ID so GPT-Live can speak the backend result.
-8. On user stop, the browser sends `session.close`, waits for `session.closed` where possible, then releases the peer connection and microphone tracks. If the data channel closes before the final event, usage is unconfirmed.
+8. On user stop, the browser sends `session.close`, waits for `session.closed` where possible, then calls the authenticated session-close endpoint and releases the peer connection and microphone tracks. If the data channel or browser disappears first, the server-side one-hour expiry prevents the stale session from authorizing new delegations indefinitely.
 
 ## Privacy and security
 
@@ -46,13 +46,13 @@ This preserves one reasoning and evidence-governance authority across text and v
 
 The first voice path is functional code, but it is not yet production-certified:
 
-1. Live session IDs are currently held by the browser and are not registered in a durable PAMASMMA voice-session table.
-2. Delegation IDs are deduplicated in the active browser session but are not yet protected by a durable server-side idempotency record.
-3. Final Live session usage and cost are not yet recorded in PAMASMMA's usage ledger.
-4. Provider outage, interrupted WebRTC, delayed transcript and duplicate delegation behaviour need automated integration tests.
+1. Durable session registration and owner-scoped close are implemented. Server expiry is one hour; provider-side expiry and revocation semantics still need live-account verification.
+2. Durable delegation idempotency is implemented with transcript-hash conflict detection, cached completed responses, concurrent-request rejection, stale-claim recovery, and atomic assistant-message/cache commit.
+3. The PostgreSQL usage ledger creates one row per voice session, but rows remain `awaiting_provider`. Trusted final provider usage capture, token reconciliation and cost calculation are not implemented; do not infer costs from browser telemetry.
+4. Provider outage, interrupted WebRTC, delayed transcript and concurrent duplicate delegation need live-provider integration tests.
 5. Physical Android microphone, speaker, Bluetooth, screen-lock and network-handoff QA remains required.
 6. The voice provider account must have GPT-Live access and a valid server-side `OPENAI_API_KEY`.
-7. The browser's client-delegation event bridge is appropriate while JARVIS has no external action tools. When governed tools are introduced, move delegation handling to a server-side sideband connection so tool execution never depends on a client event handler.
+7. The browser's client-delegation event bridge is acceptable only while JARVIS has no external action tools. Before governed tools are introduced, move delegation handling to a server-side sideband connection so tool execution never depends on a client event handler.
 
 ## Acceptance criteria
 
@@ -62,7 +62,7 @@ The first voice path is functional code, but it is not yet production-certified:
 - Provider errors return a sanitized error and do not expose provider payloads or keys.
 - Microphone permission denial leaves text chat usable.
 - Voice transcripts and assistant results survive page reloads.
-- Duplicate/late delegation events cannot create duplicate actions; durable idempotency must be implemented before tool execution.
+- Repeated completed delegation IDs with the same transcript return the original stored result; different transcript reuse is rejected; concurrent processing is rejected.
 - Session close releases microphone tracks and the peer connection.
 - No raw audio is persisted by PAMASMMA or stored by the Live session.
-- Android device QA and usage/cost telemetry pass before production enablement.
+- A trusted provider usage source populates the usage ledger before cost reporting; Android device QA passes before production enablement.
