@@ -1,7 +1,13 @@
 """Regression tests for JARVIS identity, memory isolation and persistence policy."""
+from types import SimpleNamespace
+from typing import cast
+from uuid import uuid4
+
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
+import app.jarvis.router as jarvis_router
 from app.auth.dependencies import get_current_user
 from app.intelligence.context import ContextAssembler
 from app.jarvis.scope import jarvis_memory_scope
@@ -57,14 +63,6 @@ async def test_jarvis_fails_closed_when_persistence_is_ephemeral(app, client: As
 
 @pytest.mark.asyncio
 async def test_live_voice_session_is_server_authenticated_and_event_scoped(monkeypatch):
-    from types import SimpleNamespace
-    from uuid import uuid4
-    from typing import cast
-
-    from sqlalchemy.ext.asyncio import AsyncSession
-
-    import app.jarvis.router as jarvis_router
-
     captured = {}
 
     class FakeResponse:
@@ -130,5 +128,7 @@ async def test_live_voice_session_is_server_authenticated_and_event_scoped(monke
         "session.commentary.append",
         "session.close",
     ]
-    assert {"type": "session.delegation.created"} in session["client"]["data_channel"]["allowed_server_events"]
+    assert {
+        "type": "session.delegation.created"
+    } in session["client"]["data_channel"]["allowed_server_events"]
     assert "server-only-test-key" not in str(result)
